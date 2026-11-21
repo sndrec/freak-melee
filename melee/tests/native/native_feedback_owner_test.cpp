@@ -60,20 +60,26 @@ namespace aurora::rmlui {
 Rml::Context* get_context() noexcept { return nullptr; }
 void handle_event(SDL_Event&) noexcept {}
 }
-bool aurora_capture_presented(const char* path,bool,AuroraPresentedCapture* output) {
+bool aurora_capture_presented(bool,AuroraPresentedCapture* output) {
     if (!accept_picture) return false;
-    picture={};picture.capture_id=1;picture.displayed_frame=42;picture.presented_at_ns=100;
+    static uint64_t sequence;
+    picture={};picture.capture_id=++sequence;picture.displayed_frame=42;picture.presented_at_ns=100;
     picture.width=640;picture.height=480;picture.status=picture_pending?AURORA_CAPTURE_PENDING:AURORA_CAPTURE_READY;*output=picture;
-    FILE* file=std::fopen(path,"wb");if (file) {std::fputs("owned image bytes",file);std::fclose(file);}
     return true;
 }
 void aurora_presented_capture_status(AuroraPresentedCapture* output) { *output=picture; }
-void aurora_release_presented_capture() { ++releases; }
+void aurora_release_presented_capture(uint64_t id) { if (id == picture.capture_id) ++releases; }
+const void* aurora_presented_png(uint64_t id, size_t* size) {
+    *size = 0;
+    if (id != picture.capture_id || picture.status != AURORA_CAPTURE_READY) return nullptr;
+    *size = sizeof("owned image bytes") - 1;
+    return "owned image bytes";
+}
 void aurora_set_capture_backdrop(bool) {}
-bool aurora_write_presented_capture(const char*) { return false; }
+bool aurora_retry_presented_capture(uint64_t) { return false; }
 const char* nativeHubCatalog_Root(char*) { return root.c_str(); }
-extern "C" bool nativeFeedbackContext_Write(const char* path,const char*,const char*,const AuroraPresentedCapture*,const NativeFeedbackInterface*) {
-    ++collections;if (block_context) CreateDirectoryA(path,nullptr);return false;
+extern "C" char* nativeFeedbackContext_Collect(const char* id,const char*,const AuroraPresentedCapture*,const NativeFeedbackInterface*,size_t*) {
+    ++collections;if (block_context) CreateDirectoryA((root+"/feedback/"+id+".context.json").c_str(),nullptr);return nullptr;
 }
 extern "C" bool nativeFeedbackContext_Online(void) { return false; }
 extern "C" void nativeFeedbackInput_SetOpen(bool) {}
@@ -125,13 +131,21 @@ int main(int argc,char** argv)
     CHECK(uploads==1 && collections==1);
     const auto original=read(request.context), metadata=read(request.metadata);
     CHECK(partial(original));CHECK(metadata.find("\"context_complete\":false")!=std::string::npos);
+    CHECK(request.context_bytes && *request.context_bytes==original);
+    CHECK(request.notes_bytes && *request.notes_bytes==metadata);
+    CHECK(request.image_bytes && *request.image_bytes=="owned image bytes");
     std::snprintf(receipt.id,sizeof(receipt.id),"%s",draft->id);
     receipt.revision=1;receipt_ready=true;std::snprintf(receipt.error,sizeof(receipt.error),"Retry this test upload.");
     nativeFeedback_Update();CHECK(status.find("Retry this test")!=std::string::npos);
     action=NativeFeedbackAction::Retry;nativeFeedback_Update();
     CHECK(uploads==2 && collections==1 && read(request.context)==original && read(request.metadata)==metadata);
+    std::string moved=std::string(request.image)+".saved";
+    std::filesystem::rename(request.image,moved);
+    std::ofstream(request.image,std::ios::binary)<<"another image";
     receipt.revision=2;receipt.stored=true;receipt_ready=true;nativeFeedback_Update();
     CHECK(!std::filesystem::exists(request.context) && !std::filesystem::exists(request.metadata));
+    CHECK(read(request.image)=="another image" && read(moved.c_str())=="owned image bytes");
+    std::filesystem::remove(request.image);std::filesystem::remove(moved);
     action=NativeFeedbackAction::Close;nativeFeedback_Update();CHECK(!shown && !nativeFeedback_IsOpen());
     // Agent reports share the F2 owner, capture-time fallback and uploader.
     auto invoke = [&](const char* method, const std::string& arguments, bool expected = true) {
@@ -159,11 +173,19 @@ int main(int argc,char** argv)
     CHECK(collections == captures);
     const std::string selected = "{\"report_id\":\"" + report_id + "\"}";
     CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos);
+    CHECK(request.context_bytes && *request.context_bytes==read(report_context.c_str()));
+    CHECK(request.notes_bytes && *request.notes_bytes==read(report_notes.c_str()));
+    CHECK(request.image_bytes && *request.image_bytes=="owned image bytes");
     const auto agent_uploads = uploads;
     CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos && uploads == agent_uploads);
     receipt = {}; std::snprintf(receipt.id, sizeof(receipt.id), "%s", report_id.c_str());
     receipt.revision = 3; std::snprintf(receipt.error, sizeof(receipt.error), "Retry test"); receipt_ready = true;
     CHECK(invoke("feedback.status", selected).find("retry") != std::string::npos);
+    const std::string saved_notes = *request.notes_bytes;
+    std::ofstream(report_notes, std::ios::binary) << "edited note";
+    CHECK(invoke("feedback.submit", selected, false).find("capture_changed") != std::string::npos);
+    CHECK(uploads == agent_uploads && *request.notes_bytes == saved_notes);
+    std::ofstream(report_notes, std::ios::binary) << saved_notes;
     CHECK(invoke("feedback.submit", selected).find("sending") != std::string::npos && uploads == agent_uploads + 1);
     receipt.revision = 4; receipt.stored = true; receipt_ready = true;
     CHECK(invoke("feedback.status", selected).find("\"stored\":true") != std::string::npos);

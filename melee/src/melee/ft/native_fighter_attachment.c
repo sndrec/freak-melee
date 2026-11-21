@@ -39,11 +39,9 @@ bool nativeFighterAttachment_Load(Fighter_GObj* gobj, unsigned slot,
 {
     Fighter* fighter = gobj->user_data;
     FtCostumeAssets* assets = costume_assets(fighter);
-    u32 offset;
     if (slot >= NATIVE_FIGHTER_ATTACHMENTS || assets == NULL ||
         bone >= ftPartsTable[fighter->kind]->parts_num ||
-        fighter->native_attachments[slot].joint != NULL ||
-        !HSD_DatFindRoot(&assets->dat, root, &offset)) return false;
+        fighter->native_attachments[slot].joint != NULL) return false;
     FtPartsDesc* visibility = NULL;
     if (visibility_entry >= 0) {
         if (visibility_entry >= FT_CHARACTER_ITEM_CAPACITY || fighter->ft_data->x48_items == NULL)
@@ -52,8 +50,8 @@ bool nativeFighterAttachment_Load(Fighter_GObj* gobj, unsigned slot,
         if (visibility == NULL || costume >= visibility->costume_count)
             return false;
     }
-    HSD_Joint* descriptor = HSD_DatImportGraph(&assets->import, offset, DAT_JOINT);
-    if (descriptor == NULL) return false;
+    HSD_Joint* descriptor = ftCostumeAssets_LoadAttachment(assets, root);
+    if (!descriptor) return false;
     NativeFighterAttachment* attachment = &fighter->native_attachments[slot];
     ftPartsPObjSetDefaultClass();
     attachment->joint = HSD_JObjLoadJoint(descriptor);

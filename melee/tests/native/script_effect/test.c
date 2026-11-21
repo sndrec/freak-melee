@@ -287,7 +287,8 @@ int main(void)
  unsigned freed=effect_frees;effect_fail_model_at=effect_models+2;CHECK(nativeScriptEffect_Spawn(&c,owner(3),false,0,false,&diagnostic)==NativeScriptVM_Error&&effect_frees==freed+2&&!nativeScriptEffect_HasActors(Ft_Kind_Mario));effect_fail_model_at=0;++cases;
  for(unsigned cycle=0;cycle<1024;++cycle){effect=spawn(0);HSD_GObj_80390CFC();CHECK(nativeScriptEffect_Status(effect)==NativeScriptVM_Ok);HSD_GObjFree(effect);CHECK(!nativeScriptEffect_HasActors(Ft_Kind_Mario));}++cases;
  for(unsigned count=0;count<NATIVE_SCRIPT_EFFECT_ACTORS;++count)spawn(2);CHECK(nativeScriptEffect_Save(packed,sizeof(packed),&bytes));CHECK(((NativeScriptEffectSnapshotHeader*)packed)->count==NATIVE_SCRIPT_EFFECT_ACTORS);
- CHECK(nativeScriptEffect_Spawn(&c,owner(2),false,0,false,&diagnostic)==NativeScriptVM_Error);++cases;
+ CHECK(nativeScriptEffect_Spawn(&c,owner(2),false,0,false,&diagnostic)==NativeScriptVM_Ok);
+ CHECK(nativeScriptEffect_Save(second,sizeof(second),&copied)&&bytes==copied&&!memcmp(packed,second,bytes));++cases;
  while(HSD_GObjPLinkHead[HSD_GOBJ_PLINK_EFFECT_UNK0])HSD_GObjFree(HSD_GObjPLinkHead[HSD_GOBJ_PLINK_EFFECT_UNK0]);
  CHECK(nativeScriptEffect_Save(second,sizeof(second),&copied)&&copied==sizeof(NativeScriptEffectSnapshotHeader));CHECK(!nativeScriptEffect_Load(packed,bytes));++cases;
  effect=spawn(4);root=effect->hsd_obj;HSD_GObj_80390CFC();

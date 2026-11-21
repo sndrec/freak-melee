@@ -1,4 +1,5 @@
 #include "native_fighter_gltf_import.h"
+#include "native_fighter_gltf_source.h"
 
 #include "native_asset_dat.h"
 #include "native_fighter_costume_compact.h"
@@ -38,7 +39,6 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <limits>
 #include <memory>
 #include <new>
@@ -52,23 +52,6 @@ void fail(char* error, size_t capacity, const char* message)
 {
     if (error && capacity) std::snprintf(error, capacity, "%s", message);
 }
-
-struct Source {
-    cgltf_data* data = nullptr;
-    ~Source() { cgltf_free(data); }
-    bool open(const char* path, char* error, size_t capacity)
-    {
-        cgltf_options options = {};
-        if (!path || cgltf_parse_file(&options, path, &data) !=
-                         cgltf_result_success ||
-            cgltf_load_buffers(&options, data, path) != cgltf_result_success ||
-            cgltf_validate(data) != cgltf_result_success) {
-            fail(error, capacity, "Could not parse this glTF/GLB and its buffers.");
-            return false;
-        }
-        return true;
-    }
-};
 
 struct Primitive {
     const cgltf_mesh* owner = nullptr;
@@ -84,21 +67,16 @@ bool find_primitive(const cgltf_data* data, unsigned wanted, Primitive* out,
     // A mesh can be instanced by multiple scene nodes. Import each source
     // primitive once, using its first node's placement as the starting pose.
     for (cgltf_size mesh = 0; mesh < data->meshes_count; ++mesh) {
-        const cgltf_node* node = nullptr;
-        for (cgltf_size n = 0; n < data->nodes_count; ++n)
-            if (data->nodes[n].mesh == &data->meshes[mesh]) {
-                node = &data->nodes[n];
-                break;
-            }
-        for (cgltf_size p = 0; p < data->meshes[mesh].primitives_count; ++p) {
-            if (cursor == wanted && out) {
-                out->owner = &data->meshes[mesh];
-                out->mesh = &data->meshes[mesh].primitives[p];
-                out->node = node;
-                out->name = data->meshes[mesh].name;
-            }
-            ++cursor;
+        const auto& owner = data->meshes[mesh];
+        if (out && wanted >= cursor && wanted - cursor < owner.primitives_count) {
+            out->owner = &owner;
+            out->mesh = &owner.primitives[wanted - cursor];
+            out->name = owner.name;
+            for (cgltf_size n = 0; n < data->nodes_count; ++n)
+                if (data->nodes[n].mesh == &owner) { out->node = &data->nodes[n]; break; }
+            if (!count) return true;
         }
+        cursor += static_cast<unsigned>(owner.primitives_count);
     }
     if (count) *count = cursor;
     return wanted < cursor;
@@ -662,64 +640,6 @@ bool encode_geometry(const Primitive& primitive, NativeAssetDat* dat,
     return flush() && *polygon && (vertices<=65536 || nativeMeshVertexIds_Write(*dat,vertex_ids));
 }
 
-bool load_image_bytes(const char* source_path, const cgltf_image* image,
-                      std::vector<uint8_t>* output,
-                      char* error, size_t error_size)
-{
-    if (image->buffer_view) {
-        const cgltf_buffer_view* view = image->buffer_view;
-        if (!view->buffer || !view->buffer->data ||
-            view->size > 8 * 1024 * 1024) return false;
-        const uint8_t* bytes = static_cast<const uint8_t*>(
-            view->buffer->data) + view->offset;
-        output->assign(bytes, bytes + view->size);
-        return true;
-    }
-    if (!image->uri) return false;
-    if (std::strncmp(image->uri, "data:", 5) == 0) {
-        const char* comma = std::strchr(image->uri, ',');
-        if (!comma || std::string(image->uri, (size_t) (comma - image->uri))
-                          .find(";base64") ==
-                          std::string::npos) return false;
-        const char* encoded = comma + 1;
-        const size_t length = std::strlen(encoded);
-        if (length % 4 || length > 12 * 1024 * 1024) return false;
-        const size_t padding = (length && encoded[length - 1] == '=') +
-            (length > 1 && encoded[length - 2] == '=');
-        const size_t size = length / 4 * 3 - padding;
-        void* decoded = nullptr;
-        cgltf_options options = {};
-        if (cgltf_load_buffer_base64(&options, size, encoded, &decoded) !=
-            cgltf_result_success) return false;
-        output->assign(static_cast<uint8_t*>(decoded),
-                       static_cast<uint8_t*>(decoded) + size);
-        std::free(decoded);
-        return true;
-    }
-    std::string decoded_uri = image->uri;
-    cgltf_decode_uri(decoded_uri.data());
-    decoded_uri.resize(std::strlen(decoded_uri.c_str()));
-    const std::filesystem::path path =
-        std::filesystem::path(source_path).parent_path() / decoded_uri;
-    FILE* file = std::fopen(path.string().c_str(), "rb");
-    if (!file) {
-        fail(error, error_size, "Could not open an external glTF texture.");
-        return false;
-    }
-    std::fseek(file, 0, SEEK_END);
-    const long size = std::ftell(file);
-    std::rewind(file);
-    if (size <= 0 || size > 8 * 1024 * 1024) {
-        std::fclose(file);
-        return false;
-    }
-    output->resize((size_t) size);
-    const bool read = std::fread(output->data(), 1, output->size(), file) ==
-                      output->size();
-    std::fclose(file);
-    return read;
-}
-
 bool encode_texture_bytes(const uint8_t* bytes, size_t byte_count,
                           cgltf_wrap_mode wrap_s, cgltf_wrap_mode wrap_t,
                           NativeAssetDat* dat, uint32_t* tobj, char* error,
@@ -772,8 +692,7 @@ bool encode_texture(const char* source_path, const cgltf_texture* texture,
 {
     if (!texture || !texture->image) return false;
     std::vector<uint8_t> encoded;
-    if (!load_image_bytes(source_path, texture->image, &encoded,
-                          error, error_size) || encoded.empty()) {
+    if (!nativeGltf_ReadImage(source_path, *texture->image, encoded) || encoded.empty()) {
         fail(error, error_size, "Could not read the glTF base-color texture.");
         return false;
     }
@@ -844,7 +763,7 @@ bool nativeFighterGltf_Scan(const char* path, NativeGltfScan* scan,
 {
     if (!scan) return false;
     *scan = {};
-    Source source;
+    NativeGltfSource source;
     if (!source.open(path, error, error_size)) return false;
     unsigned count = 0;
     find_primitive(source.data, 0, nullptr, &count);
@@ -1116,7 +1035,7 @@ bool nativeFighterGltf_ApplyBatch(NativeFighterProject* project,
     {
         return false;
     }
-    Source source;
+    NativeGltfSource source;
     if (!source.open(path, error, error_size)) {
         return false;
     }

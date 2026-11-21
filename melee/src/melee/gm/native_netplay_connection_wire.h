@@ -11,13 +11,20 @@
 typedef enum NativeConnectionMessageType {
     NativeConnectionMessage_GameDescription = 1,
     NativeConnectionMessage_ContentDescription,
-    NativeConnectionMessage_Control
+    NativeConnectionMessage_Control,
+    NativeConnectionMessage_GameHello
 } NativeConnectionMessageType;
+typedef struct NativeRouteGeneration {
+    uint64_t revision;
+    uint32_t attempt;
+} NativeRouteGeneration;
+enum { NATIVE_GAME_SIGNAL_HEADER_BYTES = 32 };
 typedef struct NativeConnectionMessage {
     const uint8_t* payload;
     size_t size;
     uint32_t serial;
     NativeConnectionMessageType type;
+    NativeRouteGeneration sender, recipient;
     bool sender_owns_transfer;
 } NativeConnectionMessage;
 size_t nativeNetplayConnectionWire_EncodeControl(const uint8_t* bytes,
@@ -29,12 +36,9 @@ size_t nativeNetplayConnectionWire_EncodeContentDescription(
 bool nativeNetplayConnectionWire_DecodeMessage(
     const uint8_t* bytes, size_t size, NativeConnectionMessage* result);
 
-size_t nativeNetplayConnectionWire_EncodeDescription(const char* description,
-                                                     uint8_t* output,
-                                                     size_t output_capacity);
-bool nativeNetplayConnectionWire_DecodeDescription(
-    const uint8_t* message, size_t message_size, char* description,
-    size_t description_capacity);
+// A null description announces a generation. An SDP describes a specific pair.
+size_t nativeNetplayConnectionWire_EncodeGameRoute(NativeRouteGeneration sender,
+    NativeRouteGeneration recipient, const char* description, uint8_t* output, size_t capacity);
 
 #endif
 #endif

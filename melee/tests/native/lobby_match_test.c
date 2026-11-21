@@ -106,6 +106,14 @@ int main(void)
     bytes[size] = 0;
     assert(!nativeLobbyMatch_Decode(&decoded, bytes, size + 1));
 
+    NativeLobbyMatch renamed = original;
+    strcpy(renamed.peers[1].peer_id, "peer_two_returned");
+    size_t renamed_size = nativeLobbyMatch_Encode(&renamed, encoded_again, sizeof(encoded_again));
+    assert(renamed_size && nativeLobbyMatch_Decode(&decoded, encoded_again, renamed_size));
+    encoded_again[renamed_size - strlen("_returned")] = 0;
+    assert(!nativeLobbyMatch_Decode(&decoded, encoded_again, renamed_size));
+    assert(strcmp(decoded.peers[1].peer_id, "peer_two_returned") == 0);
+
     NativeLobbyMatch invalid = original;
     invalid.sd_penalty=3;
     assert(!nativeLobbyMatch_Validate(&invalid));

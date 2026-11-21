@@ -197,10 +197,16 @@ bool nativeHubRules_Activate(HubAction action,int value)
     if (action==HubAction::Rules) { nativeHubRules_Open(); return true; }
     if (!nativeHubRules_Page(hub.page)) return false;
     if (action==HubAction::Back) {
-        if (hub.page==NativeHubPage_LobbyRules) change_page(NativeHubPage_AdditionalRules,true);
-        else if (hub.page!=NativeHubPage_MatchRules) change_page(NativeHubPage_MatchRules,true);
-        else if (from_css) { nativeHub_ChangePage(return_page,true); nativeHub_Activate(HubAction::Selection,0); }
-        else nativeHub_ChangePage(return_page,true);
+        if (from_css) {
+            nativeHub_ChangePage(return_page,true);
+            nativeHub_Activate(HubAction::Selection,0);
+        } else if (hub.page==NativeHubPage_LobbyRules) {
+            change_page(NativeHubPage_AdditionalRules,true);
+        } else if (hub.page!=NativeHubPage_MatchRules) {
+            change_page(NativeHubPage_MatchRules,true);
+        } else {
+            nativeHub_ChangePage(return_page,true);
+        }
         return true;
     }
     if (action<HubAction::RuleAdjust || action>HubAction::RuleLobbyPasswordSave) return false;

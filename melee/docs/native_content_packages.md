@@ -1,4 +1,20 @@
-# Outfit packages
+# Fighter and outfit packages
+
+An `.fmc` file can be up to 12 MiB. The Workshop compresses a fighter's
+assets and scripts losslessly when its package needs to fit under that limit.
+A fighter package can contain up to 32 MiB of uncompressed data in total,
+including both members of a paired fighter. Rebuild larger fighters from their
+Workshop drafts before sharing them. The fighter ID changes when its package
+bytes change, so rebuild any outfits that should accompany the updated fighter.
+
+Online play keeps up to 32 automatic fighter and outfit downloads on this
+installation. When that space fills, the next download replaces the oldest
+one that is free. A fighter or outfit selected in a lobby or in use by a
+match stays available. Accepting a gift keeps a copy in your collection,
+including the fighter that an outfit belongs to. All local players share
+these downloads.
+
+## Outfits
 
 The collection belongs to this installation. Choose a fighter on character
 select, then use X/Y to cycle its installed outfits. The player card shows the
@@ -63,9 +79,13 @@ the package structure and identity. Acceptance validates every model against the
 cached parent before adding both packages to the collection. Imports and model
 loading run at menu or scene transitions.
 
+When exporting a DAT, write pointer slots in ascending file-offset order. This
+keeps lookups fast for large models. Tables of 128 slots or fewer can use any
+order. Larger tables can contain up to 16 ascending or descending runs. An
+archive can have a combined total of 512 external symbols and linked slots.
+
 Custom outfits now carry a member directory. Rebuild earlier development custom
 outfit packets from their DATs. The stock costume packet encoding is unchanged.
-Fighter packages are unchanged.
 
 The [coordinated outfit checkpoint](native_family_outfit_checkpoint.md) records
 current local import, runtime and CSS-to-practice checks.

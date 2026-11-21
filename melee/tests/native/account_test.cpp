@@ -29,7 +29,7 @@ static int client(const char* root, const char* endpoint)
         const char* names[] = {"Refresh", "Register", "Login", "Recover", "Approve", "AddKey", "SaveProfile",
             "Logout", "RevokeSession", "RevokeAll", "RemoveKey", "RotateRecovery", "RefreshSocial", "LookupProfile",
             "SendLetter", "ReadLetter", "DeleteLetter", "ChangeFriend", "BlockPlayer", "SendInvitation", "JoinInvitation",
-            "ImportKey", "ExportKey", "ExportRecovery", "AttachLobby"};
+            "SendFighterGift", "DownloadFighterGift", "ImportKey", "ExportKey", "ExportRecovery", "AttachLobby"};
         static_assert(sizeof(names) / sizeof(*names) == unsigned(NativeAccountOperation::Count));
         unsigned operation = 0;
         for (; operation < sizeof(names) / sizeof(names[0]); ++operation)
@@ -42,6 +42,8 @@ static int client(const char* root, const char* endpoint)
         if (name) assert(nativeAccount_String(name, request.name, sizeof(request.name)));
         if (bio) assert(nativeAccount_String(bio, request.bio, sizeof(request.bio), true));
         if (target) assert(nativeAccount_String(target, request.target, sizeof(request.target)));
+        auto* fighter_hash = yyjson_obj_get(object, "fighter_hash");
+        if (fighter_hash) assert(nativeAccount_String(fighter_hash, request.fighter_hash, sizeof(request.fighter_hash)));
         auto* handle = yyjson_obj_get(object, "handle"), *subject = yyjson_obj_get(object, "subject"), *text = yyjson_obj_get(object, "text");
         auto* nonce = yyjson_obj_get(object, "nonce"), *action = yyjson_obj_get(object, "action");
         if (handle) assert(nativeAccount_String(handle, request.handle, sizeof(request.handle)));

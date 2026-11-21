@@ -7,7 +7,6 @@
 enum {
     CONNECTION_MAGIC = 0x464D4331,
     CONNECTION_VERSION = 1,
-    CONNECTION_DESCRIPTION = 1,
     CONNECTION_HEADER_BYTES = 8,
 };
 
@@ -36,52 +35,37 @@ static uint32_t read_u32_be(const uint8_t* input)
            ((uint32_t) input[2] << 8) | input[3];
 }
 
-size_t nativeNetplayConnectionWire_EncodeDescription(const char* description,
-                                                     uint8_t* output,
-                                                     size_t output_capacity)
+static void write_generation(uint8_t* out, NativeRouteGeneration generation)
 {
-    if (description == NULL || output == NULL) {
-        return 0;
-    }
-    size_t length =
-        strnlen(description, NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY);
-    if (length == 0 || length >= NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY ||
-        length > UINT16_MAX ||
-        output_capacity < CONNECTION_HEADER_BYTES + length)
-    {
-        return 0;
-    }
-    write_u32_be(output, CONNECTION_MAGIC);
-    output[4] = CONNECTION_VERSION;
-    output[5] = CONNECTION_DESCRIPTION;
-    write_u16_be(output + 6, (uint16_t) length);
-    memcpy(output + CONNECTION_HEADER_BYTES, description, length);
-    return CONNECTION_HEADER_BYTES + length;
+    write_u32_be(out, (uint32_t)(generation.revision >> 32));
+    write_u32_be(out + 4, (uint32_t)generation.revision);
+    write_u32_be(out + 8, generation.attempt);
 }
 
-bool nativeNetplayConnectionWire_DecodeDescription(const uint8_t* message,
-                                                   size_t message_size,
-                                                   char* description,
-                                                   size_t description_capacity)
+static NativeRouteGeneration read_generation(const uint8_t* bytes)
 {
-    if (message == NULL || description == NULL ||
-        message_size < CONNECTION_HEADER_BYTES ||
-        read_u32_be(message) != CONNECTION_MAGIC ||
-        message[4] != CONNECTION_VERSION ||
-        message[5] != CONNECTION_DESCRIPTION)
-    {
-        return false;
-    }
-    uint16_t length = read_u16_be(message + 6);
-    if (length == 0 || message_size != CONNECTION_HEADER_BYTES + length ||
-        description_capacity <= length ||
-        memchr(message + CONNECTION_HEADER_BYTES, '\0', length) != NULL)
-    {
-        return false;
-    }
-    memcpy(description, message + CONNECTION_HEADER_BYTES, length);
-    description[length] = '\0';
-    return true;
+    return (NativeRouteGeneration){
+        ((uint64_t)read_u32_be(bytes) << 32) | read_u32_be(bytes + 4),
+        read_u32_be(bytes + 8)
+    };
+}
+
+size_t nativeNetplayConnectionWire_EncodeGameRoute(NativeRouteGeneration sender,
+    NativeRouteGeneration recipient, const char* description, uint8_t* output, size_t capacity)
+{
+    size_t length = description ? strnlen(description, NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY) : 0;
+    if (!output || !sender.revision || !sender.attempt ||
+        (!!recipient.revision != !!recipient.attempt) ||
+        (description && (!recipient.attempt || !length || length >= NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY)) ||
+        capacity < NATIVE_GAME_SIGNAL_HEADER_BYTES + length) return 0;
+    write_u32_be(output, CONNECTION_MAGIC);
+    output[4] = CONNECTION_VERSION;
+    output[5] = description ? NativeConnectionMessage_GameDescription : NativeConnectionMessage_GameHello;
+    write_u16_be(output + 6, (uint16_t)(24 + length));
+    write_generation(output + 8, sender);
+    write_generation(output + 20, recipient);
+    if (length) memcpy(output + NATIVE_GAME_SIGNAL_HEADER_BYTES, description, length);
+    return NATIVE_GAME_SIGNAL_HEADER_BYTES + length;
 }
 
 size_t nativeNetplayConnectionWire_EncodeControl(const uint8_t* bytes,
@@ -150,7 +134,18 @@ bool nativeNetplayConnectionWire_DecodeMessage(const uint8_t* bytes,
         result->sender_owns_transfer = bytes[12];
         result->payload += 5;
         result->size -= 5;
-    } else if (result->type != NativeConnectionMessage_GameDescription) {
+    } else if (result->type == NativeConnectionMessage_GameHello ||
+               result->type == NativeConnectionMessage_GameDescription) {
+        if (size < NATIVE_GAME_SIGNAL_HEADER_BYTES) return false;
+        result->sender = read_generation(bytes + 8);
+        result->recipient = read_generation(bytes + 20);
+        if (!result->sender.revision || !result->sender.attempt ||
+            (!!result->recipient.revision != !!result->recipient.attempt)) return false;
+        result->payload += 24;
+        result->size -= 24;
+        if (result->type == NativeConnectionMessage_GameHello) return result->size == 0;
+        if (!result->recipient.attempt) return false;
+    } else {
         return false;
     }
     return result->size > 0 &&

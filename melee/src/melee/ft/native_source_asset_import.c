@@ -1,10 +1,19 @@
 #include "native_source_assets.h"
+#include "native_source_rig_validation.h"
+#include "fighter.h"
 #include "ftanimation_bank.h"
 #include "ftcamera.h"
 #include "native_fighter_pose.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// Counts from the supported disc also allow validation in the standalone Workshop tool.
+static const struct { u8 parts, insertions; } stock_rigs[] = {
+#include <melee/ft/stock_rig_sizes.inc>
+};
+_Static_assert(sizeof(stock_rigs) / sizeof(stock_rigs[0]) == Ft_Kind_None + 1,
+               "Include every stock fighter and the shared throw skeleton");
 
 static bool error(NativeScriptDiagnostic* d,const char* text)
 {if(d)snprintf(d->message,sizeof(d->message),"%s",text);return false;}
@@ -58,6 +67,11 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
        !ftCharacterAssets_ValidateVisibility(&output->character,facts->layout.visibility_mask,output->costume.joint)) {
         error(d,"Source costume graph, rig count or visibility data is invalid");goto failure;
     }
+    FtCostumeBindings bindings;
+    if (!ftCostumeBindings_FromCharacter(&output->character, facts->joints, facts->layout.visibility_mask, 0, &bindings) ||
+        !ftCostumeBindings_Fit(&bindings, &output->costume)) {
+        error(d,"The fighter's base costume does not contain its required meshes or animated texture layers.");goto failure;
+    }
     for(unsigned i=0;i<facts->pose_count;++i)if(!nativeFighterPose_BindGraph(&output->character,
             facts->poses[i].slot,facts->poses[i].path,&output->rig,facts->poses[i].bone_ids,
             facts->poses[i].bone_count,&output->poses[i])) {
@@ -68,7 +82,7 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
        HSD_DatResolve(&output->character.dat,root+4,&attribute_begin,&external)!=HSD_DAT_REF_LOCAL) {
         error(d,"Source article kind has no owned attribute block");goto failure;
     }
-    u32 attribute_end=HSD_DatNextTarget(&output->character.dat,attribute_begin);
+    u32 attribute_end=HSD_DatImportNextTarget(&output->character.import,attribute_begin);
     if(attribute_end<attribute_begin){error(d,"Source attribute block bounds are invalid");goto failure;}
     size_t attribute_bytes=attribute_end-attribute_begin;
     if(attribute_bytes>FT_CHARACTER_EXT_ATTR_CAPACITY)attribute_bytes=FT_CHARACTER_EXT_ATTR_CAPACITY;
@@ -91,8 +105,30 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
         struct Fighter_WaitAnimData* clip=&banks[b][i];
         // ftCharacterAssets_Import has already converted the PPC word to the
         // native Fighter union: its six-bit animation family is at bits 26..31.
-        if(clip->x14 && ((uint32_t)clip->x10_animCurrFlags>>26)==facts->animation_tag)
+        if (!clip->x14) continue;
+        unsigned family = (u32)clip->x10_animCurrFlags >> 26;
+        if (family > Ft_Kind_None) {
+            error(d,"Animation refers to a skeleton outside the base game and its own package");goto failure;
+        }
+        bool own = family == facts->animation_tag;
+        unsigned parts = own ? facts->joints + facts->omission_count : stock_rigs[family].parts;
+        unsigned insertions = own ? facts->omission_count : stock_rigs[family].insertions;
+        if (!own && ftPartsTable) {
+            if (!ftPartsTable[family] || !Fighter_804D6540) {
+                error(d, "The borrowed skeleton is missing from the loaded fighter tables");
+                goto failure;
+            }
+            parts = ftPartsTable[family]->parts_num;
+            insertions = Fighter_804D6540[family] ? Fighter_804D6540[family]->x4 : 0;
+        }
+        if (!ftAnimationBank_FitsRig(clip, parts, insertions)) {
+            if (d) snprintf(d->message, sizeof(d->message), "Animation %.90s does not fit %s skeleton",
+                            clip->x0, own ? "this fighter's" : "its borrowed");
+            goto failure;
+        }
+        if (own) {
             clip->x10_animCurrFlags=(int32_t)(((uint32_t)clip->x10_animCurrFlags&UINT32_C(0x03ffffff))|((uint32_t)target<<26));
+        }
     }
     for(unsigned i=0;i<facts->moves.count;++i) {
         const NativeSourceMotionData* row=&facts->motions[i];MotionState* motion=&output->motions[i];
@@ -114,6 +150,7 @@ bool nativeSourceAssets_Import(const NativeSourceAssetFacts* facts,const NativeS
     }
     output->omissions.x0=output->omission_rows;output->omissions.x4=facts->omission_count;
     output->demos=(Fighter_DemoStrings){output->facts.demos[0],output->facts.demos[1],output->facts.demos[2],output->facts.demos[3]};
+    if (!nativeSourceAssets_ValidateRig(output, d)) goto failure;
     output->ready=true;return true;
 failure:
     nativeSourceAssets_Release(output);return false;

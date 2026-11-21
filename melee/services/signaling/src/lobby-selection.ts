@@ -48,7 +48,7 @@ function decodeChoices(bytes: Uint8Array, players: number,
     }
     if (flags & 1) {
       if (flags & 2 ? character !== 0n || costume !== 0n : character === 0n || costume === 0n) return null;
-    } else if (flags || character || costume) return null;
+    } else if (flags || team || character || costume) return null;
     choices.push({ character, costume, fighterPackage: packages[0], costumePackage: packages[1], team, selected: !!(flags & 1) });
   }
   return offset === bytes.length ? choices : null;

@@ -33,6 +33,7 @@ static const NativeFighterDefinition definition = {
 };
 
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 HSD_GObjProc* HSD_GObj_CurrentInvokedProc;
 void* HSD_ObjAlloc(HSD_ObjAllocData* allocator) { (void)allocator; abort(); }
 void efAsync_QueueProcessDeferred(HSD_GObj* source, EF_QueuedEffect* queued)

@@ -1,4 +1,5 @@
 #include "native_resource_authoring.h"
+#include "native_authoring_file.h"
 #include "native_gx_image.h"
 #include "native_source_item_blueprint_io.h"
 #include <sysdolphin/baselib/dat.h>
@@ -6,16 +7,11 @@
 #include <melee/it/forward.h>
 #include <aurora/dvd.h>
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <iterator>
 #include <malloc.h>
 #include <memory>
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 
 namespace NativeResourceAuthoring {
 using NativeAuthoring::Reply;
@@ -56,20 +52,6 @@ bool bundle(const NativeFighterProject& p,NativeSourceResources& view,Reply& rep
     if(nativeSourceResources_Read(p.resources,p.resource_size,&view,error,sizeof(error)))return true;
     reply.fail("invalid_resource_bundle",error);return false;
 }
-bool file_bytes(const char* path,size_t maximum,std::vector<uint8_t>& output,Reply& reply)
-{
-    auto file=std::unique_ptr<FILE,decltype(&std::fclose)>(_wfopen(std::filesystem::u8path(path).c_str(),L"rb"),std::fclose);
-    long size;
-    if(!file || std::fseek(file.get(),0,SEEK_END) || (size=std::ftell(file.get()))<=0 ||
-       (size_t)size>maximum || std::fseek(file.get(),0,SEEK_SET)) {
-        reply.fail("resource_input_unavailable","Choose a nonempty readable file within the reported resource size limit.");return false;
-    }
-    output.resize(size);
-    if(std::fread(output.data(),1,output.size(),file.get())!=output.size() || std::ferror(file.get())) {
-        reply.fail("resource_input_unavailable","Could not read the complete resource file.");return false;
-    }
-    return true;
-}
 bool image_valid(const void* bytes,size_t size,Reply& reply)
 {
     uint16_t width=0,height=0;char error[256]{};
@@ -100,28 +82,6 @@ void describe(Reply& reply,yyjson_mut_val* row,const NativeSourceResourceEntry& 
     yyjson_mut_obj_add_uint(reply.document,row,"width",resource.width);
     yyjson_mut_obj_add_uint(reply.document,row,"height",resource.height);
     hash(reply,row,resource.bytes,resource.size);
-}
-// Publish a new file only after its complete private temporary has reached disk.
-// MoveFileEx without REPLACE_EXISTING preserves any existing/racing destination.
-bool write_new(const char* output,const void* bytes,size_t size,Reply& reply)
-{
-    const std::string name=output;
-    for(size_t i=0;i<name.size();++i)if(name[i]==':' && i!=1) {
-        reply.fail("invalid_output","Choose an ordinary output file path.");return false;
-    }
-    auto destination=std::filesystem::absolute(std::filesystem::u8path(output));
-    auto temporary=destination;
-    temporary+=L"."+std::to_wstring(GetCurrentProcessId())+L"."+std::to_wstring(GetTickCount64())+L".tmp";
-    HANDLE file=CreateFileW(temporary.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
-    if(file==INVALID_HANDLE_VALUE) {reply.fail("export_unavailable","Choose a new file in an existing output directory.");return false;}
-    DWORD written=0;
-    bool ok=size<=MAXDWORD && WriteFile(file,bytes,(DWORD)size,&written,nullptr) && written==size && FlushFileBuffers(file);
-    if(!CloseHandle(file))ok=false;
-    if(ok)ok=MoveFileExW(temporary.c_str(),destination.c_str(),MOVEFILE_WRITE_THROUGH)!=0;
-    if(!ok) {DeleteFileW(temporary.c_str());reply.fail("export_failed","Could not publish the complete resource; existing output files are preserved.");return false;}
-    const auto encoded=destination.u8string();
-    add_string(reply,reply.result,"output",std::string(encoded.begin(),encoded.end()));
-    yyjson_mut_obj_add_uint(reply.document,reply.result,"bytes",size);hash(reply,reply.result,bytes,size);return true;
 }
 }
 void read(const NativeFighterProject& project,yyjson_val* args,Reply& reply)
@@ -178,6 +138,7 @@ bool edit(NativeFighterProject& project,yyjson_val* args,Reply& reply,History* h
     std::vector<NativeSourceResourceInput> entries;entries.reserve(NATIVE_SOURCE_RESOURCE_ENTRIES);
     for(unsigned i=0;i<view.count;++i) {const auto& row=view.entries[i];entries.push_back({row.name,row.bytes,row.size,row.kind});}
     std::vector<std::vector<uint8_t>> payloads;payloads.reserve(64);
+    size_t remaining_import_bytes=NATIVE_SOURCE_RESOURCE_BUNDLE_BYTES;
     std::vector<std::string> names;
     size_t index,count;yyjson_val* change;
     yyjson_arr_foreach(yyjson_obj_get(args,"changes"),index,count,change) {
@@ -199,8 +160,12 @@ bool edit(NativeFighterProject& project,yyjson_val* args,Reply& reply,History* h
             reply.fail("invalid_resource_change","An import needs its file path and png or blob kind.");return false;
         }
         payloads.emplace_back();auto& bytes=payloads.back();
-        if(!file_bytes(text(change,"path"),png?NATIVE_SOURCE_RESOURCE_PNG_BYTES:NATIVE_SOURCE_RESOURCE_BLOB_BYTES,bytes,reply) ||
-           (png && !image_valid(bytes.data(),bytes.size(),reply)))return false;
+        size_t limit=std::min<size_t>(remaining_import_bytes,png?NATIVE_SOURCE_RESOURCE_PNG_BYTES:NATIVE_SOURCE_RESOURCE_BLOB_BYTES);
+        if(!NativeAuthoring::read_file(text(change,"path"),limit,bytes)) {
+            reply.fail("resource_input_unavailable","Choose a nonempty readable file within the file and total bundle size limits.");return false;
+        }
+        remaining_import_bytes-=bytes.size();
+        if(png && !image_valid(bytes.data(),bytes.size(),reply))return false;
         if(!png && bytes.size()>=4 && !std::memcmp(bytes.data(),"FMIB",4)) {
             NativeScriptDiagnostic diagnostic{};
             if(!nativeSourceItemBlueprint_Validate(bytes.data(),bytes.size(),&diagnostic)) {reply.fail("invalid_item_blueprint",diagnostic.message);return false;}
@@ -254,7 +219,10 @@ void export_resource(const NativeFighterProject& project,yyjson_val* args,Reply&
     const NativeSourceResourceEntry* entry=nullptr;
     for(unsigned i=0;i<view.count;++i)if(!std::strcmp(view.entries[i].name,text(args,"name")))entry=&view.entries[i];
     if(!entry) {reply.fail("unknown_resource","Choose the exact resource name returned by resources.read.");return;}
-    if(write_new(text(args,"output"),entry->bytes,entry->size,reply))add_string(reply,reply.result,"name",entry->name);
+    if(NativeAuthoring::export_file(text(args,"output"),entry->bytes,entry->size,reply)) {
+        add_string(reply,reply.result,"name",entry->name);
+        hash(reply,reply.result,entry->bytes,entry->size);
+    }
 }
 void blueprint(yyjson_val* args,Reply& reply)
 {
@@ -273,7 +241,9 @@ void blueprint(yyjson_val* args,Reply& reply)
         if(dat.empty()) {reply.fail("stock_item_unavailable","No bounded common Article was found at this stock item kind.");return;}
     } else {
         if(!*text(args,"dat") || !yyjson_obj_get(args,"article_offset") || yyjson_obj_get(args,"iso")) {reply.fail("invalid_blueprint_source","Supply a DAT file and its explicit Article descriptor offset.");return;}
-        if(!file_bytes(text(args,"dat"),BlueprintDatLimit,dat,reply))return;
+        if(!NativeAuthoring::read_file(text(args,"dat"),BlueprintDatLimit,dat)) {
+            reply.fail("resource_input_unavailable","Choose a nonempty readable DAT within the item blueprint size limit.");return;
+        }
     }
     std::vector<uint8_t> envelope(dat.size()+NATIVE_SOURCE_BLUEPRINT_HEADER);size_t written=0;NativeScriptDiagnostic diagnostic{};
     if(!nativeSourceItemBlueprint_Write(dat.data(),dat.size(),offset,envelope.data(),envelope.size(),&written,&diagnostic)) {
@@ -281,7 +251,8 @@ void blueprint(yyjson_val* args,Reply& reply)
     }
     const bool valid=nativeSourceItemBlueprint_Validate(envelope.data(),written,&diagnostic);
     if(!valid) {reply.fail("invalid_item_blueprint",diagnostic.message);return;}
-    if(write_new(text(args,"output"),envelope.data(),written,reply)) {
+    if(NativeAuthoring::export_file(text(args,"output"),envelope.data(),written,reply)) {
+        hash(reply,reply.result,envelope.data(),written);
         yyjson_mut_obj_add_uint(reply.document,reply.result,"article_offset",offset);
         yyjson_mut_obj_add_uint(reply.document,reply.result,"dat_bytes",dat.size());
         yyjson_mut_obj_add_bool(reply.document,reply.result,"graph_validated",true);

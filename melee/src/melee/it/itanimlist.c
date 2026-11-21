@@ -362,6 +362,9 @@ void it_802799E4(Item_GObj* item_gobj)
     Item* item = GET_ITEM(item_gobj);
     CommandInfo* cmd = &item->x524_cmd;
     u32 opcode;
+#ifdef MELEE_NATIVE
+    unsigned remaining = LB_COMMAND_UPDATE_LIMIT;
+#endif
 
     cmd->frame_count = item->x5CC_currentAnimFrame;
     item->xDBC_itcmd_var4_word = 0;
@@ -387,6 +390,9 @@ loop:
         return;
     }
 
+#ifdef MELEE_NATIVE
+    if (remaining-- == 0) return;
+#endif
     opcode = cmd->u->unk0.opcode;
     if (Command_Execute(cmd, opcode) != 0) {
         goto loop;

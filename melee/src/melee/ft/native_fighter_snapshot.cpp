@@ -12,7 +12,7 @@ bool fail(std::string& error, const std::string& text) { error = text; return fa
 bool add(Capture& next, const std::string& prefix, const char* name,
          const void* bytes, size_t size, bool required, std::string& error)
 {
-    if ((size && !bytes) || size > NATIVE_CONTENT_MAX_PACKAGE_BYTES || (required && !size))
+    if ((size && !bytes) || size > NATIVE_CONTENT_MAX_ASSET_BYTES || (required && !size))
         return fail(error, std::string("Missing or oversized draft file: ") + name);
     next.files.push_back({prefix + name, std::string(size ? (const char*)bytes : "", size), !size && !required});
     return true;

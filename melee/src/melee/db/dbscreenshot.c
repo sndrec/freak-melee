@@ -3,6 +3,7 @@
 #include <direct.h>
 #include <time.h>
 #include <aurora/aurora.h>
+#include <melee/ft/native_file_publish.h>
 
 #include "db.h"
 #include <melee/gm/gm_unsplit.h>
@@ -69,7 +70,19 @@ void db_CheckScreenshot(void)
 
 void db_TakeScreenshotIfPending(void)
 {
-    char path[128];
+    static char path[128];
+    static uint64_t capture_id;
+    if (capture_id) {
+        AuroraPresentedCapture result;
+        aurora_presented_capture_status(&result);
+        if (result.capture_id == capture_id && result.status == AURORA_CAPTURE_PENDING) return;
+        size_t size;
+        const void* png = aurora_presented_png(capture_id, &size);
+        if (png && !nativeFile_PublishLocal(path, png, size, NATIVE_FILE_PRESERVE, NULL))
+            fprintf(stderr, "Could not save screenshot %s\n", path);
+        aurora_release_presented_capture(capture_id);
+        capture_id = 0;
+    }
     if (db_ScreenshotPending == 0) {
         return;
     }
@@ -77,7 +90,9 @@ void db_TakeScreenshotIfPending(void)
     snprintf(path, sizeof(path), "screenshots/melee-%lld-%lu-%04d.png",
              (long long) time(NULL), (unsigned long) GetCurrentProcessId(),
              db_ScreenshotNumber);
-    if (aurora_capture_presented(path, false, NULL)) {
+    AuroraPresentedCapture requested;
+    if (aurora_capture_presented(false, &requested)) {
+        capture_id = requested.capture_id;
         db_ScreenshotNumber++;
         db_ScreenshotPending = 0;
     }

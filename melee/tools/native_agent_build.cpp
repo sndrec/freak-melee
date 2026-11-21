@@ -1,4 +1,5 @@
 #include "native_agent_project.h"
+#include <melee/ft/native_authoring_file.h>
 #include <melee/ft/native_fighter_build.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -8,7 +9,7 @@
 
 namespace NativeAgent {
 namespace {
-bool portrait(const Context& context, const std::string& project, yyjson_val* arguments, std::string& bytes)
+bool portrait(const Context& context, const std::string& project, yyjson_val* arguments, std::vector<uint8_t>& bytes)
 {
     std::string path = string(arguments, "portrait");
     if (path.empty()) {
@@ -16,12 +17,7 @@ bool portrait(const Context& context, const std::string& project, yyjson_val* ar
         if (GetFileAttributesA(path.c_str()) == INVALID_FILE_ATTRIBUTES)
             path = context.installation + "/ui/workshop_draft_portrait.png";
     }
-    HANDLE file = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (file == INVALID_HANDLE_VALUE) return false;
-    LARGE_INTEGER size{}; DWORD count = 0;
-    bool ok = GetFileSizeEx(file, &size) && size.QuadPart >= 32 && size.QuadPart <= 16 * 1024 * 1024;
-    if (ok) { bytes.resize((size_t)size.QuadPart); ok = ReadFile(file, bytes.data(), (DWORD)bytes.size(), &count, nullptr) && count == bytes.size(); }
-    CloseHandle(file); return ok;
+    return NativeAuthoring::read_file(path.c_str(), 16 * 1024 * 1024, bytes) && bytes.size() >= 32;
 }
 }
 
@@ -77,7 +73,7 @@ void build_project(const Context& context, yyjson_val* arguments, Reply& reply)
     if (!NativeDraftAccess::revision(project->family.paths[0], current, error) || current != project->revision) {
         reply.fail("revision_conflict", "Draft changed while preparing its source members. Inspect before building."); return;
     }
-    std::string image;
+    std::vector<uint8_t> image;
     if (!portrait(context, project->family.paths[0], arguments, image)) {
         reply.fail("portrait_unavailable", "Choose a readable portrait PNG, or use the installed default portrait."); return;
     }
@@ -107,31 +103,20 @@ void build_project(const Context& context, yyjson_val* arguments, Reply& reply)
 
 void export_package(const Context& context, yyjson_val* arguments, Reply& reply)
 {
-    NativeContentId expected{}, actual{};
+    NativeContentId expected{};
     std::string root = string(arguments, "content_root");
     if (root.empty()) root = context.content_root;
     uint8_t* bytes = nullptr; size_t size = 0;
     bool valid = nativeContentStore_IdFromHex(string(arguments, "package_id"), &expected) &&
-        nativeContentStore_Read(root.c_str(), &expected, &bytes, &size) && nativeContent_Hash(bytes, size, &actual) &&
-        !std::memcmp(&actual, &expected, sizeof(actual));
+        nativeContentStore_Read(root.c_str(), &expected, &bytes, &size);
     if (!valid) { std::free(bytes); reply.fail("invalid_package", "Choose a readable cached package ID."); return; }
     const char* output = string(arguments, "output");
     const size_t path_size = std::strlen(output);
-    bool stream = false;
-    for (size_t i = 0; i < path_size; ++i) if (output[i] == ':' && i != 1) stream = true;
-    if (path_size < 5 || _stricmp(output + path_size - 4, ".fmc") || stream) {
+    if (path_size < 5 || _stricmp(output + path_size - 4, ".fmc")) {
         std::free(bytes); reply.fail("invalid_output", "Choose a new .fmc package file."); return;
     }
-    HANDLE file = CreateFileA(output, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) { std::free(bytes); reply.fail("export_unavailable", "Choose a new file in an existing output directory."); return; }
-    DWORD written = 0;
-    bool ok = size <= MAXDWORD && WriteFile(file, bytes, (DWORD)size, &written, nullptr) && written == size && FlushFileBuffers(file);
-    ok = CloseHandle(file) && ok;
+    bool ok = NativeAuthoring::export_file(output, bytes, size, reply);
     std::free(bytes);
-    if (!ok) { DeleteFileA(output); reply.fail("export_failed", "Could not write the complete package."); return; }
-    char full[32768]; DWORD length = GetFullPathNameA(output, sizeof(full), full, nullptr);
-    add_string(reply, reply.result, "output", length && length < sizeof(full) ? full : output);
-    add_string(reply, reply.result, "package_id", string(arguments, "package_id"));
-    yyjson_mut_obj_add_uint(reply.document, reply.result, "bytes", size);
+    if (ok) add_string(reply, reply.result, "package_id", string(arguments, "package_id"));
 }
 }

@@ -12,6 +12,7 @@
 #include <sysdolphin/baselib/psstructs.h>
 #include <sysdolphin/baselib/psappsrt.h>
 #include <melee/ef/eflib.h>
+#include <melee/ef/efasync.h>
 #include <melee/cm/camera.h>
 #include <sysdolphin/baselib/generator.h>
 #include <sysdolphin/baselib/gobjproc.h>
@@ -23,6 +24,7 @@
 HSD_JObjInfo hsdJObj;
 u8 HSD_GObj_JObjKind;
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 HSD_GObjProc* HSD_GObj_CurrentInvokedProc;
 static HSD_GObjProc proc;
 static EF_QueuedEffect nodes[8];

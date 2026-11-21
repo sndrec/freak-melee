@@ -10,6 +10,7 @@ typedef struct NativeRoomCacheChoice {
     NativeContentId id;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     uint64_t retry_after_ms;
+    void* package_file;
     bool cached;
 } NativeRoomCacheChoice;
 

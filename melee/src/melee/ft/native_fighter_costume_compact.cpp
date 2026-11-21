@@ -88,7 +88,7 @@ bool nativeFighterCostume_Compact(const NativeFighterProject* project, std::vect
     auto unsupported = [&](const char* reason) {
         std::snprintf(stats.reason, sizeof(stats.reason), "%s", reason);
         if (output) *output = stats;
-        if (bytes->size() > NATIVE_CONTENT_MAX_PACKAGE_BYTES) {
+        if (bytes->size() > NATIVE_CONTENT_MAX_ASSET_BYTES) {
             if (error && error_size) std::snprintf(error, error_size,
                 "The retained costume exceeds the package limit: %s", reason);
             return false;
@@ -211,7 +211,7 @@ bool nativeFighterCostume_Compact(const NativeFighterProject* project, std::vect
     const size_t tail_start = 32 + dat.data_size + size_t(dat.relocation_count) * 4;
     const size_t tail_size = bytes->size()-tail_start;
     const size_t total = 32 + data.size() + relocations.size()*4 + tail_size;
-    if (total > UINT32_MAX || total > NATIVE_CONTENT_MAX_PACKAGE_BYTES) return false;
+    if (total > UINT32_MAX || total > NATIVE_CONTENT_MAX_ASSET_BYTES) return false;
     std::vector<u8> result(total);
     std::memcpy(result.data(), bytes->data(), 32);
     NativeAssetDat::be32(result.data(), (u32)total);

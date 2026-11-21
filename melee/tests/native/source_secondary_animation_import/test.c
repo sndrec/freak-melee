@@ -41,14 +41,14 @@ static const NativeScriptItemAsset* row(unsigned fighter,const char* name)
 static void prepare(unsigned fighter)
 {
     NativeSourceResources resources={0};
-    CHECK(nativeSourceEntityAssets_Prepare(&entities[fighter],&assets[fighter],&inputs[fighter],&resources,&tree,&diagnostic));++imports;
+    CHECK(nativeSourceEntityAssets_Prepare(&entities[fighter],&assets[fighter],&resources,&tree,&diagnostic));++imports;
 }
 static void negative(const char* fields)
 {
     fresh(0);char text[8192];snprintf(text,sizeof(text),
         "fighter:\n    pass\narticle It_Kind_Link_Boomerang states 4:\n%s",fields);parse(text);
     NativeSourceResources resources={0};memset(&diagnostic,0,sizeof(diagnostic));
-    bool accepted=nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&inputs[0],&resources,&tree,&diagnostic);
+    bool accepted=nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&resources,&tree,&diagnostic);
     if(accepted)fprintf(stderr,"Unexpected accepted metadata:\n%s",fields);
     CHECK(!accepted);
     CHECK(diagnostic.message[0]);
@@ -390,7 +390,7 @@ int main(int argc,char** argv)
     }
     ++cases;
     fresh(0);parse("fighter:\n    pass\narticle Missing states 0:\n    model_animation One 76\n");
-    NativeSourceResources resources={0};CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&inputs[0],&resources,&tree,&diagnostic));++cases;
+    NativeSourceResources resources={0};CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&resources,&tree,&diagnostic));++cases;
     fresh(0);parse("fighter:\n    pass\narticle It_Kind_Link_Boomerang states 4:\n    on created:\n        pass\n");prepare(0);
     CHECK(!row(0,"It_Kind_Link_Boomerang")->model_animations&&!row(0,"It_Kind_Link_Boomerang")->model_animation_count);++cases;
     fresh(0);source_cases(0);source_cases(1);

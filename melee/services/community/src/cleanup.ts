@@ -1,6 +1,7 @@
 // Scan a bounded page each run. New uploads have a full day to finish before
 // an unreferenced object can be collected; completed reports have no expiry.
 export async function cleanAbandonedAttachments(env: CloudflareBindings): Promise<void> {
+  await env.COMMUNITY.prepare("DELETE FROM feedback_uploads WHERE expires_at<=unixepoch()*1000").run();
   const saved = await env.COMMUNITY.prepare("SELECT value FROM service_state WHERE key='attachment-scan'")
     .first<{ value: string }>();
   const page = await env.REPORTS.list({ prefix: "feedback/", limit: 100,

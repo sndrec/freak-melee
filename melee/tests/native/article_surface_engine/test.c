@@ -25,6 +25,7 @@
 static unsigned checks, cases, allocations, releases, dispatches, dirty;
 #define CHECK(x) do { ++checks; assert(x); } while (0)
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 HSD_GObjProc* HSD_GObj_CurrentInvokedProc;
 static EF_QueuedEffect pool[8];
 static bool used[8], fail_allocate;

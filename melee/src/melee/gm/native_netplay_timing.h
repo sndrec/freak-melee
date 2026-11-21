@@ -15,6 +15,9 @@ typedef enum NativeNetplayTimingPhase {
     NativeNetplayTiming_Checkpoint,
     NativeNetplayTiming_InputWait,
     NativeNetplayTiming_NetworkWait,
+    NativeNetplayTiming_Send,
+    NativeNetplayTiming_Receive,
+    NativeNetplayTiming_RoomTransfers,
     NativeNetplayTiming_Phases,
 } NativeNetplayTimingPhase;
 
@@ -25,6 +28,7 @@ void nativeNetplayTiming_Begin(NativeNetplayTimingPhase);
 void nativeNetplayTiming_End(NativeNetplayTimingPhase);
 void nativeNetplayTiming_Checkpoints(uint64_t captures, uint64_t restores,
                                    size_t bytes);
+void nativeNetplayTiming_Sample(uint64_t late_ns, int32_t lead_milliframes);
 // Cycle boundaries are successive visible-frame submissions. Thus checkpoint
 // work following the prior submission belongs to the next complete cycle.
 void nativeNetplayTiming_Submitted(uint64_t frame, bool hidden);

@@ -20,16 +20,16 @@ static HSD_DatResult texture_data(const HSD_Dat* dat, u32 slot, size_t size,
 }
 
 HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
-                                HSD_ImageDesc* image, size_t* data_size)
+                                HSD_ImageDesc* image, HSD_DatImageSize* size)
 {
     HSD_ImageDesc result = { 0 };
     u32 format;
     unsigned tile_width, tile_height, tile_bytes = 32;
-    size_t bytes = 0;
+    HSD_DatImageSize footprint = { 0 };
     unsigned width, height, levels;
     HSD_DatResult status;
     memset(image, 0, sizeof(*image));
-    if (data_size) *data_size = 0;
+    if (size) *size = footprint;
     if (HSD_DatBytes(dat, offset, 24) == NULL) {
         return HSD_DAT_DESCRIPTOR;
     }
@@ -40,7 +40,8 @@ HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
     HSD_DatReadU32(dat, offset + 12, &result.mipmap);
     HSD_DatReadF32(dat, offset + 16, &result.minLOD);
     HSD_DatReadF32(dat, offset + 20, &result.maxLOD);
-    if (!result.width || !result.height || !isfinite(result.minLOD) ||
+    if (!result.width || result.width > 1024 || !result.height || result.height > 1024 ||
+        !isfinite(result.minLOD) ||
         !isfinite(result.maxLOD) || result.minLOD < 0 ||
         result.maxLOD < result.minLOD || result.maxLOD > 16) {
         return HSD_DAT_DESCRIPTOR;
@@ -62,19 +63,24 @@ HSD_DatResult HSD_DatDecodeImage(const HSD_Dat* dat, u32 offset,
     height = result.height;
     // Fractional LOD can blend with the next mip level.
     levels = result.mipmap ? (unsigned) ceilf(result.maxLOD) + 1 : 1;
-    while (levels--) {
-        bytes += (size_t) ((width + tile_width - 1) / tile_width) *
+    for (unsigned level = 0; level < levels; ++level) {
+        footprint.texels += width * height;
+        footprint.source_bytes += (size_t) ((width + tile_width - 1) / tile_width) *
                  ((height + tile_height - 1) / tile_height) * tile_bytes;
         if (width == 1 && height == 1) {
+            if (result.mipmap && result.maxLOD > level) {
+                result.maxLOD = (float) level;
+                if (result.minLOD > result.maxLOD) result.minLOD = result.maxLOD;
+            }
             break;
         }
         width = width > 1 ? width / 2 : 1;
         height = height > 1 ? height / 2 : 1;
     }
-    status = texture_data(dat, offset, bytes, &result.image_ptr);
+    status = texture_data(dat, offset, footprint.source_bytes, &result.image_ptr);
     if (status == HSD_DAT_OK) {
         *image = result;
-        if (data_size) *data_size = bytes;
+        if (size) *size = footprint;
     }
     return status;
 }
@@ -92,7 +98,8 @@ HSD_DatResult HSD_DatDecodePalette(const HSD_Dat* dat, u32 offset,
     HSD_DatReadU32(dat, offset + 4, &format);
     HSD_DatReadU32(dat, offset + 8, &result.tlut_name);
     HSD_DatReadU16(dat, offset + 12, &result.n_entries);
-    if (format > GX_TL_RGB5A3 || result.n_entries == 0) {
+    // The largest GX palette is addressed by a 14-bit texture index.
+    if (format > GX_TL_RGB5A3 || !result.n_entries || result.n_entries > 16384) {
         return HSD_DAT_DESCRIPTOR;
     }
     result.fmt = (GXTlutFmt) format;

@@ -35,7 +35,7 @@ bool itArticle_ImportModelRoot(HSD_DatImport* import, const Article* article,
     u32 source = article->native_special_attribute_source;
     if (source == UINT32_MAX || HSD_DatBytes(import->dat, source, 4) == NULL)
         return fail(import, HSD_DAT_DESCRIPTOR, source);
-    u32 end = HSD_DatNextTarget(import->dat, source);
+    u32 end = HSD_DatImportNextTarget(import, source);
     if ((offset & 3) || end < source || end - source < 4 ||
         offset > end - source - 4)
         return fail(import, HSD_DAT_DESCRIPTOR, source);
@@ -93,7 +93,7 @@ bool itArticle_ImportModelAnimation(HSD_DatImport* import, const Article* articl
     u32 source = article->native_special_attribute_source;
     if (source == UINT32_MAX || HSD_DatBytes(import->dat, source, 4) == NULL)
         return fail(import, HSD_DAT_DESCRIPTOR, source);
-    u32 end = HSD_DatNextTarget(import->dat, source);
+    u32 end = HSD_DatImportNextTarget(import, source);
     if (end < source || end - source < 4)
         return fail(import, HSD_DAT_DESCRIPTOR, source);
     void* imported[3] = { 0 };
@@ -119,7 +119,7 @@ bool itArticle_ImportModelAnimation(HSD_DatImport* import, const Article* articl
             return fail(import, kind == HSD_DAT_REF_EXTERNAL ? HSD_DAT_EXTERNAL :
                         HSD_DAT_RELOCATION, slot);
         if (component->array_index != UINT32_MAX) {
-            u32 array_end = HSD_DatNextTarget(import->dat, target);
+            u32 array_end = HSD_DatImportNextTarget(import, target);
             if (array_end < target || array_end - target < 4 ||
                 component->array_index > (array_end - target - 4) / 4)
                 return fail(import, HSD_DAT_DESCRIPTOR, slot);
@@ -202,7 +202,7 @@ import_gamewatch_chef_attributes(HSD_DatImport* import, u32 slot, Article* artic
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x74)
+        HSD_DatImportNextTarget(import, source) - source != 0x74)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -235,7 +235,7 @@ import_gamewatch_article_attributes(HSD_DatImport* import, u32 slot, Article* ar
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 4)
+        HSD_DatImportNextTarget(import, source) - source != 4)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -290,7 +290,7 @@ static void* import_optional_words(HSD_DatImport* import, u32 slot,
              slot);
         return NULL;
     }
-    u32 end = HSD_DatNextTarget(import->dat, source);
+    u32 end = HSD_DatImportNextTarget(import, source);
     size_t size = end - source;
     if (size > maximum) {
         size = maximum;
@@ -304,7 +304,7 @@ import_link_arrow_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x2C)
+        HSD_DatImportNextTarget(import, source) - source != 0x2C)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -363,7 +363,7 @@ static itFoodsAttributes* import_food_attributes(HSD_DatImport* import,
     s32 count;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
         !read_s32(import->dat, source, &count) || count <= 0 || count > 64 ||
-        HSD_DatNextTarget(import->dat, source) - source !=
+        HSD_DatImportNextTarget(import, source) - source !=
             4 + (u32) count * 16)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
@@ -397,7 +397,7 @@ static KinokoAttrs* import_mushroom_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 16)
+        HSD_DatImportNextTarget(import, source) - source != 16)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -428,7 +428,7 @@ static itWstarAttributes* import_warp_star_attributes(HSD_DatImport* import,
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
         !read_s32(import->dat, source + 0x24, &count) || count <= 0 ||
         count > 7 ||
-        HSD_DatNextTarget(import->dat, source) - source !=
+        HSD_DatImportNextTarget(import, source) - source !=
             0x28 + (u32) count * 8)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
@@ -461,21 +461,14 @@ static itWstarAttributes* import_warp_star_attributes(HSD_DatImport* import,
     return output;
 }
 
-static bool special_attributes_have_references(const HSD_Dat* dat, u32 slot)
+static bool special_attributes_have_references(const HSD_DatImport* import, u32 slot)
 {
+    const HSD_Dat* dat = import->dat;
     u32 source;
     if (resolve(dat, slot, &source) != HSD_DAT_REF_LOCAL) {
         return false;
     }
-    u32 end = HSD_DatNextTarget(dat, source);
-    for (u32 at = source; at + 4 <= end; at += 4) {
-        u32 target;
-        HSD_DatReferenceKind kind = resolve(dat, at, &target);
-        if (kind == HSD_DAT_REF_LOCAL || kind == HSD_DAT_REF_EXTERNAL) {
-            return true;
-        }
-    }
-    return false;
+    return HSD_DatContainsReference(dat, source, HSD_DatImportNextTarget(import, source));
 }
 
 static ItemAttr* import_item_attributes(HSD_DatImport* import, u32 slot);
@@ -485,7 +478,7 @@ import_stage_item_common_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 20)
+        HSD_DatImportNextTarget(import, source) - source != 20)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -513,7 +506,7 @@ static itHeihoAttributes* import_heiho_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x1C)
+        HSD_DatImportNextTarget(import, source) - source != 0x1C)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -542,7 +535,7 @@ static itKyasarinAttributes* import_kyasarin_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x4C)
+        HSD_DatImportNextTarget(import, source) - source != 0x4C)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -573,7 +566,7 @@ import_kyasarin_egg_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x14)
+        HSD_DatImportNextTarget(import, source) - source != 0x14)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -605,7 +598,7 @@ static itWhiteBeaAttributes* import_whitebea_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x18)
+        HSD_DatImportNextTarget(import, source) - source != 0x18)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -645,7 +638,7 @@ static itKlapAttributes* import_klap_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 4)
+        HSD_DatImportNextTarget(import, source) - source != 4)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -664,7 +657,7 @@ import_whispy_apple_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x1C)
+        HSD_DatImportNextTarget(import, source) - source != 0x1C)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -701,7 +694,7 @@ static itTincleAttributes* import_tincle_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x58)
+        HSD_DatImportNextTarget(import, source) - source != 0x58)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -745,7 +738,7 @@ import_arwing_laser_attributes(HSD_DatImport* import, u32 slot)
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 12)
+        HSD_DatImportNextTarget(import, source) - source != 12)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -780,7 +773,7 @@ static void* import_stage_common_prefixed_attributes(HSD_DatImport* import,
     if ((source_size & 3) != 0 ||
         native_size < sizeof(void*) + source_size - 4 ||
         resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != source_size)
+        HSD_DatImportNextTarget(import, source) - source != source_size)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -880,7 +873,7 @@ static it_2E5A_Attrs* import_it_2e5a_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0xC0)
+        HSD_DatImportNextTarget(import, source) - source != 0xC0)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -927,7 +920,7 @@ static itUnknownAttributes* import_unown_attributes(HSD_DatImport* import,
 {
     u32 source;
     if (resolve(import->dat, slot, &source) != HSD_DAT_REF_LOCAL ||
-        HSD_DatNextTarget(import->dat, source) - source != 0x8C)
+        HSD_DatImportNextTarget(import, source) - source != 0x8C)
     {
         fail(import, HSD_DAT_DESCRIPTOR, slot);
         return NULL;
@@ -1007,7 +1000,7 @@ static void* import_special_attributes(HSD_DatImport* import, u32 slot,
         return import_unown_attributes(import, slot);
     default:
         if (item_kind >= 0 &&
-            special_attributes_have_references(import->dat, slot))
+            special_attributes_have_references(import, slot))
         {
             fail(import, HSD_DAT_DESCRIPTOR, slot);
             return NULL;
@@ -1127,7 +1120,7 @@ static ItemStateArray* import_item_states(HSD_DatImport* import, u32 slot,
     }
     u32 state_count;
     if (exact_target_boundary) {
-        u32 end = HSD_DatNextTarget(import->dat, source);
+        u32 end = HSD_DatImportNextTarget(import, source);
         u32 byte_count = end - source;
         if (byte_count == 0 || byte_count % 16 != 0 || byte_count > 256 * 16) {
             fail(import, HSD_DAT_DESCRIPTOR, source);

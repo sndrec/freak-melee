@@ -98,7 +98,7 @@ int main(int argc,char** argv)
     for (unsigned i=0;i<3;++i) {
         arenas[i]=malloc(FT_ANIMATION_IMPORT_ARENA_SIZE);CHECK(arenas[i]);
         CHECK(ftAnimationBank_Import(inputs[i]->animation_dat, inputs[i]->animation_size,
-                (const FtAnimationBankTable[]){{ characters[i]->data.xC, 321, false }}, 1,
+                characters[i]->data.xC, 321,
                 arenas[i], FT_ANIMATION_IMPORT_ARENA_SIZE, &stats));
     }
     unsigned present=0,holes=0;

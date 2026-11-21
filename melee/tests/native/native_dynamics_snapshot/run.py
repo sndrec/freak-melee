@@ -12,11 +12,12 @@ def main():
     if out.exists() or out.drive.upper()!='A:':p.error('fresh A: output required')
     out.mkdir(parents=True)
     source=ROOT/'src/melee/lb/lb_00F9.c';text=source.read_text()
-    names=['lbDynamics_Reset','lb_8000FD18','popDynamicsData','lb_8000FD48','inlineA0','inlineA1','lb_800100B0','lb_800115F4','lb_800119DC','lb_80011A50','lb_80011ABC']
+    names=['lbDynamics_Reset','lb_8000FD18','popDynamicsData','lb_8000FD48','lb_80011710','inlineA0','inlineA1','lb_800100B0','lb_800115F4','lb_800119DC','lb_80011A50','lb_80011ABC']
     bodies='\n\n'.join(function(text,n) for n in names)
     (out/'consumer.inc').write_text(bodies+'\n')
     units=[HERE/'test.c',ROOT/'src/melee/lb/dynamics_state.c',ROOT/'src/melee/lb/native_dynamics_snapshot.c']
-    inputs=units+[source,HERE/'README.md',HERE/'run.py',HERE.parent/'hsd_reservation/extract.py',a.compiler,out/'consumer.inc']
+    arena=ROOT/'src/melee/gm/native_match_arena.c'
+    inputs=units+[arena,source,HERE/'README.md',HERE/'run.py',HERE.parent/'hsd_reservation/extract.py',a.compiler,out/'consumer.inc']
     inputs+=list((ROOT/'src').rglob('*.h'))+list((ROOT/'extern/dolphin/include').rglob('*.h'))
     sha=lambda path:hashlib.sha256(path.read_bytes()).hexdigest();pins={str(path):sha(path) for path in inputs}
     flags=['-std=gnu11','-DMELEE_NATIVE=1','-D_CRT_SECURE_NO_WARNINGS','-D_USE_MATH_DEFINES','-I'+str(ROOT/'src'),'-I'+str(ROOT/'extern/dolphin/include'),'-I'+str(out)]
@@ -28,7 +29,7 @@ def main():
         if r.returncode:raise RuntimeError(stage+': '+(r.stdout+r.stderr)[-4000:])
         return r.stdout
     run('strict',[str(a.compiler),*flags,'-Wall','-Wextra','-Werror','-Wno-array-parameter','-fsyntax-only',*map(str,units)])
-    run('compile',[str(a.compiler),*flags,'-O2','-ffp-contract=off','-fuse-ld=lld',*map(str,units),'-o',str(out/'test.exe')])
+    run('compile',[str(a.compiler),*flags,'-O2','-ffp-contract=off','-fuse-ld=lld',*map(str,units),str(arena),'-o',str(out/'test.exe')])
     summary=json.loads(run('fixture',[str(out/'test.exe')]))
     assert all(sha(Path(path))==digest for path,digest in pins.items())
     receipt=dict(status='PASS',summary=summary,source_sha256=pins,commands=commands,extracted_functions=names,limits=['Selected real consumer bodies; controlled matrix setup and idle predicate.','External descriptor records restored explicitly in fixture. No complete graph/match restoration or rollback deadline claim.'])

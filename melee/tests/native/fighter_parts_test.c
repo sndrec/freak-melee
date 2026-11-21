@@ -171,6 +171,19 @@ static void check_matrix_cache(HSD_JObj* model)
         check(GXEndDisplayList() > 0,
               "Scaled fighter normal rendering omitted its matrices");
     }
+    // A converted mesh can keep a texture matrix fixed while its positions
+    // follow a bone. The fixed slot has no joint to prepare during rollback.
+    HSD_Envelope second_half = {.jobj = model, .weight = 0.5f};
+    HSD_Envelope first_half = {.next = &second_half, .jobj = model, .weight = 0.5f};
+    HSD_SList position_slot = {.data = &first_half};
+    HSD_SList fixed_texture_slot = {0};
+    HSD_EnvelopeMatrices separate = {.positions = &position_slot, .textures = &fixed_texture_slot,
+                                     .constant_mask = 1};
+    HSD_PObj weighted = {.flags = POBJ_SEPARATE_ENVELOPES, .u.matrices = &separate};
+    nativeRenderGeometryEnabled = false;
+    GXBeginDisplayList(commands, sizeof(commands));
+    ftParts_PObjSetupMtx(&weighted, view, position, 0);
+    check(GXEndDisplayList() == 0, "Fixed texture slot uploaded geometry during pose-only preparation");
     nativeRenderGeometryEnabled = previous_geometry;
     HSD_GObj_804D7814 = previous_render_object;
     render_fighter.x34_scale.z = 1;

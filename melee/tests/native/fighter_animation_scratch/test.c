@@ -1,4 +1,5 @@
 #include <melee/gm/native_match_arena.h>
+#include <melee/gm/native_home.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef near
@@ -7,6 +8,8 @@
 #include <melee/ft/fighter.h>
 #include <melee/ft/ftdata.h>
 #include <melee/ft/ftanim.h>
+#include <melee/ft/ftanim_track_parts.h>
+#include <placeholder.h>
 #include <melee/ft/ftparts.h>
 #include <melee/ft/native_script_fighter.h>
 #include <melee/ft/native_fighter_pool.h>
@@ -44,6 +47,10 @@ static unsigned checks,cases,allocated,freed_scratch,freed_other,attachments,rem
 static void* guarded[Actors*2];static void* forbidden;
 static HSD_JObj* expected_joints[2];static FigaTree* expected_tree;
 static unsigned expected_part;
+static unsigned expected_track[2] = {0, 1};
+static FighterPartsTable rig = { .parts_num = 2 };
+static FighterPartsTable* rigs[Ft_Kind_RuntimeCapacity] = { [Ft_Kind_Popo] = &rig, [Ft_Kind_Nana] = &rig };
+FighterPartsTable** ftPartsTable = rigs;
 #define CHECK(x) do{++checks;if(!(x)){fprintf(stderr,"line%u: %s\n",(unsigned)__LINE__,#x);assert(x);}}while(0)
 void OSReport(char* format,...){(void)format;}
 __declspec(noreturn) void __assert(char* file,u32 line,char* reason){fprintf(stderr,"%s:%u: %s\n",file,(unsigned)line,reason);abort();}
@@ -69,12 +76,14 @@ void HSD_ObjFree(HSD_ObjAllocData* pool,void* pointer)
     (void)pointer;++freed_other;
 }
 void ftData_80085A14(FighterKind kind){CHECK(ftData_Table_Unk0[kind].count==Clips);}
+FigaTree* nativeHome_WorkshopAnimationOverride(const Fighter* fighter, int action)
+{ (void)fighter; (void)action; return NULL; }
 Gm_PKind Player_GetPlayerSlotType(s32 slot){CHECK(slot>=0&&slot<Actors);return player_type;}
-u32 ftParts_8007506C(FighterKind kind,int part){(void)kind;CHECK(part<2);return 0;}
+u32 ftParts_8007506C(FighterKind kind,int part){(void)kind;CHECK((unsigned)part<rig.parts_num);return rig.parts_num==3 && part==1;}
 void lbAnim_8001E6D8(HSD_JObj* joint,FigaTree* tree,FigaTrack* track,s8 frames)
 {
     CHECK(expected_part<2&&joint==expected_joints[expected_part]&&tree==expected_tree&&frames==1);
-    CHECK(track==&tree->tracks[expected_part]);++expected_part;++attachments;
+    CHECK(track==&tree->tracks[expected_track[expected_part]]);++expected_part;++attachments;
 }
 // Complete actual unload body, with controlled owner cleanup primitives. Only
 // scratch allocation/free and selection bodies are under investigation here.
@@ -104,6 +113,7 @@ void Player_80031FB0(int slot,s32 entity,HSD_GObj* expected){(void)slot;(void)en
 
 #include "selectors.inc"
 #include "tracks.inc"
+#include "subtree.inc"
 #include "unload.inc"
 
 int main(void)
@@ -148,6 +158,30 @@ int main(void)
         }
         CHECK(ftData_80085E50(f,Clips)==NULL);FigaTree* previous=f->x590;
         ftData_80085CD8(f,f,Clips);CHECK(f->x590==previous);
+        if (a == 0) {
+            s8 with_attachment[] = {1, 1, 1, -1};
+            FigaTrack clip_tracks[3] = {0};
+            FigaTree clip = { .nodes = with_attachment, .tracks = clip_tracks };
+            f->parts[2] = f->parts[1];
+            f->parts[1] = (FighterBone){0};
+            rig.parts_num = 3;
+            f->x594_bits = 1;
+            expected_tree = &clip;
+            expected_part = 0;
+            expected_track[1] = 2;
+            expected_joints[0] = f->parts[0].joint;
+            expected_joints[1] = f->parts[2].joint;
+            ftAnim_8006F4C8(f, false, &clip);
+            CHECK(expected_part == 2);
+            f->parts[2].xC = f->parts[0].xC + 1;
+            expected_part = 0;
+            ftAnim_8006F7C8(f, 0, false, &clip);
+            CHECK(expected_part == 2);
+            expected_track[1] = 1;
+            rig.parts_num = 2;
+            f->parts[1] = f->parts[2];
+            ++cases;
+        }
         f->x59C=owned0;f->x5A0=owned1;
         Fighter_Unload_8006DABC(f);
         CHECK(nativeMatchPool_Free(&nativeGObjPool,object_reference));++cases;

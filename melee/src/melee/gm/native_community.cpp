@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include <new>
+#include <utility>
 
 namespace {
     constexpr unsigned response_limit = 512 * 1024;
@@ -231,7 +232,7 @@ namespace {
             const bool stop = w.stop, queued = w.queued;
             const bool sending = w.upload_queued;
             const bool background = !queued && w.announcement_queued;
-            if (sending) { upload = w.upload; w.upload_queued = false; }
+            if (sending) { upload = std::move(w.upload); w.upload_queued = false; }
             else if (queued) { command = w.request; w.queued = false; }
             else if (background) { command = w.announcement_request; w.announcement_queued = false; }
             ReleaseSRWLockExclusive(&w.lock);
@@ -417,7 +418,7 @@ bool nativeCommunity_CheckAnnouncement(const char* id)
 { return id && identifier(id) && request_announcements(Operation::Announcement, id); }
 bool nativeCommunity_RequestUpload(const NativeCommunityUpload& upload)
 {
-    if (!worker || !identifier(upload.id) || !*upload.metadata || !*upload.image || !*upload.context) return false;
+    if (!worker || !identifier(upload.id) || !upload.notes_bytes || !upload.image_bytes || !upload.context_bytes) return false;
     auto& w = *worker;
     AcquireSRWLockExclusive(&w.lock);
     const bool ok = !w.stop && !w.receipt.busy && !w.upload_queued;

@@ -14,7 +14,10 @@ extern "C" {
 enum {
     NATIVE_CONTENT_ID_BYTES = 32,
     NATIVE_CONTENT_TITLE_BYTES = 64,
-    NATIVE_CONTENT_MAX_PACKAGE_BYTES = 64 * 1024 * 1024,
+    NATIVE_CONTENT_MAX_PACKAGE_BYTES = 12 * 1024 * 1024,
+    NATIVE_CONTENT_PEER_CACHE_FILES = 32,
+    NATIVE_FIGHTER_MAX_EXPANDED_BYTES = 32 * 1024 * 1024,
+    NATIVE_CONTENT_MAX_ASSET_BYTES = 64 * 1024 * 1024,
     NATIVE_FIGHTER_CODE_KEY_BYTES = 32,
     NATIVE_FIGHTER_FAMILY_MEMBERS = 2,
 };
@@ -88,6 +91,7 @@ typedef struct NativeFighterPackageData {
     const uint8_t* portrait_png;
     size_t portrait_size;
     NativeFighterMemberData members[NATIVE_FIGHTER_FAMILY_MEMBERS];
+    uint8_t* expanded_payload;
 } NativeFighterPackageData;
 
 // A stock outfit contains one DAT. A custom outfit contains every parent
@@ -103,8 +107,9 @@ bool nativeContentStore_ParseCostume(const void* package, size_t package_size,
 
 // One content identity owns the portrait and source member payloads. The
 // canonical source format carries Single or two-member alternate/companion families.
-// Returned parse spans borrow the package allocation. Parsing validates the
-// complete canonical record before publishing either output. Source graph /
+// The portrait borrows the package bytes. Member spans can also borrow the
+// expanded payload owned by data. Release it when those spans are no longer
+// needed. Parsing validates the complete record before publishing either output. Source graph /
 // asset/FMS validation belongs to candidate preparation before activation.
 bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
                                     const NativeFighterPackageData* data,
@@ -113,16 +118,19 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
 bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
                                     NativeFighterPackage* fighter,
                                     NativeFighterPackageData* data);
+void nativeContentStore_ReleaseFighterData(NativeFighterPackageData* data);
 typedef struct NativeContentPreview {
     char title[NATIVE_CONTENT_TITLE_BYTES];
     const uint8_t* portrait_png;
     size_t portrait_size;
+    size_t next_prefix;
 } NativeContentPreview;
 
 // Read presentation data from the contiguous prefix of a transfer. A fighter's
 // portrait sits before its other assets and becomes available independently.
-bool nativeContentStore_ReadPreview(const void* prefix, size_t received,
-                                    NativeContentPreview* preview);
+// Start with a zeroed preview and grow the prefix in place for this transfer.
+void nativeContentStore_UpdatePreview(const void* prefix, size_t received,
+                                      NativeContentPreview* preview);
 
 // The cache is non-selectable. Installed membership is a separate, explicit
 // per-installation marker referring to a verified cached package.
@@ -136,6 +144,12 @@ bool nativeContentStore_Install(const char* root, const NativeContentId* id);
 // Remove local selectability while retaining cached bytes for existing peers.
 bool nativeContentStore_Uninstall(const char* root, const NativeContentId* id);
 bool nativeContentStore_IsCached(const char* root, const NativeContentId* id);
+// Hold a verified selection until the room stops using it. Local collection
+// files are permanent and need no handle. The caller supplies an empty lease.
+bool nativeContentStore_Pin(const char* root, const NativeContentId* id, void** lease);
+void nativeContentStore_Unpin(void** lease);
+bool nativeContentStore_CachePeer(const char* root, const void* package, size_t size,
+                                  const NativeContentId* expected, void** lease);
 bool nativeContentStore_IsInstalled(const char* root, const NativeContentId* id);
 bool nativeContentStore_Read(const char* root, const NativeContentId* id,
                              uint8_t** package, size_t* package_size);

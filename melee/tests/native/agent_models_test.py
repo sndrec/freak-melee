@@ -156,6 +156,38 @@ def model_checks(call, target, root, *, live=False, settled=None):
     scanned = call('models.scan', {'path': str(source)})['primitives']
     assert len(scanned) == 2 and scanned[0]['has_normals']
     imports = [dict(primitive=0, bone=0, binding='automatic'), dict(primitive=1, bone=0, binding='automatic')]
+    with tempfile.TemporaryDirectory(dir=root.parent) as loose_dir:
+        folder = Path(loose_dir)
+        model = folder / 'model' / 'fighter.gltf'
+        parts = model.parent / 'parts'
+        parts.mkdir(parents=True)
+        glb = source.read_bytes()
+        json_end = 20 + struct.unpack_from('<I', glb, 12)[0]
+        document = json.loads(glb[20:json_end])
+        buffer = glb[json_end + 8:]
+        (parts / 'mesh data.bin').write_bytes(buffer)
+        document['buffers'][0]['uri'] = './parts/mesh%20data.bin'
+        model.write_text(json.dumps(document), encoding='utf-8')
+        assert call('models.scan', {'path': str(model)})['primitives'] == scanned
+        (folder / 'outside.bin').write_bytes(buffer)
+        document['buffers'][0]['uri'] = '../outside.bin'
+        model.write_text(json.dumps(document), encoding='utf-8')
+        reject('import', path=str(model), imports=imports)
+        document['buffers'][0]['uri'] = './parts/mesh%20data.bin'
+        uv = struct.pack('<8f', 0, 0, 1, 0, 0, 1, 1, 1)
+        (parts / 'mesh data.bin').write_bytes(buffer + uv)
+        document['buffers'][0]['byteLength'] = len(buffer) + len(uv)
+        document['bufferViews'].append(dict(buffer=0, byteOffset=len(buffer), byteLength=len(uv)))
+        document['accessors'].append(dict(bufferView=len(document['bufferViews']) - 1,
+                                          componentType=5126, count=4, type='VEC2'))
+        document['meshes'][0]['primitives'][0]['attributes']['TEXCOORD_0'] = len(document['accessors']) - 1
+        document['textures'] = [dict(source=0)]
+        document['materials'][0]['pbrMetallicRoughness'] = dict(baseColorTexture=dict(index=0))
+        document['images'] = [dict(uri='../portrait.png')]
+        (folder / 'portrait.png').write_bytes((root / 'portrait.png').read_bytes())
+        model.write_text(json.dumps(document), encoding='utf-8')
+        error = reject('import', path=str(model), imports=imports)
+        assert 'base-color texture' in error['message'], error
     previous_info = call(read, dict(target, view='info'))
     reject('import', path=str(bad), imports=imports)
     change('import', path=str(source), imports=imports)

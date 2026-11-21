@@ -30,10 +30,11 @@ bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
     const char* joint_name;
     const char* matanim_name;
     NativeFighterCostumeFamilyInfo custom_info;
+    FtCostumeBindings stock_bindings;
     if (custom) {
         if (costume->character != 0 || costume->base_costume != 0 ||
             !nativeFighterRuntime_CostumeInfoCached(
-                &costume->fighter_id, root, &custom_info)) {
+                &costume->fighter_id, root, costume->model_variant, &custom_info)) {
             return false;
         }
         if (costume->member_count != custom_info.member_count) return false;
@@ -53,7 +54,8 @@ bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
         FighterKind kind = Player_800325C8(character, false);
         if (kind < 0 || kind >= Ft_Kind_StockCount ||
             costume->base_costume >=
-                CostumeListsForeachCharacter[kind].numCostumes) {
+                CostumeListsForeachCharacter[kind].numCostumes ||
+            !ftCostumeBindings_Stock(kind, costume->base_costume, &stock_bindings)) {
             return false;
         }
         const Fighter_CostumeStrings* names =
@@ -74,10 +76,12 @@ bool nativeCostumePackage_Validate(const NativeCostumePackage* costume,
         valid = data->members[m].dat && data->members[m].size >= 32 &&
             ftCostumeAssets_Load(data->members[m].dat, data->members[m].size,
                 joint_name, matanim_name, &assets) &&
-            (!custom || assets.joint_count == custom_info.members[m].joint_count);
+            ftCostumeBindings_Fit(custom ? &custom_info.members[m].bindings : &stock_bindings,
+                                  &assets);
         if (result != NULL) {
             result->member = m;
-            result->import_status = assets.import.status;
+            result->import_status = !valid && assets.import.status == HSD_DAT_OK
+                                        ? HSD_DAT_DESCRIPTOR : assets.import.status;
             result->error_offset = assets.import.error_offset;
             result->imported_records += assets.import.record_count;
             result->arena_used += assets.import.arena_used;

@@ -10,7 +10,7 @@
 
 // Same preorder as ftAnim_GetNextJointInTree, with a local bounded ancestor
 // stack instead of the animation iterator's shared scratch storage.
-static HSD_Joint* select_joint(HSD_Joint* joint, unsigned ordinal)
+HSD_Joint* nativeFighterModelGraph_JointAt(HSD_Joint* joint, unsigned ordinal)
 {
     if (ordinal == 255) return joint;
     HSD_Joint* ancestors[MAX_FT_PARTS];
@@ -57,7 +57,10 @@ bool nativeFighterModelGraph_Install(Fighter_GObj* gobj, int graph_slot, int omi
     if (target->joint != NULL || target->x4_jobj2 != NULL || target->flags_b1 || target->flags_b2 ||
         parent->joint == NULL || parent->x4_jobj2 == NULL ||
         (placement->x2 >= 2 && (parent->joint->parent == NULL || parent->x4_jobj2->parent == NULL))) return false;
-    HSD_Joint* descriptor = select_joint(fighter->ft_data->x48_items[graph_slot], placement->x3);
+    unsigned ordinal = placement->x3;
+    if (package && !(package->assets.detachable_joints[graph_slot][ordinal / 32] &
+                     (UINT32_C(1) << (ordinal % 32)))) return false;
+    HSD_Joint* descriptor = nativeFighterModelGraph_JointAt(fighter->ft_data->x48_items[graph_slot], ordinal);
     if (descriptor == NULL || (descriptor->flags & (JOBJ_PTCL | JOBJ_SPLINE))) return false;
     // The reserved part owns one descriptor, not its child or sibling trees.
     HSD_Joint source = *descriptor;

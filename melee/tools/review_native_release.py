@@ -1,7 +1,8 @@
 """Review an extracted release, local updates and rollback with isolated user data.
 
 Uses the real friend launcher and native client. No release is uploaded or
-downloaded from the hosted channel. Both prepared releases must already exist.
+downloaded from the hosted channel. Both prepared releases must be signed by the
+same test publisher, with the second release issued after the first.
 """
 import argparse
 import ctypes
@@ -52,7 +53,7 @@ def main():
     first_manifest = json.loads((first/'latest.json').read_text())
     next_manifest = json.loads((next_release/'latest.json').read_text())
     a, b = first_manifest['release'], next_manifest['release']
-    assert a != b
+    assert a != b and next_manifest['issued_ms'] > first_manifest['issued_ms']
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     install = output/'Friend installation with spaces'
@@ -69,6 +70,8 @@ def main():
     powershell = windows/'System32/WindowsPowerShell/v1.0/powershell.exe'
     env = dict(os.environ, LOCALAPPDATA=str(appdata), FREAK_MELEE_CONTROL_ID=identity,
                FREAK_MELEE_CHAT_ENDPOINT='http://127.0.0.1:1',
+               FREAK_MELEE_COMMUNITY_ENDPOINT='http://127.0.0.1:1',
+               FREAK_MELEE_SERVICE_ENDPOINT='http://127.0.0.1:1',
                PATH=str(windows/'System32')+';'+str(windows))
     flags = subprocess.CREATE_NO_WINDOW
     launcher = install/'freak_launcher.ps1'
@@ -114,6 +117,7 @@ def main():
                 raise RuntimeError('Launched client did not reach the hub')
             close_window(game_pid)
             assert process.wait(timeout=30) == 0, launch_log.read_text(errors='replace')[-3000:]
+            assert 'Update unavailable:' not in launch_log.read_text(errors='replace')
         finally:
             if process.poll() is None:
                 if game_pid is not None:
@@ -136,7 +140,7 @@ def main():
         return json.loads((install/'state.json').read_text())
 
     state = check('-Channel', str(next_release/'latest.json'), '-CheckOnly')
-    assert state == dict(current=b, previous=a, blocked=None), state
+    assert state == dict(current=b, previous=a, blocked=None, latest_ms=next_manifest['issued_ms']), state
     installed = install/'versions'/b
     for entry in next_manifest['files']:
         path = installed/entry['path']
@@ -144,9 +148,10 @@ def main():
         assert hashlib.sha256(path.read_bytes()).hexdigest() == entry['sha256']
     assert launcher.read_bytes() == (installed/'freak_launcher.ps1').read_bytes()
     state = check('-Rollback', '-CheckOnly')
-    assert state == dict(current=a, previous=b, blocked=b), state
+    expected_rollback = dict(current=a, previous=b, blocked=b, latest_ms=next_manifest['issued_ms'])
+    assert state == expected_rollback, state
     state = check('-Channel', str(next_release/'latest.json'), '-CheckOnly')
-    assert state == dict(current=a, previous=b, blocked=b), state
+    assert state == expected_rollback, state
     assert 'Skipping rolled-back release' in (output/'updates.log').read_text()
     assert not list(install.glob('*.tmp'))
     (output/'passed.txt').write_text(

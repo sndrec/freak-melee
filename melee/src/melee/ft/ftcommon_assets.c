@@ -110,7 +110,7 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
     for (u32 i = 0; i < 3; ++i) {
         u32 slot = root + 4 + i * 4;
         if (!resolve_local(&output->dat, slot, &source) ||
-            HSD_DatNextTarget(&output->dat, source) - source !=
+            HSD_DatImportNextTarget(&output->import, source) - source !=
                 numeric_sizes[i] ||
             !import_words(&output->dat, source, numeric_tables[i],
                           numeric_sizes[i]))
@@ -157,7 +157,7 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
 
     u32 respawn_table;
     if (!resolve_local(&output->dat, root + 32, &respawn_table) ||
-        HSD_DatNextTarget(&output->dat, respawn_table) - respawn_table != 8 ||
+        HSD_DatImportNextTarget(&output->import, respawn_table) - respawn_table != 8 ||
         !resolve_local(&output->dat, respawn_table, &source))
     {
         return fail(&output->import, HSD_DAT_DESCRIPTOR, root + 32);
@@ -177,7 +177,7 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
 
     u32 damage_table;
     if (!resolve_local(&output->dat, root + 36, &damage_table) ||
-        HSD_DatNextTarget(&output->dat, damage_table) - damage_table != 24)
+        HSD_DatImportNextTarget(&output->import, damage_table) - damage_table != 24)
     {
         return fail(&output->import, HSD_DAT_DESCRIPTOR, root + 36);
     }
@@ -188,7 +188,7 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
         if (!resolve_local(&output->dat, slot, &source) ||
             !HSD_DatReadU32(&output->dat, slot + 4, &count) || count == 0 ||
             count > 13 - damage_count ||
-            HSD_DatNextTarget(&output->dat, source) - source <
+            HSD_DatImportNextTarget(&output->import, source) - source <
                 count * sizeof(Vec2) ||
             !import_words(&output->dat, source,
                           &output->damage_shifts[damage_count],
@@ -216,11 +216,11 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
         u32 count;
         u32 slot = root + 40 + i * 4;
         if (!resolve_local(&output->dat, slot, &table) ||
-            (i == 1 ? root : HSD_DatNextTarget(&output->dat, table)) -
+            (i == 1 ? root : HSD_DatImportNextTarget(&output->import, table)) -
                     table != 8 ||
             !resolve_local(&output->dat, table, &source) ||
             !HSD_DatReadU32(&output->dat, table + 4, &count) || count != 5 ||
-            HSD_DatNextTarget(&output->dat, source) - source <
+            HSD_DatImportNextTarget(&output->import, source) - source <
                 count * sizeof(Vec2) ||
             !import_words(&output->dat, source, shake_offsets[i],
                           count * sizeof(Vec2)))
@@ -235,9 +235,9 @@ bool ftCommonAssets_Import(const void* bytes, size_t size, void* arena,
     u32 special_color_table;
     if (!resolve_local(&output->dat, root + 24, &color_table) ||
         !resolve_local(&output->dat, root + 28, &special_color_table) ||
-        HSD_DatNextTarget(&output->dat, color_table) - color_table !=
+        HSD_DatImportNextTarget(&output->import, color_table) - color_table !=
             FT_COMMON_COLOR_ENTRY_COUNT * 8 ||
-        HSD_DatNextTarget(&output->dat, special_color_table) -
+        HSD_DatImportNextTarget(&output->import, special_color_table) -
                 special_color_table !=
             FT_COMMON_SPECIAL_COLOR_ENTRY_COUNT * 8)
     {

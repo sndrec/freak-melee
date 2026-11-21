@@ -16,6 +16,10 @@ typedef struct NativeNetplayPendingChecksum {
     bool valid;
 } NativeNetplayPendingChecksum;
 
+typedef struct NativeNetplayInputAck {
+    uint64_t boundary, selective;
+} NativeNetplayInputAck;
+
 typedef struct NativeNetplayExchangePeer {
     NativeNetplayPendingChecksum pending_checksums[
         NATIVE_ROLLBACK_INPUT_CAPACITY];
@@ -24,6 +28,8 @@ typedef struct NativeNetplayExchangePeer {
     uint64_t sample_frame;
     uint64_t lead_sample_at;
     uint64_t echoed_frame;
+    NativeNetplayInputAck received;
+    NativeNetplayInputAck acknowledged;
     int32_t lead_milliframes;
     uint8_t port_mask;
     bool configured;
@@ -53,6 +59,7 @@ typedef struct NativeNetplayExchange {
     uint32_t rejected_checksum_packets;
     uint32_t rejected_input_packets;
     uint32_t stale_packets;
+    uint32_t send_backpressure;
     uint8_t local_peer;
     uint8_t local_port_mask;
     uint8_t artificial_delay_frames;
@@ -61,7 +68,6 @@ typedef struct NativeNetplayExchange {
     bool has_newest_frame;
     bool has_checksum;
     bool has_prior_session;
-    bool checksum_overflow;
 } NativeNetplayExchange;
 
 bool nativeNetplayExchange_Init(NativeNetplayExchange* exchange,
@@ -82,6 +88,7 @@ int32_t nativeNetplayExchange_MaxLead(const NativeNetplayExchange* exchange);
 bool nativeNetplayExchange_SetChecksum(NativeNetplayExchange* exchange,
                                       uint64_t frame, uint64_t checksum);
 bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
+                                         uint8_t destination_peer, bool repair,
                                          uint8_t* packet,
                                          size_t packet_capacity,
                                          size_t* packet_size);

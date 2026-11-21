@@ -78,6 +78,12 @@ try {
   checks.push('Portable native export interoperates with Node Ed25519; the local record protects secrets');
   await a.close(); a = await native('a'); assert.match(a.ready, /signed-in=1 pending=0/);
   checks.push('Saved sessions resume automatically without an OS prompt');
+  const devices = await call('me', undefined, grant.token);
+  const target = devices.sessions.find(session => session.current).id;
+  assert.match(await a.send({ operation: 'RevokeSession', target }), /signed-in=1/);
+  const revoked = await fetch(`${endpoint}/v1/accounts/${handle}/me`, { headers: { Authorization: `Bearer ${grant.token}` } });
+  assert.equal(revoked.status, 401);
+  checks.push('A native account can sign out an individual device while keeping its own session');
   assert.match(await a.send({ operation: 'SaveProfile', name: 'Twilight test', bio: 'Account-key profile' }), /name=Twilight test bio=Account-key profile status=Account updated/);
   assert.match(await a.send({ operation: 'SaveProfile', name: '', bio: 'Rejected' }), /name=Twilight test bio=Account-key profile status=Enter a display name/);
   assert.match(await a.send({ operation: 'AddKey', path: secondPath }), /signed-in=1.*keys=2.*New account-key file saved and registered/);

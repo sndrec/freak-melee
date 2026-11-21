@@ -297,7 +297,7 @@ static bool read_string8(MatchReader* reader, char* output, size_t capacity)
 {
     uint8_t length;
     if (!read_u8(reader, &length) || length >= capacity ||
-        !read_raw(reader, output, length))
+        !read_raw(reader, output, length) || memchr(output, '\0', length))
     {
         return false;
     }

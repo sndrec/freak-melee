@@ -6,6 +6,8 @@
 #define NATIVE_SCRIPT_FUNCTION_SEMANTIC UINT32_C(0x40000000)
 #define NATIVE_SCRIPT_SEMANTIC_INDEX UINT32_C(0x3fffffff)
 
+enum { NATIVE_SCRIPT_CALLBACK_INSTRUCTIONS = 65536 };
+
 typedef enum NativeScriptBytecodeOp {
     NativeScriptBC_Constant, NativeScriptBC_Move, NativeScriptBC_Convert,
     NativeScriptBC_Unary, NativeScriptBC_Binary,

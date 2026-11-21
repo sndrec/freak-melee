@@ -106,12 +106,11 @@ Save their pointer/format selections in the runtime record, not their byte
 capacity per tick. Source archives must remain resident for the snapshot epoch;
 asset unload/selection transitions invalidate those snapshots.
 
-This does **not** prove every imported graph descriptor immutable. JObjLoad
-aliases particle SLists from `joint.u.ptcl` and writes the active bit in each
-node's data. Those aliased nodes are mutable even though reached through source
-descriptors. Spline, material, shape and event descriptors need their own write
-audit before broad immutable classification. The page oracle remains authoritative
-for those writes during this transition.
+Particle commands in `joint.u.ptcl` are shared read-only. Each live JObj owns
+its pending first-draw events. Restoring the JObj restores those events, so a
+hidden rollback frame can emit them at the original time. Spline, material,
+shape and other event descriptors still need their own write audit. The page
+oracle tracks their writes during this transition.
 
 RObj expression arg_buf contents are populated from all selected values before
 synchronous evaluation; its address/size is lazily allocated and retained until

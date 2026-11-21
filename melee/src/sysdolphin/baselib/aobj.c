@@ -233,7 +233,13 @@ HSD_AObj* HSD_AObjLoadDesc(HSD_AObjDesc* aobjdesc)
             phi_r30 = hsd_obj;
             if (hsd_obj != NULL) {
                 ref_INC(hsd_obj);
-            } else {
+            }
+#ifdef MELEE_NATIVE
+            else if (aobjdesc->obj_id_is_joint)
+#else
+            else
+#endif
+            {
                 phi_r30 =
                     (HSD_Obj*) HSD_JObjLoadJoint((void*) aobjdesc->obj_id);
             }

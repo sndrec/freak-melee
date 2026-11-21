@@ -112,8 +112,8 @@ extern "C" bool nativeFighterRig_RemapAnimationBank(const NativeFighterProject* 
 {
     if(!project||!destination||!output||output->fighter||output->fighter_size||
        output->animation||output->animation_size||!project->fighter_dat||!project->animation_dat||
-       project->fighter_size>NATIVE_CONTENT_MAX_PACKAGE_BYTES||
-       project->animation_size>NATIVE_CONTENT_MAX_PACKAGE_BYTES||
+       project->fighter_size>NATIVE_CONTENT_MAX_ASSET_BYTES||
+       project->animation_size>NATIVE_CONTENT_MAX_ASSET_BYTES||
        !rig_map(project->facts,*destination,order,count))
         return fail(error,capacity,"Animation rig edit needs a valid part map and empty output.");
     std::vector<Blob> blobs;
@@ -163,7 +163,7 @@ extern "C" bool nativeFighterRig_RemapAnimationBank(const NativeFighterProject* 
     std::vector<uint8_t> animation;
     size_t before=0;
     for(auto& blob:blobs){
-        if(blob.before-before>NATIVE_CONTENT_MAX_PACKAGE_BYTES-animation.size())
+        if(blob.before-before>NATIVE_CONTENT_MAX_ASSET_BYTES-animation.size())
             return fail(error,capacity,"Remapped animation padding exceeds the asset size limit.");
         animation.insert(animation.end(),project->animation_dat+before,project->animation_dat+blob.before);
         blob.after=animation.size();bool changed=false;
@@ -183,13 +183,13 @@ extern "C" bool nativeFighterRig_RemapAnimationBank(const NativeFighterProject* 
         void* rewritten=nullptr;size_t bytes=blob.size;
         const uint8_t* data=project->animation_dat+blob.before;
         if(changed){bytes=0;if(!nativeFighterAnimation_RemapNodes(data,blob.size,maps.data(),(unsigned)maps.size(),&rewritten,&bytes,error,capacity))return false;data=(const uint8_t*)rewritten;}
-        if(bytes>NATIVE_CONTENT_MAX_PACKAGE_BYTES-animation.size()){
+        if(bytes>NATIVE_CONTENT_MAX_ASSET_BYTES-animation.size()){
             std::free(rewritten);return fail(error,capacity,"Remapped animation bank exceeds the asset size limit.");
         }
         animation.insert(animation.end(),data,data+bytes);std::free(rewritten);
         blob.rewritten_size=(uint32_t)bytes;before=blob.before+blob.size;
     }
-    if(project->animation_size-before>NATIVE_CONTENT_MAX_PACKAGE_BYTES-animation.size())
+    if(project->animation_size-before>NATIVE_CONTENT_MAX_ASSET_BYTES-animation.size())
         return fail(error,capacity,"Remapped animation padding exceeds the asset size limit.");
     animation.insert(animation.end(),project->animation_dat+before,project->animation_dat+project->animation_size);
     std::vector<uint8_t> patched(project->fighter_dat,project->fighter_dat+project->fighter_size);

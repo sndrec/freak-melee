@@ -333,8 +333,8 @@ static bool import_model_data(HSD_DatImport* import, u32 source,
     }
     // Model variants belong to the DAT, independently of how many costume
     // assets the package installs. Keep every row for later imported skins.
-    u32 visibility_bytes = HSD_DatNextTarget(import->dat, visibility_source) - visibility_source;
-    u32 texture_bytes = HSD_DatNextTarget(import->dat, texture_source) - texture_source;
+    u32 visibility_bytes = HSD_DatImportNextTarget(import, visibility_source) - visibility_source;
+    u32 texture_bytes = HSD_DatImportNextTarget(import, texture_source) - texture_source;
     u32 visibility_count = visibility_bytes / 16;
     // Both tables index the same variants. Edited scripts may leave an
     // unreferenced gap after the texture table, so its next target is only
@@ -625,7 +625,7 @@ static bool import_dynamics(HSD_DatImport* import, u32 source,
     u32 collision_source;
     s32 count;
     if (!read_s32(import->dat, source, &count) || count < 0 ||
-        count > Ft_Dynamics_NumMax ||
+        count >= Ft_Dynamics_NumMax ||
         !read_int(import->dat, source + 8, &output->dynamics.x4) ||
         output->dynamics.x4 < 0 || output->dynamics.x4 > 0xB)
     {
@@ -664,7 +664,7 @@ static bool import_dynamics(HSD_DatImport* import, u32 source,
     {
         return fail(import, HSD_DAT_RELOCATION, source + 4);
     }
-    u32 descriptor_bytes = HSD_DatNextTarget(import->dat, bones_source) - bones_source;
+    u32 descriptor_bytes = HSD_DatImportNextTarget(import, bones_source) - bones_source;
     u32 descriptor_count = descriptor_bytes / 24;
     if (descriptor_count < (u32) count || descriptor_count > Ft_Dynamics_NumMax)
         return fail(import, HSD_DAT_DESCRIPTOR, bones_source);
@@ -707,7 +707,8 @@ static bool import_hurtboxes(HSD_DatImport* import, u32 source,
 {
     u32 inits_source;
     s32 count;
-    if (!read_s32(import->dat, source, &count) || count < 0 || count > 256 ||
+    if (!read_s32(import->dat, source, &count) || count < 0 ||
+        (u32) count > ARRAY_SIZE(((Fighter*) 0)->hurt_capsules) ||
         !local(import->dat, source + 4, &inits_source) ||
         HSD_DatBytes(import->dat, inits_source, (size_t) count * 40) == NULL)
     {
@@ -934,7 +935,7 @@ static itSamusGrappleAttributes* import_samus_grapple_attributes(
     enum { SOURCE_SIZE = 0xB0, SCALAR_SIZE = 0x64 };
     u32 source;
     if (!local(import->dat, article_source + 4, &source) ||
-        HSD_DatNextTarget(import->dat, source) - source != SOURCE_SIZE)
+        HSD_DatImportNextTarget(import, source) - source != SOURCE_SIZE)
     {
         fail(import, HSD_DAT_DESCRIPTOR, article_source + 4);
         return NULL;
@@ -999,7 +1000,7 @@ static itYoyoAttributes* import_ness_yoyo_attributes(
     enum { SOURCE_SIZE = 0x5C, SCALAR_SIZE = 0x50 };
     u32 source;
     if (!local(import->dat, article_source + 4, &source) ||
-        HSD_DatNextTarget(import->dat, source) - source != SOURCE_SIZE)
+        HSD_DatImportNextTarget(import, source) - source != SOURCE_SIZE)
     {
         fail(import, HSD_DAT_DESCRIPTOR, article_source + 4);
         return NULL;
@@ -1033,7 +1034,7 @@ static itGamewatchArticleAttributes* import_gamewatch_article_attributes(
 {
     u32 source;
     if (!local(import->dat, article_source + 4, &source) ||
-        HSD_DatNextTarget(import->dat, source) - source != 4)
+        HSD_DatImportNextTarget(import, source) - source != 4)
     {
         fail(import, HSD_DAT_DESCRIPTOR, article_source + 4);
         return NULL;
@@ -1056,7 +1057,7 @@ static itGamewatchchefAttributes* import_gamewatch_chef_attributes(
     enum { SOURCE_SIZE = 0x74, SOURCE_SCALAR_SIZE = SOURCE_SIZE - 4 };
     u32 source;
     if (!local(import->dat, article_source + 4, &source) ||
-        HSD_DatNextTarget(import->dat, source) - source != SOURCE_SIZE)
+        HSD_DatImportNextTarget(import, source) - source != SOURCE_SIZE)
     {
         fail(import, HSD_DAT_DESCRIPTOR, article_source + 4);
         return NULL;
@@ -1268,7 +1269,7 @@ static FtPartsDesc* import_parts_desc(HSD_DatImport* import, u32 source,
     if (!local(import->dat, source + 4, &visibility_source))
         return NULL;
     u32 visibility_count =
-        (HSD_DatNextTarget(import->dat, visibility_source) - visibility_source) / 16;
+        (HSD_DatImportNextTarget(import, visibility_source) - visibility_source) / 16;
     if (visibility_count < costume_count || visibility_count > 8) {
         fail(import, HSD_DAT_DESCRIPTOR, visibility_source);
         return NULL;
@@ -1552,7 +1553,7 @@ bool ftCharacterAssets_Import(const void* bytes, size_t size,
     {
         return fail(&output->import, HSD_DAT_DESCRIPTOR, root);
     }
-    u32 ext_end = HSD_DatNextTarget(&output->dat, fields[1]);
+    u32 ext_end = HSD_DatImportNextTarget(&output->import, fields[1]);
     size_t ext_size = ext_end - fields[1];
     if (ext_size > sizeof(output->extended_attributes)) {
         ext_size = sizeof(output->extended_attributes);

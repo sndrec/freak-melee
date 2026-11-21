@@ -166,7 +166,8 @@ static bool start_room(const char* room_code, const char* local_name,
     snprintf(online.local_name, sizeof(online.local_name), "%s", local_name);
     online.local_players = local_players;
     online.active = true;
-    if (!nativeLobbySession_Start(&online.lobby, &config)) {
+    if (!nativeLobbySession_Start(&online.lobby, &config, admission && *admission
+            ? NativeLobbyMatchSource_QuickPlay : NativeLobbyMatchSource_Lobby)) {
         return false;
     }
     online.lobby.room.artificial_delay_frames =
@@ -489,25 +490,25 @@ bool nativeOnlineSession_Pump(void)
     return true;
 }
 
-bool nativeOnlineSession_BeginMatch(const NativeLobbyMatch* selection)
+bool nativeOnlineSession_StartLobbyMatch(void)
 {
-    if (!online.active || online.launch_ready || online.match_claimed ||
-        selection == NULL || selection->session_id != 0)
-    {
+    NativeNetplayRoom* room = &online.lobby.room;
+    const NativeNetplayConnection* connection = &room->connection;
+    const NativeSignalingPresence* presence = &connection->presence;
+    if (!online.active || online.lobby.match_source != NativeLobbyMatchSource_Lobby ||
+        online.lobby.state != NativeLobbySessionState_Waiting ||
+        !connection->has_presence || !connection->has_lobby || !connection->lobby.has_rules ||
+        connection->lobby.phase != 2 || presence->stage == UINT8_MAX ||
+        strcmp(presence->owner_peer_id, connection->local_peer_id) != 0) {
         return false;
     }
-    unsigned int low;
-    unsigned int high;
-    if (!random_value(&low) || !random_value(&high)) {
+    if (presence->match_size || room->publish_request_epoch == presence->match_epoch) return true;
+    if (!nativeSignalingClient_StartLobbyMatch(&room->connection.signaling, presence->match_epoch,
+                                              nativeStockContent_Digest())) {
         return false;
     }
-    NativeLobbyMatch match = *selection;
-    match.session_id = ((uint64_t) high << 32) | low;
-    if (match.session_id == 0) {
-        match.session_id = 1;
-    }
-    return nativeLobbySession_BeginMatch(
-        &online.lobby, &match, online.lobby.room.artificial_delay_frames);
+    room->publish_request_epoch = presence->match_epoch;
+    return true;
 }
 
 NativeLobbySessionState nativeOnlineSession_State(void)
@@ -576,8 +577,7 @@ bool nativeOnlineSession_ContentProgress(NativeNetplayContentProgress* progress)
         .package_count = cache->choice_count,
         .direction = NativeNetplayContent_Receiving,
     };
-    nativeContentStore_ReadPreview(cache->receive.bytes, cache->receive.received,
-                                   &progress->preview);
+    progress->preview = cache->receive.preview;
     return true;
 }
 
@@ -754,8 +754,10 @@ void nativeOnlineSession_Inspect(void)
 
 bool nativeOnlineSession_WatchMatch(void)
 {
-    return online.active && !online.match_claimed && !online.watch_claimed && !online.launch_ready &&
-        nativeNetplayRoom_WatchMatch(&online.lobby.room);
+    const NativeRoomLobbyState* lobby = nativeOnlineSession_LobbyState();
+    return lobby && lobby->has_rules && lobby->phase == 2 &&
+        !online.match_claimed && !online.watch_claimed && !online.launch_ready &&
+        nativeNetplayRoom_WatchMatch(&online.lobby.room, nativeStockContent_Digest());
 }
 void nativeOnlineSession_StopWatching(void)
 {
@@ -844,6 +846,11 @@ const NativeStageCursor* nativeOnlineSession_StageCursor(void)
         presence->stage == UINT8_MAX && cursor->sequence &&
         cursor->epoch == presence->match_epoch && cursor->revision == lobby->revision
             ? cursor : NULL;
+}
+
+void nativeOnlineSession_SampleStageCursor(uint64_t now, float* x, float* y)
+{
+    nativeCursorMotion_Sample(&online.lobby.room.connection.stage_motion, now, x, y);
 }
 
 bool nativeOnlineSession_PublishStageCursor(NativeStageCursor* cursor)

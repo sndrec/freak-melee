@@ -63,6 +63,8 @@ static void reset(unsigned mode,unsigned ordinal)
  memset(&descriptor,0,sizeof(descriptor));memset(&child_descriptor,0,sizeof(child_descriptor));memset(&sibling_descriptor,0,sizeof(sibling_descriptor));
  loads=removals=registrations=fail_load=completion_mode=0;completed_source=NULL;
  graph_package.assets.omission_rows[0]=(struct Fighter_804D6540_x0_t){5,2,mode,ordinal};
+ memset(graph_package.assets.detachable_joints,0,sizeof(graph_package.assets.detachable_joints));
+ graph_package.assets.detachable_joints[6][ordinal/32]=UINT32_C(1)<<(ordinal%32);
  graph_package.assets.character.fighter_items[6]=&descriptor;graph_package.assets.character.joint_graphs[6]=&descriptor;
  bones[0].joint=&roots[0];bones[0].x4_jobj2=&roots[1];bones[2].joint=&parents[0];bones[2].x4_jobj2=&parents[1];bones[2].xC=7;
  for(unsigned n=0;n<2;++n){roots[n].child=&parents[n];parents[n].parent=&roots[n];parents[n].child=&children[n];parents[n].next=&siblings[n];children[n].parent=&parents[n];siblings[n].parent=&roots[n];}
@@ -128,6 +130,12 @@ static void comparisons(void)
 }
 static void failure_cases(void)
 {
+ reset(0,255);
+ HSD_GObj* dependent=actor(true);
+ graph_package.assets.detachable_joints[6][7]=0;
+ NativeScriptValue rejected;
+ CHECK(invoke(dependent,6,0,&rejected)&&!rejected.as.u64&&!loads&&!registrations);
+ release(dependent);
  for(unsigned scenario=0;scenario<15;++scenario){reset(0,255);HSD_GObj* o=actor(true);int slot=6,omission=0;Fighter* fp=o->user_data;
   switch(scenario){case 0:slot=-1;break;case 1:slot=16;break;case 2:omission=-1;break;case 3:omission=1;break;
   case 4:graph_package.assets.character.fighter_items[6]=graph_package.assets.character.joint_graphs[6]=NULL;break;

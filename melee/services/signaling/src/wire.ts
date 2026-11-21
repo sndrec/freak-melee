@@ -33,6 +33,7 @@ export const enum ClientMessageType {
   StageCursor = 22,
   ChangeCard = 23,
   CssPointers = 24,
+  StartLobbyMatch = 25,
 }
 
 export const enum ServerMessageType {
@@ -116,6 +117,7 @@ export type ClientMessage =
   | { type: ClientMessageType.UnreadyQuick; completedEpoch: number }
   | { type: ClientMessageType.PostChat; nonce: number; text: string }
   | { type: ClientMessageType.SetMatch; payload: Uint8Array }
+  | { type: ClientMessageType.StartLobbyMatch; epoch: number; digest: Uint8Array }
   | { type: ClientMessageType.ChangeCard; seat: number; card: number; expected: number }
   | { type: ClientMessageType.SetRotation; policy: RotationPolicy }
   | { type: ClientMessageType.PickLobbyStage; epoch: number; seat: number; stage: number }
@@ -382,6 +384,12 @@ export function decodeClientMessage(message: ArrayBuffer): ClientMessage {
     reader.finish();
     return result;
   }
+  if (type === ClientMessageType.StartLobbyMatch) {
+    const epoch = reader.u64(), digest = reader.bytes16();
+    reader.finish();
+    if (digest.length !== 32 || !digest.some(byte => byte)) throw new Error("Invalid content digest");
+    return { type, epoch, digest };
+  }
   if (type === ClientMessageType.ChangeCard) {
     const seat = reader.u8(), card = reader.u8(), expected = reader.u8();
     reader.finish();
@@ -619,6 +627,13 @@ export function encodeSetMatch(
 ): ArrayBuffer {
   const writer = new Writer(ClientMessageType.SetMatch, maximumBytes);
   writer.bytes16(payload);
+  return writer.finish();
+}
+
+export function encodeStartLobbyMatch(epoch: number, digest: Uint8Array): ArrayBuffer {
+  const writer = new Writer(ClientMessageType.StartLobbyMatch, 50);
+  writer.u64(epoch);
+  writer.bytes16(digest);
   return writer.finish();
 }
 

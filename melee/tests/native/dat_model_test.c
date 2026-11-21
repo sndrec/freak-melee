@@ -18,8 +18,65 @@ static void put32(u8* p, u32 n)
     p[2] = (u8) (n >> 8); p[3] = (u8) n;
 }
 
+static void test_path_lengths(void)
+{
+    u8 file[32 + 72 + 8] = {0};
+    u8* data = file + 32;
+    u8 arena[4096];
+    HSD_Dat dat;
+    HSD_DatImport import;
+    put32(file, sizeof(file));
+    put32(file + 4, 72);
+    put32(file + 8, 2);
+    put32(data, 3);              // Linear path with three control points.
+    put32(data + 8, 24);         // Positions occupy bytes 24 through 59.
+    put32(data + 16, 60);        // Cumulative lengths start at byte 60.
+    put32(data + 68, 0x3f800000);
+    put32(data + 72, 8);
+    put32(data + 76, 16);
+    require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
+            HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 8) == HSD_DAT_OK &&
+            HSD_DatImportGraph(&import, 0, DAT_SPLINE) != NULL,
+            "A path can contain a zero-length segment");
+    put32(data + 68, 0x3f000000);
+    require(HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 8) == HSD_DAT_OK &&
+            HSD_DatImportGraph(&import, 0, DAT_SPLINE) == NULL,
+            "Cumulative lengths must cover the end of the path");
+}
+
+static void test_particle_list_length(void)
+{
+    enum { MAX = 256, BYTES = 32 + 64 + (MAX + 1) * 12 };
+    u8 file[BYTES] = {0};
+    u8 arena[49152];
+    u8* data = file + 32;
+    for (u32 count = MAX; count <= MAX + 1; ++count) {
+        u32 data_size = 64 + count * 8;
+        u32 length = 32 + data_size + count * 4;
+        put32(file, length); put32(file + 4, data_size); put32(file + 8, count);
+        put32(data + 4, JOBJ_PTCL); put32(data + 16, 64); put32(data + data_size, 16);
+        for (u32 i = 0; i < count; ++i) {
+            u32 at = 64 + 8 * i;
+            put32(data + at, i + 1 < count ? at + 8 : 0);
+            put32(data + at + 4, i);
+            if (i + 1 < count) put32(data + data_size + 4 + i * 4, at);
+        }
+        HSD_Dat dat;
+        HSD_DatImport import;
+        require(HSD_DatOpen(&dat, file, length) == HSD_DAT_OK &&
+                    HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 512) == HSD_DAT_OK,
+                "Could not open joint particle fixture");
+        HSD_Joint* joint = HSD_DatImportGraph(&import, 0, DAT_JOINT);
+        require(count == MAX ? joint != NULL :
+                    (joint == NULL && import.status == HSD_DAT_RESOURCE_LIMIT),
+                "Wrong import result at the per-joint particle limit");
+    }
+}
+
 void test_dat_model(void)
 {
+    test_particle_list_length();
+    test_path_lengths();
     static const u32 slots[] = { 8, 16, 56, 60, 140, 152, 160, 164,
                                 188, 216, 224, 232, 304 };
     u8 file[500] = { 0 };
@@ -54,7 +111,16 @@ void test_dat_model(void)
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
                 HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 64) == HSD_DAT_OK,
             "Model fixture rejected");
+    import.display_list_limit = 31;
+    require(!HSD_DatImportGraph(&import, 0, DAT_JOINT) &&
+            import.status == HSD_DAT_RESOURCE_LIMIT && !import.display_list_bytes,
+            "An over-budget display list must be rejected before copying it");
+    require(HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 64) == HSD_DAT_OK,
+            "Cannot reset model import");
+    import.display_list_limit = 32;
     HSD_Joint* root = HSD_DatImportGraph(&import, 0, DAT_JOINT);
+    require(root && HSD_DatImportGraph(&import, 0, DAT_JOINT) == root &&
+            import.display_list_bytes == 32, "Repeated roots share their geometry budget");
     require(root && root->child && root->child->position.x == 2 && root->scale.y == 1,
             "Joint links or transforms changed");
     require(root->mtx && root->mtx[0][0] == 1 && root->mtx[1][1] == 1 &&

@@ -40,8 +40,10 @@ export interface ConnectionAttachment extends Omit<Participant, "waitingRanks" |
   connectionId: string;
   chatSubscribed?: boolean;
   lobbySubscribed?: boolean;
-  stageCursor?: { epoch: number; revision: number; sequence: number; windowMs: number; updates: number };
-  lastCssPointerMs?: number;
+  lobbyResult?: { epoch: number; winners: number; loserPort: number };
+  stageCursor?: { epoch: number; revision: number; sequence: number };
+  motionBudgetMs?: number;
+  controlBudgetMs?: number;
   chatLastPost?: number;
   chatHighestNonce?: number;
   chatLastHistory?: number;

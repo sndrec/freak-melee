@@ -59,6 +59,9 @@ const NativeSourceResourceEntry* nativeSourceResources_Find(
 // Pixel decompression/decoder success is a separate mandatory activation check.
 bool nativeSourceResources_PNG(const void* bytes,size_t size,
     uint16_t* width,uint16_t* height,char* error,size_t error_capacity);
+// Checks PNG chunk boundaries, ordering, CRCs and dimensions before decoding.
+bool nativePng_Inspect(const uint8_t* data, size_t size, size_t byte_limit,
+                       uint16_t* width, uint16_t* height);
 #ifdef __cplusplus
 }
 #endif

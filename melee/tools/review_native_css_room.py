@@ -33,7 +33,7 @@ class Client:
             count = struct.unpack_from('<H', layout, 4)[0]
             assert count >= 2, 'The fixture needs two independent fighters'
             missing = layout[14:46].hex()
-            for relative in [f'content/installed/{missing}.fmi', f'content/cache/{missing}.fmc']:
+            for relative in [f'content/installed/{missing}.fmi', f'content/cache/{missing}.fmc', f'content/downloads/{missing}.fmc']:
                 (self.data / relative).unlink(missing_ok=True)
             body = layout[:4] + struct.pack('<H', count-1) + layout[54:-4]
             digest = 2166136261
@@ -262,7 +262,7 @@ def main():
             client.wait_cards(index+1)
         for index, client in enumerate(clients):
             text = client.wait_cards(2)
-            local = re.search(r'\[css-card\] display=0 .*canonical=(\d+) local=(\d+)', text)
+            local = re.search(rf'\[css-card\] display={index} .*canonical=(\d+) local=(\d+)', text)
             assert local and local.groups() == (str(index), '1'), text
             client.click('lobby-ready')
             client.screenshot()
@@ -289,7 +289,7 @@ def main():
             else:
                 raise RuntimeError('Provisional CSS choices did not reach the other client')
         # The remote selection arrives before readying or explicit acceptance.
-        preview = receiver.data / f'content/cache/{receiver.missing}.fmc'
+        preview = receiver.data / f'content/downloads/{receiver.missing}.fmc'
         assert not (receiver.data / f'content/installed/{receiver.missing}.fmi').exists()
         roster_before_preview = (receiver.data / 'css-layout.bin').read_bytes()
         for _ in range(300):
@@ -327,9 +327,22 @@ def main():
             time.sleep(.1)
         else:
             raise RuntimeError('Receiver did not enter ready practice')
-        # Evict only this test fixture's automatic cache to separately test
-        # an uncached gift while the recipient is practicing as a spectator.
-        preview.unlink()
+        # Choose another fighter before evicting the original download from the
+        # isolated profile. The receiver holds the selected fighter open.
+        other_x, other_y = map(float, re.search(r'\[css-tile\] index=1 center=([\d.-]+),([\d.-]+)', text).groups())
+        sender.move(other_x-2.7, other_y+2)
+        if sender.state()[0]['hand'] != 1:
+            sender.tap('b')
+        sender.tap('a')
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                preview.unlink()
+                break
+            except PermissionError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(.1)
         sender.command('ui-click', *sender.pixel(tx, ty))
         time.sleep(.3)
         sender.tap('x')

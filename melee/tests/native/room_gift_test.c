@@ -1,3 +1,4 @@
+#include "fixture_portrait.h"
 // Actual gift, transfer and store code. Transport queues and engine validation
 // are controlled here; native runtime/model validation has separate tests.
 #define WIN32_LEAN_AND_MEAN
@@ -37,14 +38,21 @@ static unsigned index_of(NativeNetplayConnection* connection)
     CHECK(connection == &rooms[0].connection || connection == &rooms[1].connection);
     return connection == &rooms[1].connection;
 }
-bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner)
-{ (void)peer; (void)serial; reserved[index_of(c)][owner] = true; return true; }
-bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner)
-{ (void)peer; (void)serial; unsigned i=index_of(c); CHECK(reserved[i][owner]); started[i][owner]=true; return true; }
-void nativeNetplayConnection_ReleaseContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner)
-{ (void)peer; if(serial) reserved[index_of(c)][owner]=started[index_of(c)][owner]=false; }
-NativeContentChannelState nativeNetplayConnection_ContentState(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner)
+bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner, NativeContentPurpose purpose)
 {
+    CHECK(purpose == NativeContentPurpose_Gift);
+     (void)peer; (void)serial; reserved[index_of(c)][owner] = true; return true; }
+bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Gift);
+     (void)peer; (void)serial; unsigned i=index_of(c); CHECK(reserved[i][owner]); started[i][owner]=true; return true; }
+void nativeNetplayConnection_ReleaseContent(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Gift);
+     (void)peer; if(serial) reserved[index_of(c)][owner]=started[index_of(c)][owner]=false; }
+NativeContentChannelState nativeNetplayConnection_ContentState(NativeNetplayConnection* c, const char* peer, uint32_t serial, bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Gift);
     (void)peer;(void)serial;unsigned i=index_of(c);
     if(!reserved[i][owner])return NativeContentChannel_None;
     if(!started[i][owner])return NativeContentChannel_Reserved;
@@ -58,6 +66,7 @@ static Packet* enqueue(NativeNetplayConnection* c, bool control)
     Packet* packet=&queue[write_index++%128];memset(packet,0,sizeof(*packet));
     unsigned i=index_of(c);packet->target=1-i;packet->control=control;
     strcpy(packet->data.message.peer_id,rooms[i].connection.local_peer_id);
+    packet->data.message.join_order=rooms[1-i].connection.presence.participants[0].join_order;
     return packet;
 }
 bool nativeNetplayConnection_SendControl(NativeNetplayConnection* c, const char* peer, const uint8_t* bytes, size_t size)
@@ -75,8 +84,9 @@ bool nativeNetplayConnection_SendControl(NativeNetplayConnection* c, const char*
     return true;
 }
 bool nativeNetplayConnection_SendContent(NativeNetplayConnection* c, const char* peer, uint32_t serial,
-                                        bool owner, const uint8_t* bytes, size_t size)
+                                        bool owner, NativeContentPurpose purpose, const uint8_t* bytes, size_t size)
 {
+    CHECK(purpose == NativeContentPurpose_Gift);
     (void)peer;NativeContentId id;
     NativeContentTransferPacketType type=nativeContentTransfer_PacketType(bytes,size,&id);
     if(type==NativeContentTransferPacket_Ack && drop_final_ack && rooms[1].incoming_gift.receive.complete)
@@ -119,6 +129,7 @@ static void initialize(unsigned run)
         NativeNetplayConnection* c=&rooms[i].connection;c->has_presence=true;
         snprintf(c->local_peer_id,sizeof(c->local_peer_id),"peer%u",i);strcpy(c->local_build,"fixture");
         c->presence.participant_count=1;
+        c->presence.participants[0].join_order=2-i;
         snprintf(c->presence.participants[0].peer_id,sizeof(c->presence.participants[0].peer_id),"peer%u",1-i);
         strcpy(c->presence.participants[0].build,"fixture");
     }
@@ -153,10 +164,9 @@ static void fixture(uint8_t** parent,size_t* parent_size,uint8_t** outfit,size_t
     for(unsigned i=0;i<7;++i){bool seen=false;for(unsigned j=0;j<facts.bone_count;++j)if((unsigned)facts.bones[j].part==roles[i])seen=true;
         if(!seen)facts.bones[facts.bone_count++]=(NativeFighterBone){(Fighter_Part)roles[i],(uint8_t)i};}
     NativeScriptDiagnostic diagnostic;CHECK(nativeSourceAssets_Write(&facts,record,sizeof(record),&record_size,&diagnostic));
-    static const uint8_t portrait[45]={137,'P','N','G',13,10,26,10,0,0,0,13,'I','H','D','R',0,0,0,64,0,0,0,56,8,6,[37]='I',[38]='E',[39]='N',[40]='D'};
     static const char source[]="fighter:\n    behavior independent\naction Main:\n    on load:\n        pass\n";
     NativeFighterPackage metadata={.member_count=1};strcpy(metadata.title,"Parent");strcpy(metadata.members[0].key,"main");
-    NativeFighterPackageData data={.portrait_png=portrait,.portrait_size=sizeof(portrait),.members={{
+    NativeFighterPackageData data={.portrait_png=fixture_portrait,.portrait_size=sizeof(fixture_portrait),.members={{
         .fighter_dat=dat,.fighter_size=sizeof(dat),.animation_dat=dat,.animation_size=sizeof(dat),.costume_dat=dat,.costume_size=sizeof(dat),
         .asset_record=record,.asset_record_size=record_size,.script_text=(const uint8_t*)source,.script_size=sizeof(source)-1}}};
     CHECK(nativeContentStore_BuildFighter(&metadata,&data,parent,parent_size,&parent_id));
@@ -265,5 +275,15 @@ int main(void)
               !nativeContentStore_IsInstalled(roots[1],&outfit_id));
         CHECK((sent_data>0)==!cached);finish();
     }
+    initialize(12);cache(0,parent,parent_size);cache(1,parent,parent_size);
+    CHECK(nativeContentStore_Install(roots[0],&parent_id));
+    CHECK(nativeNetplayRoom_OfferGift(&rooms[0],"peer1",&parent_id));
+    nativeNetplayRoom_PumpGifts(&rooms[0]);deliver();
+    ++rooms[0].connection.presence.participants[0].join_order;
+    CHECK(nativeNetplayRoom_AcceptGift(&rooms[1]));deliver();
+    CHECK(rooms[0].outgoing_gift.state==NativeNetplayGift_Offered);
+    nativeNetplayRoom_PumpGifts(&rooms[0]);
+    CHECK(rooms[0].outgoing_gift.state==NativeNetplayGift_Failed);
+    finish();
     free(parent);free(outfit);printf("PASS gift dependency cases: %u checks\n",checks);return 0;
 }

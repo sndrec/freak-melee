@@ -68,8 +68,18 @@ int main(void)
     room.participants[2].card_slots[1] = 2;
     assert(nativeCssParticipants_Build(&room, "local", "Twilight", local, 4, false,
                                        true, &shown));
-    assert(shown.cards[0].card_slot == 2 && shown.cards[0].local);
-    assert(shown.cards[3].kind == Gm_PKind_NA && shown.cards[3].card_slot == 1);
+    assert(shown.online && shown.count == 4);
+    assert(shown.cards[0].canonical_port == 1 && !shown.cards[0].local);
+    assert(shown.cards[1].kind == Gm_PKind_NA && shown.cards[1].card_slot == 1);
+    assert(shown.cards[2].card_slot == 2 && shown.cards[2].local &&
+           shown.cards[2].physical_port == 3);
+    assert(shown.cards[3].canonical_port == 0 && !shown.cards[3].local);
+    assert(nativeCssParticipants_Build(&room, "remote", "Other player", local,
+                                       4, false, true, &shown));
+    assert(shown.cards[0].canonical_port == 1 && shown.cards[0].local);
+    assert(shown.cards[1].kind == Gm_PKind_NA);
+    assert(shown.cards[2].canonical_port == 2 && !shown.cards[2].local);
+    assert(shown.cards[3].canonical_port == 0 && shown.cards[3].local);
     room.participants[0].selection[0] = 0;
     assert(nativeCssParticipants_Build(&room, "local", "Twilight", local, 0, false,
                                        false, &shown));

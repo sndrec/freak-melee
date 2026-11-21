@@ -231,6 +231,8 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
                                              uint8_t loser_port,
                                              uint8_t* output,
                                              size_t output_capacity);
+size_t nativeSignalingWire_EncodeStartLobbyMatch(uint64_t epoch, const uint8_t digest[32],
+                                                uint8_t* output, size_t capacity);
 size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,
                                                 uint8_t stage,
                                                 uint8_t* output, size_t capacity);

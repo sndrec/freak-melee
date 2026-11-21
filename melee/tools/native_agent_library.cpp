@@ -64,8 +64,8 @@ void installed_fighters(const Context& context, yyjson_val* args, Reply& reply)
         if (!nativeContentStore_Read(root.c_str(), &id, &bytes, &size)) {
             reply.fail("package_unavailable", "An installed package could not be read. Retry after the library operation finishes."); return;
         }
-        NativeFighterPackage meta; NativeFighterPackageData data;
-        bool fighter = nativeContentStore_ParseFighter(bytes, size, &meta, &data);
+        NativeFighterPackage meta;
+        bool fighter = nativeContentStore_ParseFighter(bytes, size, &meta, nullptr);
         char hex[65]; nativeContentStore_IdHex(&id, hex);
         if (fighter && (matches(meta.title, string(args, "query")) || matches(hex, string(args, "query")))) {
             if (total++ >= page_offset(args) && yyjson_mut_arr_size(rows) < page_limit(args)) {

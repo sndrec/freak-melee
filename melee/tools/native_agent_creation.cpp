@@ -1,4 +1,5 @@
 #include "native_agent_internal.h"
+#include <melee/ft/native_authoring_file.h>
 #include <melee/ft/native_fighter_draft_creation.h>
 #include <melee/ft/native_fighter_draft_access.h>
 #include <aurora/dvd.h>
@@ -89,21 +90,18 @@ void clone_installed(const Context& context, yyjson_val* args, Reply& reply)
 }
 void import_fighter(const Context& context, yyjson_val* args, Reply& reply)
 {
-    FILE* file = std::fopen(string(args, "package"), "rb");
-    long length = 0;
-    bool ok = file && !std::fseek(file, 0, SEEK_END) && (length = std::ftell(file)) > 0 &&
-        (size_t)length <= NATIVE_CONTENT_MAX_PACKAGE_BYTES && !std::fseek(file, 0, SEEK_SET);
-    std::vector<uint8_t> bytes(ok ? (size_t)length : 0);
-    if (ok) ok = std::fread(bytes.data(), 1, bytes.size(), file) == bytes.size();
-    if (file) ok = std::fclose(file) == 0 && ok;
-    NativeFighterPackage metadata; NativeFighterPackageData data;
-    if (!ok || !nativeContentStore_ParseFighter(bytes.data(), bytes.size(), &metadata, &data)) {
-        reply.fail("invalid_fighter_package", "Choose a readable complete fighter .fmc package."); return;
+    std::vector<uint8_t> bytes;
+    if (!NativeAuthoring::read_file(string(args, "package"), NATIVE_CONTENT_MAX_PACKAGE_BYTES, bytes)) {
+        reply.fail("invalid_fighter_package", "Choose a readable fighter .fmc file of 12 MiB or less."); return;
+    }
+    NativeFighterPackage metadata;
+    if (!nativeContentStore_ParseFighter(bytes.data(), bytes.size(), &metadata, nullptr)) {
+        reply.fail("invalid_fighter_package", "Choose a complete fighter .fmc package."); return;
     }
     const char* title = *string(args, "title") ? string(args, "title") : metadata.title;
     const auto output = destination(context, args);
     char error[1024];
-    ok = !output.empty() && nativeFighterDraft_CreateFromPackage(output.c_str(), title, bytes.data(), bytes.size(), error, sizeof(error));
+    bool ok = !output.empty() && nativeFighterDraft_CreateFromPackage(output.c_str(), title, bytes.data(), bytes.size(), error, sizeof(error));
     if (!ok) { reply.fail("import_failed", output.empty() ? "Could not choose a local draft path." : error); return; }
     created(output, reply);
 }

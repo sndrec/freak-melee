@@ -30,7 +30,7 @@ bool nativeMeshVertexIds_Read(const HSD_Dat& dat, std::vector<NativeMeshVertexId
                 !HSD_DatReadU32(&dat, at+4, &corners) || !corners || corners > dat.data_size/4 ||
                 !reference(dat, at+8, &ids) || !HSD_DatBytes(&dat, ids, size_t(corners)*4)) return false;
             total_ids += corners;
-            if (total_ids > NATIVE_CONTENT_MAX_PACKAGE_BYTES/4) return false;
+            if (total_ids > NATIVE_CONTENT_MAX_ASSET_BYTES/4) return false;
             NativeMeshVertexIdRow row = { (uint32_t)polygon, {} };
             row.ids.resize(corners);
             for (u32 c = 0; c < corners; ++c)
@@ -70,7 +70,7 @@ bool nativeMeshVertexIds_Store(NativeAssetDat& dat, uint32_t header,
         if (row.ids.empty() || row.ids.size() > UINT32_MAX/4 || row.polygon > dat.data.size() ||
             dat.data.size()-row.polygon < 24) return false;
         total_ids += row.ids.size();
-        if (total_ids > NATIVE_CONTENT_MAX_PACKAGE_BYTES/4) return false;
+        if (total_ids > NATIVE_CONTENT_MAX_ASSET_BYTES/4) return false;
         const uint32_t ids = dat.allocate(row.ids.size()*4);
         if (ids == UINT32_MAX) return false;
         dat.link_local(table+(uint32_t)i*12, row.polygon);

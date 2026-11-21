@@ -16,33 +16,28 @@ int main(void)
 {
     static const char description[] =
         "a=ice-ufrag:friend\r\na=ice-pwd:private\r\na=candidate:1 1 UDP";
-    uint8_t encoded[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY + 13];
-    size_t size = nativeNetplayConnectionWire_EncodeDescription(
-        description, encoded, sizeof(encoded));
-    require(size == sizeof(description) - 1 + 8,
-            "encode one bounded ICE description");
-    require(encoded[0] == 'F' && encoded[1] == 'M' && encoded[2] == 'C' &&
-                encoded[3] == '1' && encoded[4] == 1 && encoded[5] == 1,
-            "write the versioned connection envelope");
-
-    char decoded[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY];
-    require(nativeNetplayConnectionWire_DecodeDescription(
-                encoded, size, decoded, sizeof(decoded)) &&
-                strcmp(decoded, description) == 0,
-            "decode the exact ICE description");
-    encoded[4] = 2;
-    require(!nativeNetplayConnectionWire_DecodeDescription(
-                encoded, size, decoded, sizeof(decoded)),
-            "reject an unsupported connection protocol version");
-    encoded[4] = 1;
-    require(!nativeNetplayConnectionWire_DecodeDescription(
-                encoded, size - 1, decoded, sizeof(decoded)),
-            "reject a truncated connection message");
-    encoded[8] = 0;
-    require(!nativeNetplayConnectionWire_DecodeDescription(
-                encoded, size, decoded, sizeof(decoded)),
-            "reject embedded terminators in text descriptions");
+    uint8_t encoded[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY + NATIVE_GAME_SIGNAL_HEADER_BYTES];
+    NativeRouteGeneration from = {0x0102030405060708ULL, 2}, to = {9, 3}, unknown = {0};
     NativeConnectionMessage message;
+    size_t size = nativeNetplayConnectionWire_EncodeGameRoute(from, unknown, NULL, encoded, sizeof(encoded));
+    require(size == NATIVE_GAME_SIGNAL_HEADER_BYTES &&
+        nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message) &&
+        message.type == NativeConnectionMessage_GameHello && !message.recipient.attempt &&
+        message.sender.revision == from.revision && message.sender.attempt == from.attempt,
+        "announce the new route before either side has an SDP");
+    require(!nativeNetplayConnectionWire_EncodeGameRoute(from, unknown, description, encoded, sizeof(encoded)),
+        "a description needs both generation tags");
+    size = nativeNetplayConnectionWire_EncodeGameRoute(from, to, description, encoded, sizeof(encoded));
+    require(size == sizeof(description) - 1 + NATIVE_GAME_SIGNAL_HEADER_BYTES &&
+        nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message) &&
+        message.type == NativeConnectionMessage_GameDescription &&
+        message.sender.revision == from.revision && message.sender.attempt == from.attempt &&
+        message.recipient.revision == to.revision && message.recipient.attempt == to.attempt &&
+        message.size == sizeof(description)-1 && !memcmp(message.payload, description, message.size),
+        "preserve the gameplay description and both peer generations");
+    require(!nativeNetplayConnectionWire_DecodeMessage(encoded, size-1, &message), "refuse partial SDP");
+    encoded[NATIVE_GAME_SIGNAL_HEADER_BYTES] = 0;
+    require(!nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message), "refuse embedded terminators");
     size = nativeNetplayConnectionWire_EncodeContentDescription(
         description, 0xFEDCBA98, false, encoded, sizeof(encoded));
     require(
@@ -52,9 +47,6 @@ int main(void)
             message.size == sizeof(description) - 1 &&
             !memcmp(message.payload, description, message.size),
         "content descriptions retain the transfer owner and serial");
-    require(!nativeNetplayConnectionWire_DecodeDescription(
-                encoded, size, decoded, sizeof(decoded)),
-            "content descriptions cannot be applied to gameplay routes");
     encoded[12] = 2;
     require(
         !nativeNetplayConnectionWire_DecodeMessage(encoded, size, &message),

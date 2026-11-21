@@ -29,6 +29,7 @@ def main():
     for relative,target,names in [
         ('src/melee/ft/ftdata.c','selectors.inc',['ftData_80085B10','ftData_80085B98','ftData_80085FD4','ftData_80085CD8','ftData_80085E50']),
         ('src/melee/ft/ftanim_tracks.c','tracks.inc',['ftAnim_8006F4C8']),
+        ('src/melee/ft/ftanim.c','subtree.inc',['ftAnim_8006F7C8']),
         ('src/melee/ft/fighter.c','unload.inc',['Fighter_Unload_8006DABC'])]:
         path=ROOT/relative;sources.append(path);text=path.read_text();values=[]
         for name in names:

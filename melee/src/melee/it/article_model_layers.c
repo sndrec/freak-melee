@@ -23,7 +23,7 @@ ArticleModelLayers* articleModelLayers_Import(HSD_DatImport* import,
         fail(import, HSD_DAT_RELOCATION, reference_slot);
         return NULL;
     }
-    if (HSD_DatNextTarget(import->dat, source) - source != 16 || model_root == NULL)
+    if (HSD_DatImportNextTarget(import, source) - source != 16 || model_root == NULL)
     {
         fail(import, HSD_DAT_DESCRIPTOR, source);
         return NULL;

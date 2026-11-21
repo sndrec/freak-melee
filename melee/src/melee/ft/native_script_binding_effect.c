@@ -213,7 +213,7 @@ bool nativeScriptBindingEffect_Invoke(NativeScriptRuntimeContext* context,uint32
             HSD_JObj* root = spawned->gobj->hsd_obj;
             Vec3 position = {args[1].as.f32, args[2].as.f32, args[3].as.f32};
             HSD_JObjSetTranslate(root, &position);
-            HSD_JObjSetRotationZ(root, args[4].as.f32);
+            nativeModelJoint_SetRoll(root, args[4].as.f32);
         }
         if (!nativeItemLifetime_Current(&item) || !nativeScriptBindings_SourceAlive(context))
             return error(d, "Article retired during model effect spawn");

@@ -90,11 +90,12 @@ static bool load_costume(unsigned port, const NativeContentId* id,
     const char* joint_name;
     const char* matanim_name;
     NativeFighterCostumeFamilyInfo custom_info;
+    FtCostumeBindings stock_bindings;
     if (custom) {
         if (character != 0 || base_costume != 0 ||
             kind < Ft_Kind_CustomFirst || kind >= Ft_Kind_RuntimeCapacity ||
             (kind - Ft_Kind_CustomFirst) % NATIVE_FIGHTER_FAMILY_MEMBERS ||
-            !nativeFighterRuntime_CostumeInfoCached(fighter_id, root,
+            !nativeFighterRuntime_CostumeInfoCached(fighter_id, root, metadata.model_variant,
                                                     &custom_info)) {
             fprintf(stderr, "Selected costume's parent fighter could not be validated.\n");
             free(package);
@@ -120,7 +121,8 @@ static bool load_costume(unsigned port, const NativeContentId* id,
             decoded_character != character ||
             base_costume >= gm_GetNumCostumesForCKind(character) ||
             kind < 0 || kind >= Ft_Kind_StockCount ||
-            base_costume >= CostumeListsForeachCharacter[kind].numCostumes) {
+            base_costume >= CostumeListsForeachCharacter[kind].numCostumes ||
+            !ftCostumeBindings_Stock(kind, base_costume, &stock_bindings)) {
             free(package);
             return false;
         }
@@ -143,7 +145,8 @@ static bool load_costume(unsigned port, const NativeContentId* id,
         }
         valid = ftCostumeAssets_Load(data.members[m].dat,
             data.members[m].size, joint_name, matanim_name, &slot->assets) &&
-            (!custom || slot->assets.joint_count == custom_info.members[m].joint_count);
+            ftCostumeBindings_Fit(custom ? &custom_info.members[m].bindings : &stock_bindings,
+                                  &slot->assets);
         slot->kind = (FighterKind)(kind + m);
         slot->base_costume = base_costume;
         slot->model_variant = metadata.model_variant;

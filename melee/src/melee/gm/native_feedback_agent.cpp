@@ -22,6 +22,7 @@ constexpr unsigned MaxReports = 16;
 constexpr uint64_t MaxLocalBytes = 128 * 1024 * 1024;
 std::string in_flight;
 std::string pending_capture;
+uint64_t pending_number;
 NativeCommunityReceipt receipt{};
 
 const char* text(yyjson_val* object, const char* key)
@@ -47,16 +48,6 @@ bool ordinary(const std::string& path)
     DWORD flags = GetFileAttributesA(path.c_str());
     return flags != INVALID_FILE_ATTRIBUTES && !(flags & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT));
 }
-bool read(const std::string& path, size_t limit, std::string& bytes)
-{
-    if (!ordinary(path)) return false;
-    FILE* file = std::fopen(path.c_str(), "rb");
-    long size = file && !std::fseek(file, 0, SEEK_END) ? std::ftell(file) : -1;
-    bool ok = size >= 0 && size <= limit && !std::fseek(file, 0, SEEK_SET);
-    if (ok) { bytes.resize(size); ok = std::fread(bytes.data(), 1, size, file) == size; }
-    if (file) ok = std::fclose(file) == 0 && ok;
-    return ok;
-}
 struct Record {
     yyjson_mut_doc* doc = nullptr;
     yyjson_mut_val* data = nullptr;
@@ -65,9 +56,9 @@ struct Record {
     bool load(const std::string& id) {
         if (!identifier(id) || folder().empty()) return false;
         base = folder() + '/' + id;
-        std::string bytes;
-        if (!read(base + ".agent.json", 128 * 1024, bytes)) return false;
-        auto* original = yyjson_read(bytes.data(), bytes.size(), 0);
+        auto bytes = NativeFeedbackCapture::read_attachment((base + ".agent.json").c_str(), 128 * 1024);
+        if (!bytes) return false;
+        auto* original = yyjson_read(bytes->data(), bytes->size(), 0);
         if (original) { doc = yyjson_doc_mut_copy(original, nullptr); yyjson_doc_free(original); }
         data = doc ? yyjson_mut_doc_get_root(doc) : nullptr;
         return yyjson_mut_is_obj(data) && id == text(data, "id") && yyjson_mut_is_obj(yyjson_mut_obj_get(data, "agent_report"));
@@ -78,14 +69,9 @@ struct Record {
     }
     bool save(bool initial = false) {
         size_t size = 0; char* bytes = yyjson_mut_write(doc, 0, &size);
-        const std::string path = base + ".agent.json", temporary = base + ".agent.pending";
-        HANDLE file = bytes && size <= 128 * 1024 ? CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr,
-            CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr) : INVALID_HANDLE_VALUE;
-        DWORD written = 0;
-        bool ok = file != INVALID_HANDLE_VALUE && WriteFile(file, bytes, (DWORD)size, &written, nullptr) && written == size && FlushFileBuffers(file);
-        if (file != INVALID_HANDLE_VALUE) CloseHandle(file);
-        if (ok) ok = MoveFileExA(temporary.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH | (initial ? 0 : MOVEFILE_REPLACE_EXISTING));
-        if (file != INVALID_HANDLE_VALUE && !ok) DeleteFileA(temporary.c_str());
+        auto existing = initial ? NATIVE_FILE_PRESERVE : NATIVE_FILE_REPLACE;
+        bool ok = bytes && size <= 128 * 1024 &&
+            nativeFile_PublishLocal((base + ".agent.json").c_str(), bytes, size, existing, nullptr);
         std::free(bytes); return ok;
     }
     NativeCommunityUpload upload() const {
@@ -115,13 +101,12 @@ std::vector<std::string> records()
 }
 bool digest(const NativeCommunityUpload& upload, std::string& result, bool include_image = true, const char* expected_image = nullptr)
 {
-    std::string parts, bytes;
-    const char* paths[] = {upload.metadata, upload.image, upload.context};
-    const size_t limits[] = {512 * 1024, 16 * 1024 * 1024, 8 * 1024 * 1024};
+    std::string parts;
+    const std::string* files[] = {upload.notes_bytes.get(), upload.image_bytes.get(), upload.context_bytes.get()};
     for (unsigned i = 0; i < 3; ++i) {
         if (i == 1 && !include_image) continue;
         NativeContentId id{};
-        if (!read(paths[i], limits[i], bytes) || bytes.empty() || !nativeContent_Hash(bytes.data(), bytes.size(), &id)) return false;
+        if (!files[i] || !nativeContent_Hash(files[i]->data(), files[i]->size(), &id)) return false;
         if (i == 1 && expected_image) {
             char hex[65]; nativeContentStore_IdHex(&id, hex);
             if (std::strcmp(hex, expected_image)) return false;
@@ -142,13 +127,30 @@ bool ready(Record& record)
     if (!yyjson_mut_get_bool(yyjson_mut_obj_get(record.data, "image_complete"))) {
         // File existence after a process exit cannot prove that GPU readback
         // finished. Persist completion while the capture owner can confirm it.
-        if (!same || capture.status != AURORA_CAPTURE_READY) return false;
-        std::string bytes; NativeContentId hash{}; char hex[65];
-        if (!read(upload.image, 16 * 1024 * 1024, bytes) || bytes.empty() || !nativeContent_Hash(bytes.data(), bytes.size(), &hash)) return false;
+        if (!same) return false;
+        size_t size = 0;
+        const void* bytes = aurora_presented_png(capture.capture_id, &size);
+        NativeContentId hash{}; char hex[65];
+        NativeFileIdentity file{};
+        bool written = bytes && size <= NativeFeedbackImageLimit && nativeContent_Hash(bytes, size, &hash) &&
+            nativeFile_PublishLocal(upload.image, bytes, size, NATIVE_FILE_PRESERVE, &file);
+        aurora_release_presented_capture(capture.capture_id);
+        pending_capture.clear();
+        if (!written) {
+            record.value("error", "Could not save the captured screenshot.");
+            record.save();
+            return false;
+        }
         nativeContentStore_IdHex(&hash, hex); record.value("image_hash", hex);
         yyjson_mut_obj_remove_str(record.data, "image_complete");
         yyjson_mut_obj_add_bool(record.doc, record.data, "image_complete", true);
-        if (!record.save()) return false;
+        if (!record.save()) {
+            nativeFile_RemoveOwned(upload.image, &file);
+            yyjson_mut_obj_remove_str(record.data, "image_hash");
+            yyjson_mut_set_bool(yyjson_mut_obj_get(record.data, "image_complete"), false);
+            record.value("error", "Could not save the screenshot receipt.");
+            return false;
+        }
     }
     return ordinary(upload.image) && ordinary(upload.context) && ordinary(upload.metadata);
 }
@@ -232,14 +234,13 @@ void prepare(yyjson_val* args, yyjson_mut_val* snapshot, Reply& reply)
         bool published = false;
         ~CaptureFiles() {
             if (published) return;
-            AuroraPresentedCapture current{}; aurora_presented_capture_status(&current);
-            if (current.capture_id == draft.image.capture_id) aurora_release_presented_capture();
-            DeleteFileA(upload.metadata); DeleteFileA(upload.context); DeleteFileA(upload.image);
+            aurora_release_presented_capture(draft.image.capture_id);
+            NativeFeedbackCapture::discard(draft, upload);
         }
     } files{*draft, upload};
-    if (!complete) {
+    if (!draft->context_file.valid) {
         auto* partial = yyjson_mut_val_imut_copy(agent, nullptr);
-        bool saved = partial && NativeFeedbackCapture::fallback(*draft, yyjson_doc_get_root(partial));
+        bool saved = partial && NativeFeedbackCapture::fallback(*draft, upload, yyjson_doc_get_root(partial));
         yyjson_doc_free(partial);
         if (!saved) { reply.fail("capture_failed", "Could not save capture-time diagnostics."); return; }
     }
@@ -262,13 +263,26 @@ void prepare(yyjson_val* args, yyjson_mut_val* snapshot, Reply& reply)
     if (!digest(upload, evidence, false)) { reply.fail("capture_failed", "Could not fingerprint the captured context and notes."); return; }
     record.value("evidence_hash", evidence.c_str());
     if (!record.save(true)) { reply.fail("capture_failed", "The capture was saved, but its local record could not be committed."); return; }
-    files.published = true; pending_capture = id;
+    files.published = true; pending_capture = id; pending_number = draft->image.capture_id;
     describe(record, reply);
 }
 }
 
 void update()
 {
+    if (!pending_capture.empty()) {
+        AuroraPresentedCapture frame{}; aurora_presented_capture_status(&frame);
+        if (frame.capture_id != pending_number) pending_capture.clear();
+        else if (frame.status != AURORA_CAPTURE_PENDING) {
+            Record record;
+            if (record.load(pending_capture)) ready(record);
+            // A removed or changed local record can no longer claim this result.
+            if (!pending_capture.empty()) {
+                aurora_release_presented_capture(pending_number);
+                pending_capture.clear();
+            }
+        }
+    }
     if (in_flight.empty()) return;
     nativeCommunity_PollReceipt(receipt);
     if (in_flight != receipt.id || receipt.busy || !receipt.revision) return;
@@ -306,10 +320,13 @@ void handle(const char* method, yyjson_val* arguments, yyjson_mut_val* snapshot,
         if (!std::strcmp(text(record.data, "status"), "stored") || in_flight == id) { describe(record, reply); return; }
         if (!in_flight.empty()) { reply.fail("feedback_busy", "Wait for the current feedback upload, then submit this saved report."); return; }
         if (!ready(record)) { reply.fail("capture_pending", "The original screenshot is pending or unavailable. Inspect the saved capture before retrying."); return; }
-        const auto upload = record.upload(); std::string current, evidence;
+        auto upload = record.upload(); std::string current, evidence;
+        upload.notes_bytes = NativeFeedbackCapture::read_attachment(upload.metadata, NativeFeedbackNotesLimit);
+        upload.context_bytes = NativeFeedbackCapture::read_attachment(upload.context, NativeFeedbackContextLimit);
         if (!digest(upload, evidence, false) || evidence != text(record.data, "evidence_hash")) {
             reply.fail("capture_changed", "Capture-time diagnostics or notes changed. Preserve the original report files."); return;
         }
+        upload.image_bytes = NativeFeedbackCapture::read_attachment(upload.image, NativeFeedbackImageLimit);
         if (!digest(upload, current, true, text(record.data, "image_hash"))) { reply.fail("invalid_capture", "A captured attachment changed, is unreadable or exceeds the F2 upload limit."); return; }
         const std::string sealed = text(record.data, "attachment_hash");
         if (!sealed.empty() && sealed != current) { reply.fail("capture_changed", "A sealed attachment changed. Retry must preserve the original report bytes."); return; }

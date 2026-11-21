@@ -56,7 +56,7 @@ static void stage_candidate(const char* path)
     CHECK(nativeScriptSource_Parse(tree,&diagnostic));
     CHECK(nativeSourceMotionPolicy_Prepare(tree,ftData_MotionStateList,&candidate.assets,&diagnostic));
     CHECK(nativeSourceEntityAssets_Prepare(&candidate.entities,&candidate.assets,
-        &candidate.owned_input.assets,&candidate.resources,tree,&diagnostic));
+        &candidate.resources,tree,&diagnostic));
     unsigned row_index=UINT32_MAX;
     for(unsigned i=0;i<candidate.entities.count;++i)
         if(!strcmp(candidate.entities.rows[i].declaration,"It_Kind_Link_Arrow"))row_index=i;

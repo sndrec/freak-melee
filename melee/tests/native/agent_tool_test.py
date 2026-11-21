@@ -9,6 +9,10 @@ import subprocess
 import sys
 import tempfile
 
+TOOLS = Path(__file__).resolve().parents[2] / 'tools'
+sys.path.insert(0, str(TOOLS))
+from release_signer import PUBLIC_KEY, public_modulus, render_launcher
+
 
 async def launcher_exchange(command, env, initialize, inspect):
     process = await asyncio.create_subprocess_exec(*command, env=env,
@@ -19,7 +23,11 @@ async def launcher_exchange(command, env, initialize, inspect):
         # buffers requests until EOF would otherwise pass a batch-only check.
         process.stdin.write((initialize + '\n').encode())
         await process.stdin.drain()
-        first = json.loads(await asyncio.wait_for(process.stdout.readline(), 10))
+        response = await asyncio.wait_for(process.stdout.readline(), 10)
+        if not response:
+            detail = await asyncio.wait_for(process.stderr.read(), 10)
+            raise AssertionError("Agent launcher exited before initialization: " + detail.decode(errors='replace'))
+        first = json.loads(response)
         process.stdin.write((inspect + '\n').encode())
         await process.stdin.drain()
         second = json.loads(await asyncio.wait_for(process.stdout.readline(), 10))
@@ -96,6 +104,8 @@ def main():
         assert call('docs.search', {'limit': -1}, expected=1)['code'] == 'invalid_arguments'
         assert call('docs.search', {'limit': 1.5}, expected=1)['code'] == 'invalid_arguments'
         assert call('docs.search', {'root': 'anything'}, expected=1)['code'] == 'invalid_arguments'
+        repeated = run('agent', 'call', 'docs.search', '{"limit": 1, "limit": 2}', expected=1)
+        assert json.loads(repeated)['error']['code'] == 'invalid_arguments'
         assert call('project.inspect', expected=1)['code'] == 'invalid_arguments'
         assert call('docs.read', {'page': '../account-session.bin'}, expected=1)['code'] == 'unknown_document'
         docs = call('docs.search', {'query': 'hitbox', 'limit': 2})
@@ -252,8 +262,11 @@ def main():
         # build. No updater, ISO picker or visible client may run in MCP mode.
         installation = folder / 'Installation with spaces'
         installation.mkdir()
-        launcher = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else Path(__file__).resolve().parents[2] / 'tools/freak_launcher.ps1'
-        shutil.copyfile(launcher, installation / 'freak_launcher.ps1')
+        launcher = installation / 'freak_launcher.ps1'
+        if len(sys.argv) > 3:
+            shutil.copyfile(Path(sys.argv[3]).resolve(), launcher)
+        else:
+            launcher.write_bytes(render_launcher(TOOLS / 'freak_launcher.ps1', public_modulus(PUBLIC_KEY), 1))
         (installation / 'channel.txt').write_text('http://127.0.0.1:1/latest.json')
         powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
         for build in ('first', 'second'):

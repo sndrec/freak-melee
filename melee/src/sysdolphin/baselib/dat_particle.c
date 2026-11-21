@@ -1,6 +1,7 @@
 #include "dat_particle.h"
 
 #include "dat_import_internal.h"
+#include <math.h>
 
 static bool resolve_bank_offset(HSD_DatImport* import, u32 bank_offset,
                                 u32 slot, u32* target,
@@ -108,6 +109,17 @@ static bool import_commands(HSD_DatImport* import, u32 bank_offset,
         {
             return false;
         }
+        if (command->texGroup >= bank->texture_group_count ||
+            !isfinite(command->grav) || !isfinite(command->fric) ||
+            !isfinite(command->vx) || !isfinite(command->vy) || !isfinite(command->vz) ||
+            !isfinite(command->radius) || !isfinite(command->angle) ||
+            !isfinite(command->random) || !isfinite(command->size) ||
+            !isfinite(command->param1) || !isfinite(command->param2) ||
+            !isfinite(command->param3)) {
+            import->status = HSD_DAT_DESCRIPTOR;
+            import->error_offset = source;
+            return false;
+        }
         command->kind = (command->kind & 0xF1FFFFFFU) | 0x08000000U;
         command->cmdList = (u8*) HSD_DatBytes(dat, source + 60, 1);
         bank->commands[first + i] = command;
@@ -158,6 +170,7 @@ static bool import_textures(HSD_DatImport* import, u32 bank_offset,
         {
             return false;
         }
+        if (group->num == 0 || group->num > 0x10000U) return false;
         pointer_count = group->num;
         if (group->fmt == GX_TF_C4 || group->fmt == GX_TF_C8 ||
             group->fmt == GX_TF_C14X2)
@@ -208,12 +221,9 @@ bool HSD_DatImportParticleBank(HSD_DatImport* import, u32 command_offset,
     if (import == NULL || bank == NULL || import->status != HSD_DAT_OK) {
         return false;
     }
-    bank->command_count = 0;
-    bank->commands = NULL;
-    bank->texture_group_count = 0;
-    bank->texture_groups = NULL;
-    if (!import_commands(import, command_offset, bank) ||
-        !import_textures(import, texture_offset, bank))
+    HSD_PSDataBank imported = {0};
+    if (!import_textures(import, texture_offset, &imported) ||
+        !import_commands(import, command_offset, &imported))
     {
         if (import->status == HSD_DAT_OK) {
             import->status = HSD_DAT_DESCRIPTOR;
@@ -221,5 +231,6 @@ bool HSD_DatImportParticleBank(HSD_DatImport* import, u32 command_offset,
         }
         return false;
     }
+    *bank = imported;
     return true;
 }

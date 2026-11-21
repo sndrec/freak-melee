@@ -45,8 +45,8 @@ bool nativeFighterDemoCopy_Materialize(
         input->demo_count == 0 || input->demo_count > DEMO_CAPACITY ||
         sources == NULL || source_count == 0 || source_count > SOURCE_CAPACITY ||
         input->animation_dat == NULL || input->animation_size < 32 ||
-        input->fighter_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
-        input->animation_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+        input->fighter_size > NATIVE_CONTENT_MAX_ASSET_BYTES ||
+        input->animation_size > NATIVE_CONTENT_MAX_ASSET_BYTES)
         return false;
 
     HSD_Dat fighter, archives[SOURCE_CAPACITY];
@@ -63,7 +63,7 @@ bool nativeFighterDemoCopy_Materialize(
         const NativeFighterDemoCopySource* source = sources + s;
         if (source->count == 0 || source->first >= input->demo_count ||
             source->count > input->demo_count - source->first ||
-            source->archive_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
+            source->archive_size > NATIVE_CONTENT_MAX_ASSET_BYTES ||
             HSD_DatOpen(archives + s, source->archive, source->archive_size) != HSD_DAT_OK ||
             !unique_root(archives + s, source->root_name, bases + s)) return false;
         for (unsigned i = source->first; i < source->first + source->count; ++i) {
@@ -95,13 +95,13 @@ bool nativeFighterDemoCopy_Materialize(
         if (clip == NULL || HSD_DatOpen(&nested, clip, clip_size) != HSD_DAT_OK ||
             !unique_root(&nested, (const char*)name, &nested_root)) return false;
         size_t aligned = (size + 31) & ~(size_t)31;
-        if (aligned > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
-            clip_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - aligned) return false;
+        if (aligned > NATIVE_CONTENT_MAX_ASSET_BYTES ||
+            clip_size > NATIVE_CONTENT_MAX_ASSET_BYTES - aligned) return false;
         patches[i] = (DemoPatch){clip, (uint32_t)clip_size, (uint32_t)aligned};
         size = aligned + clip_size;
         ++copied;
     }
-    if (input->fighter_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - size) return false;
+    if (input->fighter_size > NATIVE_CONTENT_MAX_ASSET_BYTES - size) return false;
     NativeFighterDemoCopyOutput result = {0};
     result.fighter_dat = malloc(input->fighter_size);
     result.animation_dat = malloc(size);

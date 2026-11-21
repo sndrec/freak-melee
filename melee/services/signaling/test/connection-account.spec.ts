@@ -4,7 +4,7 @@ import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { player } from "./account-client";
 import { QuickClient } from "./quick-client";
-import { encodeChatIdentity, encodeChatPost } from "../src/chat";
+import { CHAT_HISTORY, encodeChatIdentity, encodeChatPost } from "../src/chat";
 import { encodeRequestPresence, encodeSetMatch, encodeUpdate, ServerMessageType } from "../src/wire";
 import { secret, secretHash } from "../src/account-protocol";
 import type { SocialResult } from "../src/social-protocol";
@@ -53,6 +53,13 @@ class ChatPackets {
       });
     }
   }
+  async posted(peer: string, nonce: number): Promise<void> {
+    for (;;) {
+      const packet = await this.next(0x81);
+      if (decoder.decode(packet.subarray(13, 45)) === peer &&
+          new DataView(packet.buffer, packet.byteOffset, packet.byteLength).getUint32(9) === nonce) return;
+    }
+  }
 }
 function identity(bytes: Uint8Array, at: number) {
   expect(bytes.length).toBe(at + 2 + bytes[at] + bytes[at + 1]);
@@ -89,6 +96,27 @@ describe("verified connection identities and invitations", () => {
       await returning.client.close();
     } finally { if (guest.client.socket.readyState === WebSocket.OPEN) await guest.client.close(); }
   });
+  it("keeps a guest's fighter selection when moving their account from another lobby", async () => {
+    const a = await player(), code = roomId();
+    const old = await room(a, roomId()), guest = await room(undefined, code);
+    try {
+      const joining = ok(a.request("lobby/attach", { room: code, connection: guest.connection }, a.grant.token));
+      const selection = new Uint8Array([1, 2, 3]);
+      guest.client.socket.send(encodeUpdate({ selection, activeMask: 1 }, 8192));
+      guest.client.socket.send("ping");
+      await joining;
+      await expect.poll(() => guest.client.pongs).toBe(1);
+      await expect.poll(() => old.client.socket.readyState).not.toBe(WebSocket.OPEN);
+      expect(await env.PLAYER_SESSIONS.getByName(`account:${a.grant.profile.id}`).owns(guest.connection)).toBe(true);
+      await runInDurableObject(env.ROOMS.getByName(code), (_instance, state) => {
+        const attachment = state.getWebSockets()[0].deserializeAttachment();
+        expect(attachment.account.profile.id).toBe(a.grant.profile.id);
+        expect(attachment.activeMask).toBe(1);
+        expect(Array.from(attachment.selection)).toEqual(Array.from(selection));
+      });
+    } finally { await guest.client.close(); await old.client.close(); }
+  });
+
   it("attaches a signed-in account to the existing guest connection without changing lobby ownership or readiness", async () => {
     const code = roomId(), guest = await room(undefined, code), observer = await room(undefined, code);
     const a = await player();
@@ -165,7 +193,7 @@ describe("verified connection identities and invitations", () => {
       expect(decoder.decode(message.subarray(48, 48 + message[45]))).toBe(a.grant.profile.name);
       expect(identity(message, 48 + message[45] + textSize)).toEqual({ id: a.grant.profile.id, handle: a.handle });
       expect(decoder.decode(message)).not.toContain(a.grant.token);
-      expect(decoder.decode(message)).not.toContain(await secretHash(a.grant.token));
+      expect(decoder.decode(message)).not.toContain(secretHash(a.grant.token));
       await evictDurableObject(env.GLOBAL_CHAT.getByName("friends"));
       const guest = await chat();
       try { expect(await guest.client.next(0x81)).toEqual(message); } finally { guest.client.socket.close(); }
@@ -176,6 +204,28 @@ describe("verified connection identities and invitations", () => {
       expect((await request(`/chat/connect?peer=${signed.peer}`, a)).status).toBe(401);
     } finally { if (signed.client.socket.readyState === WebSocket.OPEN) signed.client.socket.close(); }
   });
+  it("retains a chat account binding until the socket and its last message are gone", async () => {
+    const a = await player(), signed = await chat(a), other = await chat();
+    const stub = env.GLOBAL_CHAT.getByName("friends");
+    const count = () => runInDurableObject(stub, (_instance, state) =>
+      state.storage.sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM chat_accounts WHERE peer=?", signed.peer).one().n);
+    try {
+      signed.client.socket.send(encodeChatPost(1, a.handle, "Hello"));
+      await signed.client.posted(signed.peer, 1);
+      signed.client.socket.close(1000, "Leaving");
+      await expect.poll(() => signed.client.socket.readyState).toBe(WebSocket.CLOSED);
+      expect(await count()).toBe(1);
+      for (let i = 1; i <= CHAT_HISTORY; ++i) {
+        other.client.socket.send(encodeChatPost(i, "Player", String(i)));
+        await other.client.posted(other.peer, i);
+      }
+      expect(await count()).toBe(0);
+    } finally {
+      if (signed.client.socket.readyState === WebSocket.OPEN) signed.client.socket.close();
+      other.client.socket.close();
+    }
+  });
+
   it("binds room peers to accounts and preserves seats while rejecting name spoofing", async () => {
     const a = await player(), b = await player(), code = roomId();
     const signed = await room(a, code);

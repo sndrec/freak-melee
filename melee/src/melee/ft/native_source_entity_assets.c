@@ -18,10 +18,19 @@ void nativeSourceEntityAssets_Release(NativeSourceEntityAssets* assets)
     if(!assets)return;for(unsigned i=0;i<assets->blueprint_count;++i)nativeSourceItemBlueprint_Release(&assets->blueprints[i]);
     memset(assets,0,sizeof(*assets));
 }
-bool nativeSourceEntityAssets_Prepare(NativeSourceEntityAssets* output,NativeSourceImportedAssets* imported,
-    const NativeSourceAssetInput* dats,const NativeSourceResources* resources,const NativeScriptSourceTree* tree,NativeScriptDiagnostic* d)
+
+static void bind_attribute_source(NativeScriptItemAsset* asset, const HSD_DatImport* import)
 {
-    if(!output||!imported||!imported->ready||!dats||!resources||!tree||output->count||output->blueprint_count)return false;
+    asset->dat = import->dat;
+    u32 offset = asset->article->native_special_attribute_source;
+    if (asset->dat && offset < asset->dat->data_size)
+        asset->attribute_bytes = HSD_DatImportNextTarget(import, offset) - offset;
+}
+
+bool nativeSourceEntityAssets_Prepare(NativeSourceEntityAssets* output,NativeSourceImportedAssets* imported,
+    const NativeSourceResources* resources,const NativeScriptSourceTree* tree,NativeScriptDiagnostic* d)
+{
+    if(!output||!imported||!imported->ready||!resources||!tree||output->count||output->blueprint_count)return false;
     const uint8_t* vacant=(const uint8_t*)output;
     for(size_t i=0;i<sizeof(*output);++i)if(vacant[i])return error(d,(NativeScriptSourceSpan){0},"Source entity assets need a vacant stable owner");
     for(unsigned i=0;i<imported->facts.article_count;++i){
@@ -29,9 +38,10 @@ bool nativeSourceEntityAssets_Prepare(NativeSourceEntityAssets* output,NativeSou
         if(output->count==NATIVE_SCRIPT_ENTITY_LIMIT||kind<0||kind>=It_Kind_NativeHoldable)goto failure;
         unsigned at=output->count++;strcpy(output->names[at],row->declaration);
         output->rows[at]=(NativeScriptItemAsset){.declaration=output->names[at],.kind=kind,
-            .article=imported->character.fighter_items[row->slot],.dat_bytes=dats->fighter,.dat_size=dats->fighter_bytes,.owner_node=UINT32_MAX};
+            .article=imported->character.fighter_items[row->slot],.owner_node=UINT32_MAX};
         const Article* article=output->rows[at].article;
         if(!article || !article->x10_modelDesc)goto failure;
+        bind_attribute_source(&output->rows[at], &imported->character.import);
         if(article->x10_modelDesc->x4_bone_count) {
             HSD_DatImport admission=imported->character.import;u32 populated;
             if(!nativeItemModel_Admit(&admission,article->x10_modelDesc,0,&populated)) {
@@ -73,8 +83,9 @@ bool nativeSourceEntityAssets_Prepare(NativeSourceEntityAssets* output,NativeSou
             }
         }
         output->rows[at]=(NativeScriptItemAsset){.declaration=output->names[at],.kind=It_Kind_NativeHoldable,
-            .article=model->article,.dat_bytes=model->bytes,.dat_size=model->size,.blueprint_path=blueprint->name,
+            .article=model->article,.blueprint_path=blueprint->name,
             .icon_path=icon?icon->name:NULL,.icon_png=icon?icon->bytes:NULL,.icon_bytes=icon?icon->size:0,.owner_node=UINT32_MAX};
+        bind_attribute_source(&output->rows[at], &model->import);
         ++output->count;
     }
     if(!nativeSourceEntityModels_Prepare(output,imported,tree,d))goto failure;

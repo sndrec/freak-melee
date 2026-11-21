@@ -3,6 +3,7 @@
 
 #ifdef MELEE_NATIVE
 
+#include <melee/ft/ftcostume_limits.h>
 #include <melee/ft/native_fighter_project.h>
 #include <sysdolphin/baselib/dat.h>
 
@@ -11,10 +12,7 @@ extern "C" {
 #endif
 
 enum {
-    NATIVE_MODEL_MAX_JOINTS = 512,
-    NATIVE_MODEL_MAX_MESHES = 1024,
     NATIVE_MODEL_MAX_MATERIALS = 512,
-    NATIVE_MODEL_MAX_POLYGONS = 65535,
 };
 
 typedef struct NativeModelJoint {

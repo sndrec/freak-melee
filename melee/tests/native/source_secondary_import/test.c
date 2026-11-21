@@ -47,7 +47,7 @@ static const NativeScriptItemAsset* row(unsigned fighter, const char* name)
 static void import(unsigned fighter)
 {
     NativeSourceResources resources={0};
-    CHECK(nativeSourceEntityAssets_Prepare(&entities[fighter],&assets[fighter],&inputs[fighter],&resources,&tree,&diagnostic));
+    CHECK(nativeSourceEntityAssets_Prepare(&entities[fighter],&assets[fighter],&resources,&tree,&diagnostic));
     ++imports;
 }
 static void negative(const char* fields, const char* expected)
@@ -55,7 +55,7 @@ static void negative(const char* fields, const char* expected)
     fresh(0);
     char text[4096]; snprintf(text,sizeof(text),"fighter:\n    pass\narticle It_Kind_Link_Arrow states 0:\n%s",fields); parse(text);
     NativeSourceResources resources={0};
-    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&inputs[0],&resources,&tree,&diagnostic));
+    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&resources,&tree,&diagnostic));
     CHECK(strstr(diagnostic.message,expected));
     static const NativeSourceEntityAssets vacant;
     CHECK(!memcmp(&entities[0],&vacant,sizeof(vacant)));
@@ -180,9 +180,9 @@ int main(int argc,char** argv)
     CHECK(null_source!=UINT32_MAX);Article nullable=*arrow;nullable.native_special_attribute_source=null_source;
     for(unsigned i=0;i<assets[0].facts.article_count;++i)if(!strcmp(assets[0].facts.articles[i].declaration,"It_Kind_Link_Arrow"))assets[0].character.fighter_items[assets[0].facts.articles[i].slot]=&nullable;
     parse("fighter:\n    pass\narticle It_Kind_Link_Arrow states 0:\n    model_root Null 0\n");NativeSourceResources resources={0};
-    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&inputs[0],&resources,&tree,&diagnostic));CHECK(strstr(diagnostic.message,"NULL"));++cases;
+    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&resources,&tree,&diagnostic));CHECK(strstr(diagnostic.message,"NULL"));++cases;
     fresh(0);parse("fighter:\n    pass\narticle Missing states 0:\n    model_root First 36\n");
-    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&inputs[0],&resources,&tree,&diagnostic));CHECK(strstr(diagnostic.message,"no exact"));++cases;
+    CHECK(!nativeSourceEntityAssets_Prepare(&entities[0],&assets[0],&resources,&tree,&diagnostic));CHECK(strstr(diagnostic.message,"no exact"));++cases;
     fresh(0);parse("fighter:\n    pass\narticle It_Kind_Link_Arrow states 0:\n    on created:\n        pass\n");import(0);
     CHECK(!row(0,"It_Kind_Link_Arrow")->model_roots&&!row(0,"It_Kind_Link_Arrow")->model_root_count);++cases;
     fresh(0);source_cases(0);source_cases(1);

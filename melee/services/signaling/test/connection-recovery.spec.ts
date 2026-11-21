@@ -3,7 +3,7 @@ import { evictDurableObject, runInDurableObject, runDurableObjectAlarm } from "c
 import { describe, expect, it } from "vitest";
 import { CONNECTION_TIMEOUT_MS, CONNECTION_LIFETIME_MS } from "../src/connection-lease";
 import type { ConnectionAttachment } from "../src/protocol";
-import { encodeSetListing, encodeRequestPresence, ServerMessageType } from "../src/wire";
+import { encodePostChat, encodeRequestChat, encodeSetListing, encodeSetMatch, encodeRequestPresence, ServerMessageType } from "../src/wire";
 import { player } from "./account-client";
 import { guestHeaders } from "./guest";
 import { QuickClient } from "./quick-client";
@@ -42,6 +42,21 @@ async function age(name: string, peerId: string, milliseconds: number) {
 }
 
 describe("connection leases and membership", () => {
+  it("keeps command budgets private to each connection across hibernation", async () => {
+    const name = code(), first = await join(name, "budget_first"), other = await join(name, "budget_other");
+    try {
+      await runInDurableObject(room(name), (_instance, state) => {
+        const socket = state.getWebSockets(`peer:${first.peerId}`)[0];
+        socket.serializeAttachment({ ...socket.deserializeAttachment(), controlBudgetMs: Date.now() + 60_000 });
+      });
+      await evictDurableObject(room(name));
+      first.socket.send("ping");
+      other.socket.send("ping");
+      await expect.poll(() => first.socket.readyState).not.toBe(WebSocket.OPEN);
+      await expect.poll(() => other.pongs).toBe(1);
+    } finally { await first.close(); await other.close(); }
+  });
+
   it("hides an unreachable lobby, preserves it through hibernation, and restores it on heartbeat", async () => {
     const name = code(), client = await join(name, "recovery_host");
     try {
@@ -75,6 +90,58 @@ describe("connection leases and membership", () => {
     } finally { await host.close(); await other.close(); }
   });
 
+  it("keeps a signed player's binding during recovery and releases it when the lobby ends", async () => {
+    const name = code(), account = await player(), peer = "recovering_account";
+    const first = await join(name, peer, peer, account);
+    let returned: QuickClient | undefined;
+    const bindings = () => runInDurableObject(room(name), (_instance, state) =>
+      state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM room_accounts").one().count);
+    try {
+      await runInDurableObject(room(name), (instance, state) =>
+        instance.webSocketError(state.getWebSockets(`peer:${peer}`)[0]));
+      await evictDurableObject(room(name));
+      expect(await bindings()).toBe(1);
+      returned = await join(name, peer, peer, account);
+      expect(await bindings()).toBe(1);
+      await returned.close();
+      await expect.poll(bindings).toBe(0);
+    } finally { await first.close(); await returned?.close(); }
+  });
+
+  it("releases departed account bindings while the host stays in the lobby", async () => {
+    const name = code(), account = await player();
+    const host = await join(name, "steady_host", "steady_host", await player());
+    const bindings = () => runInDurableObject(room(name), (_instance, state) =>
+      state.storage.sql.exec<{ peer: string }>("SELECT peer FROM room_accounts ORDER BY peer").toArray().map(row => row.peer));
+    try {
+      for (const peer of ["visitor_first", "visitor_second"]) {
+        const visitor = await join(name, peer, peer, account);
+        try { expect(await bindings()).toEqual([host.peerId, peer]); }
+        finally { await visitor.close(); }
+        await expect.poll(bindings).toEqual([host.peerId]);
+      }
+    } finally { await host.close(); }
+  });
+
+  it("keeps a departed chat author's binding while the lobby still has their message", async () => {
+    const name = code(), host = await join(name, "chat_host");
+    const author = await join(name, "chat_author", "chat_author", await player());
+    const retained = () => runInDurableObject(room(name), (_instance, state) =>
+      state.storage.sql.exec("SELECT 1 FROM room_accounts WHERE peer=?", author.peerId).toArray().length);
+    try {
+      author.socket.send(encodeRequestChat());
+      await author.next(ServerMessageType.ChatEnd);
+      author.socket.send(encodePostChat(1, "Good game!"));
+      await author.next(ServerMessageType.ChatEntry);
+      await author.close();
+      await evictDurableObject(room(name));
+      const next = await join(name, "next_guest");
+      try { expect(await retained()).toBe(1); }
+      finally { await next.close(); }
+    } finally { await author.close(); await host.close(); }
+    await expect.poll(retained).toBe(0);
+  });
+
   it("reserves a seat after a transport error and reconnects with the original join order", async () => {
     const name = code(), host = await join(name, "reserve_host"), other = await join(name, "reserve_other");
     let replacement: QuickClient | undefined;
@@ -86,6 +153,10 @@ describe("connection leases and membership", () => {
         instance.webSocketError(state.getWebSockets(`peer:${host.peerId}`)[0]));
       expect((await room(name).directoryEntry())?.participants).toBe(2);
       await evictDurableObject(room(name));
+      const unavailable = await worker.fetch(`https://test/v1/rooms/${name}/connect?peer=${host.peerId}&name=Player&build=recovery&players=1`, {
+        headers: { Upgrade: "websocket", ...guestHeaders("other_installation") }
+      });
+      expect(unavailable.status).toBe(409);
       replacement = await join(name, "returned_host", "reserve_host");
       const restored = await runInDurableObject(room(name), (_instance, state) =>
         state.getWebSockets(`peer:${replacement!.peerId}`)[0].deserializeAttachment() as ConnectionAttachment);
@@ -93,6 +164,30 @@ describe("connection leases and membership", () => {
       expect(restored.ready).toBe(false);
       expect((await room(name).directoryEntry())?.participants).toBe(2);
     } finally { await host.close(); await other.close(); await replacement?.close(); }
+  });
+
+  it.each(["expiry", "move"])("clears a match after its reserved player leaves by %s", async(reason) => {
+    const name = code(), host = await join(name, "match_owner"), guest = await join(name, "match_guest");
+    let moved: QuickClient | undefined;
+    try {
+      host.socket.send(encodeSetMatch(new Uint8Array([7]), 16384));
+      let snapshot;
+      do { snapshot = (await guest.next(ServerMessageType.Presence)).snapshot; } while (!snapshot.match);
+      await runInDurableObject(room(name), (instance, state) =>
+        instance.webSocketError(state.getWebSockets(`peer:${guest.peerId}`)[0]));
+      const current = () => runInDurableObject(room(name), (_instance, state) =>
+        state.storage.sql.exec<{ active: number }>("SELECT payload IS NOT NULL AS active FROM room_match").one().active);
+      expect(await current()).toBe(1);
+      if (reason === "expiry") {
+        await runInDurableObject(room(name), (_instance, state) =>
+          { state.storage.sql.exec("UPDATE room_recovery SET expires=?", Date.now() - 1); });
+        await runDurableObjectAlarm(room(name));
+      } else {
+        moved = await join(code(), "new_lobby_peer", "match_guest");
+      }
+      await expect.poll(current).toBe(0);
+      expect(host.socket.readyState).toBe(WebSocket.OPEN);
+    } finally { await host.close(); await guest.close(); await moved?.close(); }
   });
 
   it("keeps the empty lobby recoverable until the grace period ends", async () => {

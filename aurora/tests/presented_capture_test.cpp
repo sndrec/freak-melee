@@ -6,7 +6,7 @@
 #include <SDL3/SDL_timer.h>
 #include <png.h>
 #include <array>
-#include <filesystem>
+#include <string>
 #include <latch>
 #include <vector>
 
@@ -28,7 +28,7 @@ void present_color(uint32_t width, uint32_t height, std::array<uint8_t, 4> color
   const int slot = gfx::presented_capture::retain(encoder, source, description.format, extent);
   EXPECT_GE(slot, 0);
   const auto commands = encoder.Finish(); webgpu::g_queue.Submit(1, &commands);
-  gfx::presented_capture::publish(slot);
+  gfx::presented_capture::publish(slot, gfx::presented_capture::take_request(), {0, 0, float(width), float(height)});
 }
 
 AuroraPresentedCapture wait_capture() {
@@ -46,10 +46,13 @@ AuroraPresentedCapture wait_capture() {
   return result;
 }
 
-void expect_pixels(const std::filesystem::path& path, unsigned width, unsigned height,
+void expect_pixels(uint64_t id, unsigned width, unsigned height,
                    std::array<uint8_t, 3> color) {
   png_image image{}; image.version = PNG_IMAGE_VERSION;
-  ASSERT_TRUE(png_image_begin_read_from_file(&image, path.string().c_str()));
+  size_t size = 0;
+  const void* bytes = aurora_presented_png(id, &size);
+  ASSERT_NE(bytes, nullptr);
+  ASSERT_TRUE(png_image_begin_read_from_memory(&image, bytes, size));
   ASSERT_EQ(image.width, width); ASSERT_EQ(image.height, height);
   image.format = PNG_FORMAT_RGB;
   std::vector<uint8_t> pixels(PNG_IMAGE_SIZE(image));
@@ -60,15 +63,12 @@ void expect_pixels(const std::filesystem::path& path, unsigned width, unsigned h
 }
 
 TEST(PresentedCapture, KeepsPressedFrameAcrossQueuedRendersResizeReleaseAndFailure) {
-  const auto directory = std::filesystem::temp_directory_path() / "freak-melee-capture-test";
-  std::filesystem::create_directories(directory);
-  const auto red = (directory / "reserved-red.png").string();
-  const auto green = (directory / "later-green.png").string();
   const AuroraConfig config{.appName = "Presented capture test", .hideWindow = true,
       .windowWidth = 640, .windowHeight = 480, .logLevel = LOG_WARNING};
   char executable[] = "presented_capture_tests"; char* args[]{executable, nullptr};
   aurora_initialize(1, args, &config);
-  ASSERT_FALSE(aurora_capture_presented(red.c_str(), true, nullptr));
+  AuroraPresentedCapture pressed{}, later{};
+  ASSERT_FALSE(aurora_capture_presented(true, &pressed));
   gfx::render_worker::enqueue_work([] { present_color(64, 32, {255, 0, 0, 255}); });
   gfx::render_worker::synchronize();
 
@@ -78,8 +78,7 @@ TEST(PresentedCapture, KeepsPressedFrameAcrossQueuedRendersResizeReleaseAndFailu
   gfx::render_worker::enqueue_work([&] { gate.wait(); });
   for (unsigned i = 0; i < 8; ++i)
     gfx::render_worker::enqueue_work([] { present_color(128, 64, {0, 255, 0, 255}); });
-  AuroraPresentedCapture pressed{};
-  const bool accepted = aurora_capture_presented(red.c_str(), true, &pressed);
+  const bool accepted = aurora_capture_presented(true, &pressed);
   gate.count_down();
   ASSERT_TRUE(accepted);
   EXPECT_EQ(pressed.width, 64u); EXPECT_EQ(pressed.height, 32u);
@@ -87,38 +86,50 @@ TEST(PresentedCapture, KeepsPressedFrameAcrossQueuedRendersResizeReleaseAndFailu
   ASSERT_EQ(saved.status, AURORA_CAPTURE_READY) << saved.error;
   EXPECT_EQ(saved.displayed_frame, pressed.displayed_frame);
   EXPECT_EQ(saved.capture_id, pressed.capture_id);
-  expect_pixels(red, 64, 32, {255, 0, 0});
-  const auto exported = (directory / "reserved-export.png").string();
-  EXPECT_TRUE(aurora_write_presented_capture(exported.c_str()));
+  expect_pixels(pressed.capture_id, 64, 32, {255, 0, 0});
+  EXPECT_TRUE(aurora_retry_presented_capture(pressed.capture_id));
   EXPECT_EQ(wait_capture().capture_id, pressed.capture_id);
-  expect_pixels(exported, 64, 32, {255, 0, 0});
-  EXPECT_FALSE(aurora_capture_presented(green.c_str(), false, nullptr));
+  expect_pixels(pressed.capture_id, 64, 32, {255, 0, 0});
+  EXPECT_FALSE(aurora_capture_presented(false, &later));
   aurora_set_capture_backdrop(true);
   const auto frozen = gfx::presented_capture::backdrop();
   EXPECT_TRUE(frozen.bind_group); EXPECT_EQ(frozen.extent.width, 64u);
-  aurora_release_presented_capture(); gfx::render_worker::synchronize();
+  aurora_release_presented_capture(pressed.capture_id); gfx::render_worker::synchronize();
   EXPECT_FALSE(gfx::presented_capture::backdrop().bind_group);
-  AuroraPresentedCapture later{};
-  ASSERT_TRUE(aurora_capture_presented(green.c_str(), false, &later));
+  ASSERT_TRUE(aurora_capture_presented(false, &later));
   ASSERT_EQ(wait_capture().status, AURORA_CAPTURE_READY);
   EXPECT_GT(later.displayed_frame, pressed.displayed_frame);
-  expect_pixels(green, 128, 64, {0, 255, 0});
-  EXPECT_FALSE(aurora_capture_presented("invalid.bmp", false, nullptr));
-  const auto invalid = (directory / "missing-directory" / "failed.png").string();
-  ASSERT_TRUE(aurora_capture_presented(invalid.c_str(), false, nullptr));
+  aurora_release_presented_capture(pressed.capture_id);
+  expect_pixels(later.capture_id, 128, 64, {0, 255, 0});
+  aurora_release_presented_capture(later.capture_id);
+  gfx::render_worker::synchronize();
+
+  AuroraPresentedCapture next{};
+  ASSERT_TRUE(aurora_capture_next_frame(true, &next));
+  gfx::render_worker::enqueue_work([] {
+    gfx::presented_capture::publish(-1, gfx::presented_capture::take_request(), {});
+  });
   EXPECT_EQ(wait_capture().status, AURORA_CAPTURE_FAILED);
-  // A cancelled request cannot keep the fixed image slots occupied forever.
-  // Cancelling before writing also preserves a previously saved destination.
+  aurora_release_presented_capture(next.capture_id);
+  gfx::render_worker::synchronize();
+  ASSERT_TRUE(aurora_capture_next_frame(true, &next));
+  aurora_release_presented_capture(next.capture_id);
+  gfx::render_worker::synchronize();
   std::latch cancel_gate{1};
   gfx::render_worker::enqueue_work([&] { cancel_gate.wait(); });
-  const bool cancelled_accepted = aurora_capture_presented(green.c_str(), true, nullptr);
-  aurora_release_presented_capture(); cancel_gate.count_down(); gfx::render_worker::synchronize();
-  ASSERT_TRUE(cancelled_accepted);
-  wait_capture();
-  expect_pixels(green, 128, 64, {0, 255, 0});
-  ASSERT_TRUE(aurora_capture_presented(green.c_str(), false, nullptr));
-  EXPECT_EQ(wait_capture().status, AURORA_CAPTURE_READY);
+  const bool accepted_for_cancel = aurora_capture_presented(true, &next);
+  aurora_release_presented_capture(next.capture_id);
+  cancel_gate.count_down();
+  gfx::render_worker::synchronize();
+  ASSERT_TRUE(accepted_for_cancel);
+  size_t size = 1;
+  EXPECT_EQ(aurora_presented_png(next.capture_id, &size), nullptr);
+  EXPECT_EQ(size, 0u);
+  ASSERT_TRUE(aurora_capture_presented(false, &later));
+  ASSERT_EQ(wait_capture().status, AURORA_CAPTURE_READY);
+  expect_pixels(later.capture_id, 128, 64, {0, 255, 0});
+  aurora_release_presented_capture(later.capture_id);
+  gfx::render_worker::synchronize();
   aurora_shutdown();
-  std::filesystem::remove(red); std::filesystem::remove(green); std::filesystem::remove(exported);
 }
 }

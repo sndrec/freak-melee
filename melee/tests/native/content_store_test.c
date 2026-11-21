@@ -1,3 +1,4 @@
+#include "fixture_portrait.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef near
@@ -11,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "codec_dependencies.inc"
 
@@ -69,8 +71,101 @@ static void family_outfit_codec(void)
     require(!nativeContentStore_BuildCostume(&metadata, &data, &bytes, &size, &id), "reject duplicate build keys\n");
 }
 
-int main(void)
+static void peer_cache_pressure(const char* root)
 {
+    NativeContentId ids[NATIVE_CONTENT_PEER_CACHE_FILES + 1];
+    void* leases[NATIVE_CONTENT_PEER_CACHE_FILES + 1] = {0};
+    NativeCostumePackage costume = {.member_count = 1, .character = 8};
+    uint8_t dat[96] = {0};
+    NativeCostumePackageData data = {.members = {{dat, sizeof(dat)}}};
+    size_t size;
+    uint8_t* bytes = NULL;
+    unsigned last = NATIVE_CONTENT_PEER_CACHE_FILES;
+    for (unsigned i = 0; i <= last; ++i) {
+        snprintf(costume.title, sizeof(costume.title), "Traveling costume %u", i);
+        require(nativeContentStore_BuildCostume(&costume, &data, &bytes, &size, &ids[i]), "build peer costume\n");
+        if (i == last) break;
+        require(nativeContentStore_CachePeer(root, bytes, size, &ids[i], &leases[i]) && leases[i],
+                "peer transfer takes a disk lease\n");
+        free(bytes);
+    }
+    require(!nativeContentStore_CachePeer(root, bytes, size, &ids[last], &leases[last]) && !leases[last] &&
+            !nativeContentStore_IsCached(root, &ids[last]), "a full cache preserves every active selection\n");
+    require(nativeContentStore_Install(root, &ids[0]), "accept an outfit while the cache is full\n");
+    nativeContentStore_Unpin(&leases[0]);
+    uint8_t invalid[80] = {0};
+    NativeContentId invalid_id;
+    require(nativeContent_Hash(invalid, sizeof(invalid), &invalid_id) &&
+            !nativeContentStore_CachePeer(root, invalid, sizeof(invalid), &invalid_id, &leases[last]) &&
+            !nativeContentStore_CachePeer(root, bytes, size, &invalid_id, &leases[last]),
+            "malformed downloads and mismatched IDs cannot spend a slot\n");
+    char path[MAX_PATH], hex[65];
+    nativeContentStore_IdHex(&ids[0], hex);
+    snprintf(path, sizeof(path), "%s\\downloads\\%s.fmc", root, hex);
+    require(GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES, "rejection preserves the eviction candidate\n");
+    char occupied[MAX_PATH];
+    nativeContentStore_IdHex(&ids[last], hex);
+    snprintf(occupied, sizeof(occupied), "%s\\downloads\\%s.fmc", root, hex);
+    require(CreateDirectoryA(occupied, NULL) &&
+            !nativeContentStore_CachePeer(root, bytes, size, &ids[last], &leases[last]) &&
+            GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES && RemoveDirectoryA(occupied),
+            "failed publication cancels the planned eviction\n");
+    require(nativeContentStore_CachePeer(root, bytes, size, &ids[last], &leases[last]) &&
+            GetFileAttributesA(path) == INVALID_FILE_ATTRIBUTES && nativeContentStore_IsInstalled(root, &ids[0]),
+            "eviction retires only the idle download and preserves the installed copy\n");
+    free(bytes);
+    for (unsigned i = 1; i <= last; ++i) {
+        require(nativeContentStore_IsCached(root, &ids[i]) && !nativeContentStore_IsInstalled(root, &ids[i]),
+                "remaining automatic downloads stay intact and uninstalled\n");
+        nativeContentStore_Unpin(&leases[i]);
+        nativeContentStore_IdHex(&ids[i], hex);
+        snprintf(path, sizeof(path), "%s\\downloads\\%s.fmc", root, hex);
+        require(DeleteFileA(path), "clean up the disposable peer package\n");
+    }
+    snprintf(path, sizeof(path), "%s\\downloads", root);
+    require(RemoveDirectoryA(path), "no partial writes in the download cache\n");
+    require(nativeContentStore_Uninstall(root, &ids[0]), "remove accepted test outfit\n");
+    nativeContentStore_IdHex(&ids[0], hex);
+    snprintf(path, sizeof(path), "%s\\cache\\%s.fmc", root, hex);
+    require(DeleteFileA(path), "remove promoted test copy\n");
+}
+
+static PROCESS_INFORMATION start_install(const char* root, const NativeContentId* id)
+{
+    char executable[MAX_PATH], command[3 * MAX_PATH], hex[65];
+    DWORD length = GetModuleFileNameA(NULL, executable, sizeof(executable));
+    require(length && length < MAX_PATH, "content store test executable\n");
+    nativeContentStore_IdHex(id, hex);
+    int n = snprintf(command, sizeof(command), "\"%s\" --install \"%s\" %s", executable, root, hex);
+    require(n > 0 && n < sizeof(command), "installation test command\n");
+    STARTUPINFOA startup = {.cb = sizeof(startup)};
+    PROCESS_INFORMATION process;
+    require(CreateProcessA(executable, command, NULL, NULL, false, CREATE_SUSPENDED | CREATE_NO_WINDOW,
+                           NULL, NULL, &startup, &process), "start a second installer\n");
+    return process;
+}
+
+static void run_competing_installs(const char* root, const NativeContentId* blocked, const NativeContentId* accepted)
+{
+    PROCESS_INFORMATION a = start_install(root, blocked), b = start_install(root, accepted);
+    ResumeThread(a.hThread);
+    ResumeThread(b.hThread);
+    HANDLE processes[2] = {a.hProcess, b.hProcess};
+    require(WaitForMultipleObjects(2, processes, true, 20000) == WAIT_OBJECT_0, "concurrent installs finished\n");
+    DWORD result_a, result_b;
+    require(GetExitCodeProcess(a.hProcess, &result_a) && result_a == 1 &&
+            GetExitCodeProcess(b.hProcess, &result_b) && result_b == 0, "only the available outfit installs\n");
+    CloseHandle(a.hThread); CloseHandle(a.hProcess);
+    CloseHandle(b.hThread); CloseHandle(b.hProcess);
+}
+
+int main(int argc, char** argv)
+{
+    if (argc == 4 && !strcmp(argv[1], "--install")) {
+        NativeContentId id;
+        if (!nativeContentStore_IdFromHex(argv[3], &id)) return 2;
+        return nativeContentStore_Install(argv[2], &id) ? 0 : 1;
+    }
     family_outfit_codec();
     char temporary[MAX_PATH];
     DWORD length = GetTempPathA(sizeof(temporary), temporary);
@@ -79,6 +174,7 @@ int main(void)
     int written = snprintf(root, sizeof(root), "%sFreakMeleeContent-%lu-%lu",
                            temporary, GetCurrentProcessId(), GetTickCount());
     require(written > 0 && written < sizeof(root), "store root\n");
+    peer_cache_pressure(root);
 
     NativeCostumePackageData metadata_data;
     NativeCostumePackage metadata = { .member_count = 1, .character = 8, .base_costume = 0 };
@@ -116,11 +212,16 @@ int main(void)
 
     NativeContentId wrong = id;
     wrong.bytes[0] ^= 0x80;
-    NativeContentId cached;
+    NativeContentId cached = wrong;
     require(!nativeContentStore_Cache(root, built, built_size, &wrong,
                                       &cached) &&
+                memcmp(&cached, &wrong, sizeof(wrong)) == 0 &&
                 !nativeContentStore_IsCached(root, &id),
             "reject a transfer with the wrong requested identity\n");
+    require(!nativeContentStore_Cache(root, built, built_size, &cached, &cached) &&
+                memcmp(&cached, &wrong, sizeof(wrong)) == 0 &&
+                !nativeContentStore_IsCached(root, &id),
+            "preserve the requested identity when the caller reuses its ID field\n");
     require(nativeContentStore_Cache(root, built, built_size, NULL, &cached) &&
                 memcmp(&cached, &id, sizeof(id)) == 0 &&
                 nativeContentStore_IsCached(root, &id) &&
@@ -221,6 +322,18 @@ int main(void)
     require(!nativeContentStore_IsCached(root, &id) &&
                 !nativeContentStore_IsInstalled(root, &id),
             "reject corrupted cached dependency and collection membership\n");
+    file = CreateFileA(cache_path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    require(file != INVALID_HANDLE_VALUE, "hold the damaged package open\n");
+    cached = wrong;
+    require(!nativeContentStore_Cache(root, built, built_size, &id, &cached) &&
+                memcmp(&cached, &wrong, sizeof(cached)) == 0,
+            "a blocked cache repair preserves the caller's ID\n");
+    uint8_t original_byte = 0;
+    require(SetFilePointerEx(file, offset, NULL, FILE_BEGIN) &&
+                ReadFile(file, &original_byte, 1, &changed, NULL) && changed == 1 &&
+                original_byte == corrupt && CloseHandle(file),
+            "a failed repair leaves the existing file intact\n");
     require(nativeContentStore_Cache(root, built, built_size, NULL, &cached) &&
                 nativeContentStore_IsInstalled(root, &id),
             "valid transfer repairs corrupted cache without new acceptance\n");
@@ -246,12 +359,15 @@ int main(void)
     require(written > 0 && written < sizeof(fighter_root),
             "fighter store root\n");
     uint8_t fighter_dat[96], animation_dat[64], costume_dat[80];
-    uint8_t portrait_png[45] = {
-        137, 'P', 'N', 'G', 13, 10, 26, 10,
-        0, 0, 0, 13, 'I', 'H', 'D', 'R',
-        0, 0, 0, 64, 0, 0, 0, 56, 8, 6,
-        [37] = 'I', [38] = 'E', [39] = 'N', [40] = 'D',
-    };
+    uint8_t portrait_png[sizeof(fixture_portrait)];
+    memcpy(portrait_png, fixture_portrait, sizeof(portrait_png));
+    portrait_png[23] += 1;
+    uint32_t header_crc = crc32(0, portrait_png + 12, 17);
+    for (unsigned i = 0; i < 4; ++i)
+        portrait_png[29 + i] = (uint8_t)(header_crc >> (24 - 8 * i));
+    require(!nativeContent_ValidFighterPortrait(portrait_png, sizeof(portrait_png)),
+            "reject a portrait missing its final scanline\n");
+    memcpy(portrait_png, fixture_portrait, sizeof(portrait_png));
     for (size_t i = 0; i < sizeof(fighter_dat); ++i) {
         fighter_dat[i] = (uint8_t) (i * 3);
     }
@@ -322,15 +438,15 @@ int main(void)
                        sizeof(portrait_png)) == 0 &&
                 !nativeContentStore_ParseCostume(fighter_package, fighter_package_size, &metadata, &metadata_data),
             "typed fighter bundle round trip\n");
-    NativeContentPreview preview;
+    NativeContentPreview preview = {0};
     size_t portrait_end = parsed_data.portrait_png - fighter_package + parsed_data.portrait_size;
-    require(!nativeContentStore_ReadPreview(fighter_package, 12, &preview) &&
-            !*preview.title && !preview.portrait_png, "incomplete preview header\n");
-    require(nativeContentStore_ReadPreview(fighter_package, portrait_end - 1, &preview) &&
-            !strcmp(preview.title, fighter.title) && !preview.portrait_png,
+    nativeContentStore_UpdatePreview(fighter_package, 12, &preview);
+    require(!*preview.title && !preview.portrait_png, "incomplete preview header\n");
+    nativeContentStore_UpdatePreview(fighter_package, portrait_end - 1, &preview);
+    require(!strcmp(preview.title, fighter.title) && !preview.portrait_png,
             "show the fighter name while the portrait arrives\n");
-    require(nativeContentStore_ReadPreview(fighter_package, portrait_end, &preview) &&
-            !strcmp(preview.title, fighter.title) && preview.portrait_size == sizeof(portrait_png) &&
+    nativeContentStore_UpdatePreview(fighter_package, portrait_end, &preview);
+    require(!strcmp(preview.title, fighter.title) && preview.portrait_size == sizeof(portrait_png) &&
             !memcmp(preview.portrait_png, portrait_png, sizeof(portrait_png)),
             "show the portrait before the fighter payload arrives\n");
     uint8_t saved_label_byte = fighter_package[208 + sizeof(portrait_png)];
@@ -442,15 +558,16 @@ int main(void)
     uint8_t* outfit_package = NULL;
     size_t outfit_size;
     NativeContentId outfit_id;
+    void* outfit_lease = NULL;
+    void* parent_lease = NULL;
     require(nativeContentStore_BuildCostume(&outfit, &(NativeCostumePackageData){.members={{costume_dat,sizeof(costume_dat)}}},
                 &outfit_package,&outfit_size,&outfit_id) &&
-            nativeContentStore_Cache(fighter_root,outfit_package,outfit_size,NULL,&cached) &&
+            nativeContentStore_CachePeer(fighter_root,outfit_package,outfit_size,&outfit_id,&outfit_lease) &&
             !nativeContentStore_Install(fighter_root,&outfit_id) &&
             !nativeContentStore_IsInstalled(fighter_root,&outfit_id),
             "outfit acceptance requires its exact cached parent\n");
-    require(nativeContentStore_Cache(fighter_root, fighter_package,
-                                     fighter_package_size, NULL, &cached) &&
-                memcmp(&cached, &fighter_id, sizeof(cached)) == 0 &&
+    require(nativeContentStore_CachePeer(fighter_root, fighter_package,
+                                     fighter_package_size, &fighter_id, &parent_lease) &&
                 nativeContentStore_IsCached(fighter_root, &fighter_id) &&
                 !nativeContentStore_IsInstalled(fighter_root, &fighter_id),
             "fighter bundle caches without installation\n");
@@ -464,6 +581,24 @@ int main(void)
     require(!nativeContentStore_Install(fighter_root,&outfit_id) &&
                 !nativeContentStore_IsInstalled(fighter_root,&fighter_id),
             "failed outfit publication removes its newly installed dependency\n");
+    NativeContentId second_id;
+    uint8_t* second_bytes;
+    size_t second_size;
+    strcpy(outfit.title, "Another outfit for the same fighter");
+    require(nativeContentStore_BuildCostume(&outfit, &(NativeCostumePackageData){.members={{costume_dat,sizeof(costume_dat)}}},
+                &second_bytes, &second_size, &second_id) &&
+            nativeContentStore_Cache(fighter_root, second_bytes, second_size, &second_id, &cached),
+            "prepare a concurrent outfit installation\n");
+    free(second_bytes);
+    run_competing_installs(fighter_root, &outfit_id, &second_id);
+    require(nativeContentStore_IsInstalled(fighter_root, &second_id) &&
+            nativeContentStore_IsInstalled(fighter_root, &fighter_id) &&
+            !nativeContentStore_IsInstalled(fighter_root, &outfit_id),
+            "one failed outfit install preserves the other outfit and its shared fighter\n");
+    require(nativeContentStore_Uninstall(fighter_root, &second_id), "remove concurrent installation\n");
+    nativeContentStore_IdHex(&second_id, hex);
+    snprintf(cache_path, sizeof(cache_path), "%s\\cache\\%s.fmc", fighter_root, hex);
+    require(DeleteFileA(cache_path), "remove concurrent outfit fixture\n");
     require(nativeContentStore_Install(fighter_root,&fighter_id) &&
                 !nativeContentStore_Install(fighter_root,&outfit_id) &&
                 nativeContentStore_IsInstalled(fighter_root,&fighter_id),
@@ -474,6 +609,19 @@ int main(void)
                 nativeContentStore_IsInstalled(fighter_root,&outfit_id) &&
                 nativeContentStore_Install(fighter_root,&outfit_id),
             "explicit outfit acceptance installs its cached dependency and repeats safely\n");
+    nativeContentStore_Unpin(&outfit_lease);
+    nativeContentStore_Unpin(&parent_lease);
+    char download_path[MAX_PATH];
+    snprintf(download_path, sizeof(download_path), "%s\\downloads\\%s.fmc", fighter_root, outfit_hex);
+    require(DeleteFileA(download_path), "retire downloaded family outfit\n");
+    nativeContentStore_IdHex(&fighter_id, hex);
+    snprintf(download_path, sizeof(download_path), "%s\\downloads\\%s.fmc", fighter_root, hex);
+    require(DeleteFileA(download_path), "retire downloaded parent fighter\n");
+    snprintf(download_path, sizeof(download_path), "%s\\downloads", fighter_root);
+    require(RemoveDirectoryA(download_path) &&
+            nativeContentStore_IsInstalled(fighter_root, &outfit_id) &&
+            nativeContentStore_IsInstalled(fighter_root, &fighter_id),
+            "both accepted packages survive eviction of all automatic downloads\n");
     require(nativeContentStore_Uninstall(fighter_root,&outfit_id) && DeleteFileA(outfit_cache),
             "remove outfit fixture\n");
     free(outfit_package);

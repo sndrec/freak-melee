@@ -51,7 +51,7 @@ static void received(juice_agent_t* agent, const char* data, size_t size,
 {
     (void) agent;
     NativeNetplayIcePeer* peer = user_ptr;
-    if (size == 0 || size > NATIVE_NETPLAY_INPUT_PACKET_CAPACITY) {
+    if (size == 0 || size > NATIVE_NETPLAY_ICE_DATAGRAM_BYTES) {
         atomic_fetch_add_explicit(&peer->dropped_datagrams, 1,
                                   memory_order_relaxed);
         return;
@@ -199,19 +199,21 @@ NativeNetplayIceState nativeNetplayIce_State(const NativeNetplayIcePeer* peer)
                               &peer->state, memory_order_acquire);
 }
 
-bool nativeNetplayIce_Send(NativeNetplayIcePeer* peer, const uint8_t* bytes,
-                           size_t size)
+NativeNetplayIceSend nativeNetplayIce_Send(NativeNetplayIcePeer* peer,
+                                          const uint8_t* bytes, size_t size)
 {
     if (peer == NULL || peer->agent == 0 || bytes == NULL || size == 0 ||
-        size > NATIVE_NETPLAY_INPUT_PACKET_CAPACITY)
+        size > NATIVE_NETPLAY_ICE_DATAGRAM_BYTES)
     {
-        return false;
+        return NativeNetplayIceSend_Failed;
     }
     NativeNetplayIceState state = nativeNetplayIce_State(peer);
-    return (state == NativeNetplayIceState_Connected ||
-            state == NativeNetplayIceState_Completed) &&
-           juice_send(ice_agent(peer), (const char*) bytes, size) ==
-               JUICE_ERR_SUCCESS;
+    if (state != NativeNetplayIceState_Connected && state != NativeNetplayIceState_Completed)
+        return NativeNetplayIceSend_Failed;
+    int status = juice_send(ice_agent(peer), (const char*)bytes, size);
+    if (status == JUICE_ERR_SUCCESS) return NativeNetplayIceSend_Sent;
+    if (status == JUICE_ERR_AGAIN) return NativeNetplayIceSend_Retry;
+    return NativeNetplayIceSend_Failed;
 }
 
 bool nativeNetplayIce_PollDatagram(NativeNetplayIcePeer* peer,

@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "animation_color.h"
 #include "aobj.h"
 #include "class.h"
 #include "debug.h"
@@ -93,48 +94,48 @@ static void MObjUpdateFunc(void* obj, enum_t type, HSD_ObjData* val)
 
     switch (type) {
     case HSD_A_M_AMBIENT_R:
-        mobj->mat->ambient.r = (u8) (255.0 * val->fv);
+        mobj->mat->ambient.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_AMBIENT_G:
-        mobj->mat->ambient.g = (u8) (255.0 * val->fv);
+        mobj->mat->ambient.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_AMBIENT_B:
-        mobj->mat->ambient.b = (u8) (255.0 * val->fv);
+        mobj->mat->ambient.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_DIFFUSE_R:
-        mobj->mat->diffuse.r = (u8) (255.0 * val->fv);
+        mobj->mat->diffuse.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_DIFFUSE_G:
-        mobj->mat->diffuse.g = (u8) (255.0 * val->fv);
+        mobj->mat->diffuse.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_DIFFUSE_B:
-        mobj->mat->diffuse.b = (u8) (255.0 * val->fv);
+        mobj->mat->diffuse.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_ALPHA:
         mobj->mat->alpha = 1.0F - val->fv;
         break;
     case HSD_A_M_SPECULAR_R:
-        mobj->mat->specular.r = (u8) (255.0 * val->fv);
+        mobj->mat->specular.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_SPECULAR_G:
-        mobj->mat->specular.g = (u8) (255.0 * val->fv);
+        mobj->mat->specular.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_SPECULAR_B:
-        mobj->mat->specular.b = (u8) (255.0 * val->fv);
+        mobj->mat->specular.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_M_PE_REF0:
         if (mobj->pe) {
-            mobj->pe->ref0 = (u8) (255.0 * val->fv);
+            mobj->pe->ref0 = HSD_AnimationColorByte(val->fv);
         }
         break;
     case HSD_A_M_PE_REF1:
         if (mobj->pe) {
-            mobj->pe->ref1 = (u8) (255.0 * val->fv);
+            mobj->pe->ref1 = HSD_AnimationColorByte(val->fv);
         }
         break;
     case HSD_A_M_PE_DSTALPHA:
         if (mobj->pe) {
-            mobj->pe->dst_alpha = (u8) (255.0 * val->fv);
+            mobj->pe->dst_alpha = HSD_AnimationColorByte(val->fv);
         }
         break;
     }
@@ -171,7 +172,8 @@ HSD_MObj* HSD_MObjLoadDesc(HSD_MObjDesc* mobjdesc)
         HSD_ClassInfo* info;
 
         if (!mobjdesc->class_name ||
-            !(info = hsdSearchClassInfo(mobjdesc->class_name)))
+            !(info = hsdSearchClassInfo(mobjdesc->class_name)) ||
+            !hsdIsDescendantOf(info, &hsdMObj))
         {
             mobj = HSD_MObjAlloc();
         } else {

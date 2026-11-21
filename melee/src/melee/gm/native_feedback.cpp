@@ -45,7 +45,7 @@ void close(bool discard)
     for (unsigned button = 1; button <= 5; ++button) if (suppressed_mouse & SDL_BUTTON_MASK(button)) {
         release.button.button = Uint8(button); aurora::rmlui::handle_event(release);
     }
-    nativeFeedbackView_Close(); aurora_release_presented_capture();
+    nativeFeedbackView_Close(); aurora_release_presented_capture(draft.image.capture_id);
     nativeFeedbackInput_SetOpen(false); open = false;
     if (!old_cursor) SDL_HideCursor();
     if (!online) {
@@ -53,21 +53,42 @@ void close(bool discard)
         lbInput_RebaseClock(SDL_GetTicksNS());
     }
     if (discard && !submitted) {
-        DeleteFileA(draft.image_path); DeleteFileA(draft.context_path); DeleteFileA(upload.metadata);
+        NativeFeedbackCapture::discard(draft, upload);
+    }
+    upload = {};
+}
+void collect_image()
+{
+    if (upload.image_bytes) return;
+    size_t size = 0;
+    auto* bytes = static_cast<const char*>(aurora_presented_png(draft.image.capture_id, &size));
+    if (bytes && size <= NativeFeedbackImageLimit) {
+        upload.image_bytes = std::make_shared<const std::string>(bytes, size);
+        nativeFile_PublishLocal(draft.image_path, bytes, size, NATIVE_FILE_PRESERVE, &draft.screenshot_file);
     }
 }
 void send()
 {
     AuroraPresentedCapture capture{}; aurora_presented_capture_status(&capture);
-    if (!context_ready && !(context_ready = NativeFeedbackCapture::fallback(draft))) {
+    if (!context_ready && !(context_ready = NativeFeedbackCapture::fallback(draft, upload))) {
         nativeFeedbackView_Status("Could not save the diagnostic capture. Free some disk space, then press Enter to retry. Your screenshot and notes are retained.", false, false, false); return;
     }
     if (capture.capture_id != draft.image.capture_id || capture.status != AURORA_CAPTURE_READY) {
         if (capture.capture_id == draft.image.capture_id && capture.status == AURORA_CAPTURE_FAILED &&
-            aurora_write_presented_capture(draft.image_path)) {
+            aurora_retry_presented_capture(draft.image.capture_id)) {
             nativeFeedbackView_Status("Saving the original screenshot again. Press Enter to send when it is ready.", false, false, false); return;
         }
         nativeFeedbackView_Status(capture.status == AURORA_CAPTURE_FAILED ? capture.error : "The screenshot is still being saved. Please try again in a moment.", false, false, false);
+        return;
+    }
+    if (!upload.image_bytes) {
+        nativeFeedbackView_Status("The screenshot exceeds the feedback image limit. Your notes have been kept.", false, false, false);
+        return;
+    }
+    if (!draft.screenshot_file.valid &&
+        !nativeFile_PublishLocal(draft.image_path, upload.image_bytes->data(), upload.image_bytes->size(),
+                                 NATIVE_FILE_PRESERVE, &draft.screenshot_file)) {
+        nativeFeedbackView_Status("Could not save the screenshot. Your image and notes are available to retry.", false, false, false);
         return;
     }
     if (!submitted && !NativeFeedbackCapture::notes(draft, upload, context_complete)) {
@@ -89,10 +110,11 @@ extern "C" bool nativeFeedback_Open(void)
     if (open) return false;
     receipt = {};
     if (!NativeFeedbackCapture::create(draft, upload, true, context_complete)) return false;
-    context_ready = context_complete || NativeFeedbackCapture::fallback(draft);
+    context_ready = draft.context_file.valid || NativeFeedbackCapture::fallback(draft, upload);
     if (!nativeFeedbackView_Open(draft)) {
-        aurora_release_presented_capture();
-        DeleteFileA(draft.context_path); DeleteFileA(draft.image_path);
+        aurora_release_presented_capture(draft.image.capture_id);
+        NativeFeedbackCapture::discard(draft, upload);
+        upload = {};
         return false;
     }
     if (!context_complete) nativeFeedbackView_Status(
@@ -156,6 +178,7 @@ extern "C" bool nativeFeedback_Event(const SDL_Event* event)
 extern "C" void nativeFeedback_Update(void)
 {
     if (!open) return;
+    collect_image();
     nativeFeedbackView_Update();
     switch (nativeFeedbackView_Action()) {
     case NativeFeedbackAction::ConfirmSend: nativeFeedbackView_Confirm(); break;
@@ -176,7 +199,7 @@ extern "C" void nativeFeedback_Update(void)
             nativeFeedbackView_Status(completed ? "Thank you! Your feedback has been received." : receipt.error,
                 true, !completed, completed);
             if (completed) {
-                DeleteFileA(upload.metadata); DeleteFileA(draft.context_path); DeleteFileA(draft.image_path);
+                NativeFeedbackCapture::discard(draft, upload);
             }
         }
     }

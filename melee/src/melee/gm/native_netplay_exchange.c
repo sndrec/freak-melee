@@ -220,12 +220,14 @@ bool nativeNetplayExchange_SetChecksum(NativeNetplayExchange* exchange,
 }
 
 bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
+                                         uint8_t destination_peer, bool repair,
                                          uint8_t* packet,
                                          size_t packet_capacity,
                                          size_t* packet_size)
 {
     if (exchange == NULL || !exchange->active || packet == NULL ||
-        packet_size == NULL || !exchange->has_newest_frame)
+        packet_size == NULL || !exchange->has_newest_frame ||
+        destination_peer >= 4 || !exchange->peers[destination_peer].configured)
     {
         return false;
     }
@@ -243,6 +245,28 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
     uint64_t start_frame = send_through + 1 > REDUNDANT_FRAME_COUNT
                                ? send_through + 1 - REDUNDANT_FRAME_COUNT
                                : 0;
+    const NativeNetplayExchangePeer* peer = &exchange->peers[destination_peer];
+    if (repair) {
+        // Recent samples are already in the primary datagram. Repair the
+        // oldest retained gap, even when the peer has received newer input.
+        uint64_t repair_end = start_frame;
+        const uint64_t recorded_end = exchange->newest_frame +
+                                      exchange->input_delay_frames + 1;
+        uint64_t oldest = recorded_end > NATIVE_ROLLBACK_INPUT_CAPACITY
+                              ? recorded_end - NATIVE_ROLLBACK_INPUT_CAPACITY : 0;
+        start_frame = peer->acknowledged.boundary;
+        if (start_frame < oldest) start_frame = oldest;
+        while (start_frame < repair_end) {
+            uint64_t offset = start_frame - peer->acknowledged.boundary;
+            if (offset >= 64 || !(peer->acknowledged.selective & (UINT64_C(1) << offset)))
+                break;
+            ++start_frame;
+        }
+        if (start_frame >= repair_end) return true;
+        send_through = repair_end - start_frame > NATIVE_NETPLAY_INPUT_MAX_FRAMES
+                           ? start_frame + NATIVE_NETPLAY_INPUT_MAX_FRAMES - 1
+                           : repair_end - 1;
+    }
     while (start_frame < send_through) {
         const NativeNetplayExchangeFrame* saved =
             &exchange->frames[start_frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
@@ -251,6 +275,10 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
         }
         ++start_frame;
     }
+    if (repair &&
+        (!exchange->frames[start_frame % NATIVE_ROLLBACK_INPUT_CAPACITY].valid ||
+         exchange->frames[start_frame % NATIVE_ROLLBACK_INPUT_CAPACITY].frame != start_frame))
+        return true;
     NativeNetplayInputBatch batch = {
         .session_id = exchange->session_id,
         .start_frame = start_frame,
@@ -260,7 +288,10 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
         .checksum_frame = exchange->checksum_frame,
         .checksum = exchange->checksum,
         .sample_frame = exchange->newest_frame,
+        .ack_boundary = peer->received.boundary,
+        .ack_selective = peer->received.selective,
         .has_checksum = exchange->has_checksum,
+        .repair = repair,
     };
     memcpy(batch.observed_frames, exchange->observed_frames,
            sizeof(batch.observed_frames));
@@ -273,6 +304,20 @@ bool nativeNetplayExchange_PreparePacket(const NativeNetplayExchange* exchange,
     *packet_size =
         nativeNetplayInput_Encode(&batch, packet, packet_capacity);
     return *packet_size != 0;
+}
+
+static void record_received(NativeNetplayInputAck* ack, uint64_t first,
+                            uint8_t count)
+{
+    for (uint64_t frame = first; frame - first < count; ++frame) {
+        if (frame >= ack->boundary && frame - ack->boundary < 64) {
+            ack->selective |= UINT64_C(1) << (frame - ack->boundary);
+        }
+    }
+    while (ack->selective & 1) {
+        ++ack->boundary;
+        ack->selective >>= 1;
+    }
 }
 
 bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
@@ -301,8 +346,29 @@ bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
         ++exchange->stale_packets;
         return true;
     }
+    if (batch.session_id != exchange->session_id ||
+        batch.sender_peer != source_peer || batch.port_mask != peer->port_mask ||
+        (batch.sample_frame > exchange->newest_frame &&
+         batch.sample_frame - exchange->newest_frame >= NATIVE_ROLLBACK_INPUT_CAPACITY)) {
+        ++exchange->rejected_packets;
+        ++exchange->rejected_header_packets;
+        return false;
+    }
+    const uint64_t local_end = exchange->has_newest_frame
+        ? exchange->newest_frame + exchange->input_delay_frames + 1 : 0;
+    if (batch.ack_boundary > local_end ||
+        (local_end - batch.ack_boundary < 64 &&
+         (batch.ack_selective >> (local_end - batch.ack_boundary)))) {
+        ++exchange->rejected_packets;
+        ++exchange->rejected_header_packets;
+        return false;
+    }
     NativeNetplayPendingChecksum* pending = NULL;
-    if (batch.has_checksum) {
+    // A delayed packet can still carry useful inputs after its checksum
+    // has fallen outside the local digest history.
+    if (batch.has_checksum &&
+        (batch.checksum_frame >= exchange->newest_frame ||
+         exchange->newest_frame - batch.checksum_frame < NATIVE_ROLLBACK_INPUT_CAPACITY)) {
         pending = &peer->pending_checksums[
             batch.checksum_frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
         if ((pending->valid && pending->frame == batch.checksum_frame &&
@@ -319,10 +385,9 @@ bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
              batch.checksum_frame > peer->checksum_frame) &&
             pending->valid && pending->frame != batch.checksum_frame)
         {
-            exchange->checksum_overflow = true;
-            ++exchange->rejected_packets;
-            ++exchange->rejected_checksum_packets;
-            return false;
+            // Preserve the unconsumed digest. Inputs in this packet can
+            // allow the simulation to confirm and compare it.
+            pending = NULL;
         }
     }
     if (!nativeNetplayInput_SubmitBatch(inputs, &batch, exchange->session_id,
@@ -332,7 +397,7 @@ bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
         ++exchange->rejected_input_packets;
         return false;
     }
-    if (batch.has_checksum &&
+    if (pending != NULL &&
         (!peer->has_checksum || batch.checksum_frame > peer->checksum_frame))
     {
         *pending = (NativeNetplayPendingChecksum){
@@ -344,7 +409,15 @@ bool nativeNetplayExchange_AcceptPacket(NativeNetplayExchange* exchange,
         peer->checksum = batch.checksum;
         peer->has_checksum = true;
     }
-    observe_peer_sample(exchange, peer, &batch);
+    record_received(&peer->received, batch.start_frame, batch.frame_count);
+    if (batch.ack_boundary > peer->acknowledged.boundary) {
+        peer->acknowledged = (NativeNetplayInputAck){
+            batch.ack_boundary, batch.ack_selective,
+        };
+    } else if (batch.ack_boundary == peer->acknowledged.boundary) {
+        peer->acknowledged.selective |= batch.ack_selective;
+    }
+    if (!batch.repair) observe_peer_sample(exchange, peer, &batch);
     ++exchange->received_packets;
     return true;
 }

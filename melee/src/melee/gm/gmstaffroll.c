@@ -1039,11 +1039,15 @@ void fn_801AB200(HSD_GObj* gobj)
 
             if (button == HSD_PAD_A && gm_804D6820 == 0) {
                 gen = hsd_8039F05C(0, 0, 0x27);
-                if ((appsrt = gen->appsrt) == NULL) {
-                    appsrt = psAddGeneratorAppSRT_begin(gen, 1);
+                if (gen != NULL) {
+                    appsrt = gen->appsrt;
+                    if (appsrt == NULL) {
+                        appsrt = psAddGeneratorAppSRT_begin(gen, 1);
+                    }
+                    if (appsrt != NULL) {
+                        gm_801AB200_SetAppSRT(appsrt, hover_jobj);
+                    }
                 }
-
-                gm_801AB200_SetAppSRT(appsrt, hover_jobj);
 
                 staffInfo[selected].x8 += 1;
                 if (staffInfo[selected].x8 >= 1) {

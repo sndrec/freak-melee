@@ -6,15 +6,12 @@
 #include <melee/gm/native_content_store.h>
 #include <melee/gm/native_match_launch.h>
 #include <melee/ft/native_source_asset_facts.h>
+#include <melee/ft/native_gx_image.h>
 #include <melee/gm/native_home.h>
 #include <melee/mn/native_css_original.h>
 #include <melee/mn/native_css_cards.h>
 
 #include <aurora/rmlui.hpp>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <wincodec.h>
-#include <wrl/client.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -65,43 +62,6 @@ std::string escape_markup(std::string_view value)
     return escaped;
 }
 
-bool decode_portrait(const uint8_t* png, size_t size,
-                     InstalledPortrait& portrait)
-{
-    if (size > UINT32_MAX) {
-        return false;
-    }
-    using Microsoft::WRL::ComPtr;
-    ComPtr<IWICImagingFactory> factory;
-    ComPtr<IWICStream> stream;
-    ComPtr<IWICBitmapDecoder> decoder;
-    ComPtr<IWICBitmapFrameDecode> frame;
-    ComPtr<IWICFormatConverter> converter;
-    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr,
-                                CLSCTX_INPROC_SERVER,
-                                IID_PPV_ARGS(&factory))) ||
-        FAILED(factory->CreateStream(&stream)) ||
-        FAILED(stream->InitializeFromMemory(const_cast<BYTE*>(png),
-                                            UINT(size))) ||
-        FAILED(factory->CreateDecoderFromStream(stream.Get(), nullptr,
-                                                WICDecodeMetadataCacheOnLoad,
-                                                &decoder)) ||
-        FAILED(decoder->GetFrame(0, &frame)) ||
-        FAILED(frame->GetSize(&portrait.width, &portrait.height)) ||
-        portrait.width < 16 || portrait.width > 512 ||
-        portrait.height < 16 || portrait.height > 512 ||
-        FAILED(factory->CreateFormatConverter(&converter)) ||
-        FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA,
-                                     WICBitmapDitherTypeNone, nullptr, 0,
-                                     WICBitmapPaletteTypeCustom))) {
-        return false;
-    }
-    portrait.pixels.resize(size_t(portrait.width) * portrait.height * 4);
-    return SUCCEEDED(converter->CopyPixels(
-        nullptr, portrait.width * 4, UINT(portrait.pixels.size()),
-        reinterpret_cast<BYTE*>(portrait.pixels.data())));
-}
-
 const InstalledPortrait* find_portrait(const NativeContentId& id)
 {
     for (const InstalledPortrait& portrait : portraits) {
@@ -131,15 +91,11 @@ void load_portraits()
                                           &count)) {
         return;
     }
-    const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
-        return;
-    }
     for (size_t index = 0; index < count; ++index) {
         uint8_t* package = nullptr;
         size_t package_size = 0;
         NativeFighterPackage metadata;
-        NativeFighterPackageData data;
+        NativeFighterPackageData data{};
         bool valid = nativeContentStore_Read(
             root, &ids[index], &package, &package_size) &&
             nativeContentStore_ParseFighter(package, package_size,
@@ -154,16 +110,21 @@ void load_portraits()
             InstalledPortrait portrait{};
             portrait.id = ids[index];
             portrait.title = metadata.tile_name[0] ? metadata.tile_name : metadata.title;
-            if (decode_portrait(data.portrait_png, data.portrait_size,
-                                portrait)) {
+            unsigned short width, height;
+            auto* rgba = nativeImage_DecodeRGBA(data.portrait_png, (unsigned)data.portrait_size,
+                                                &width, &height);
+            if (rgba) {
+                portrait.width = width;
+                portrait.height = height;
+                auto* pixels = reinterpret_cast<const std::byte*>(rgba);
+                portrait.pixels.assign(pixels, pixels + size_t(width) * height * 4);
+                std::free(rgba);
                 portrait.png.assign(data.portrait_png,data.portrait_png+data.portrait_size);
                 portraits.push_back(std::move(portrait));
             }
         }
+        nativeContentStore_ReleaseFighterData(&data);
         std::free(package);
-    }
-    if (SUCCEEDED(initialized)) {
-        CoUninitialize();
     }
 }
 

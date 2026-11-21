@@ -102,7 +102,6 @@ namespace {
         char root[512], recipient[25];
         NativeContentId id{};
         NativeFighterPackage fighter{};
-        NativeFighterPackageData data{};
         uint8_t* package = nullptr;
         size_t size = 0;
         if (!nativeAccount_Handle(request.handle, recipient) || !nativeAccount_Secret(request.nonce) ||
@@ -110,7 +109,7 @@ namespace {
             !nativeContentStore_IdFromHex(request.fighter_hash, &id) ||
             !nativeContentStore_IsInstalled(root, &id) ||
             !nativeContentStore_Read(root, &id, &package, &size) ||
-            !nativeContentStore_ParseFighter(package, size, &fighter, &data)) {
+            !nativeContentStore_ParseFighter(package, size, &fighter, nullptr)) {
             std::free(package);
             std::snprintf(view.status,sizeof(view.status),"This installed fighter could not be opened.");
             return;

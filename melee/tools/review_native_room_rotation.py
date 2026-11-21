@@ -173,6 +173,7 @@ def main():
             select_stage(*chooser)
             sessions = [session(c,number) for c in clients]
             assert sessions[0][:2] == sessions[1][:2]
+            assert all(previous['sessions'][0][0] != sessions[0][0] for previous in receipt['rounds'])
             for index,c in enumerate(clients):
                 delays=re.findall(r'\[netplay\] Diagnostic outbound delay (\d+) frames',
                                   (c.folder/'stdout.log').read_text(errors='replace'))

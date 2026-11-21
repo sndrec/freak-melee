@@ -65,16 +65,17 @@ in the scanned fighter/common imported joint records. Those records contain 25
 instance descriptors, including fighter graphs; this is not a claim that all
 25 belong to indexed Article models. Maximum indexed fighter Article walk is 38.
 
-Control-flow admission tracks return addresses and typed loop pairs in the
-actual three-slot `CommandInfo.event_return` array. Loop counts are represented
-by their repeat/exit possibilities; count one exits directly and count zero
-retains native unsigned wrapping behavior. Invalid pushes, underflow, mismatched
-Return/EndLoop, recursive overflow and malformed reached operands reject before
-publishing any script pointer. End may legitimately halt with pending frames.
-NULL Call/Goto targets retain native halt semantics. Analysis is bounded to
-65,536 unique `(pc, typed stack)` states. A shallow, finite, valid-depth fanout
-fixture exceeds this bound and fails explicitly with `HSD_DAT_CAPACITY`; it is
-not claimed to be an invalid native script.
+Fighter and item timelines share a three-slot stack. A subroutine call uses
+one slot and a counted loop uses two. The importer follows each entry and
+checks that Return and EndLoop find their corresponding stack entries.
+End and calls or jumps to NULL can halt with entries still on the stack.
+The importer admits up to 65,536 distinct combinations of instruction,
+owner and stack across a command table.
+
+An item timeline can run up to 1,024 commands between positive frame waits.
+A count of one executes the loop body once. A count of zero wraps as in
+Melee and needs a wait inside a repeating path. The fixture covers the
+spacing limit, a timed loop, and a jump that never reaches a wait.
 
 Two entries sharing identical bytes but different actual Article owners prove
 that a successful first analysis cannot bypass the second owner's geometry

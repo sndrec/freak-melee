@@ -132,13 +132,28 @@ async function openRecord(key) {
       item.append(title,document.createTextNode(note.text));item.onclick=()=>selectPin(note.id);$("notes").append(item);
     }
     try {
-      const response=await fetch(`/admin/api/feedback/${key}/context`,{credentials:"same-origin"});
+      const response=await fetch(`/admin/api/feedback/${key}/context?preview=1`,{credentials:"same-origin"});
       if(!response.ok)throw new Error("Could not load diagnostic context.");
       const bytes=new Uint8Array(await response.arrayBuffer());
       if(version!==detailRequest||source!==tab)return;
-      const decoded=new TextDecoder("utf-8",{fatal:true}).decode(bytes);
-      try{$("context-preview").textContent=JSON.stringify(JSON.parse(decoded),null,2);}
-      catch{$("context-preview").textContent=decoded;}
+      const truncated=bytes.byteLength<row.context_size;
+      const decoded=new TextDecoder("utf-8",{fatal:true}).decode(bytes,{stream:truncated});
+      let preview=decoded;
+      if(truncated) preview+="\n\nShowing the first 64 KiB. Download the diagnostic capture for the rest.";
+      else {
+        try {
+          const depths=new WeakMap();
+          preview=JSON.stringify(JSON.parse(decoded),function(key,value){
+            if(value&&typeof value==="object"){
+              const depth=(depths.get(this)||0)+1;
+              if(depth>16)throw new RangeError();
+              depths.set(value,depth);
+            }
+            return value;
+          },2);
+        } catch { /* Show the original text for plain text or deeply nested data. */ }
+      }
+      $("context-preview").textContent=preview;
     } catch(error) {
       if(version===detailRequest&&source===tab)$("context-preview").textContent="Download the diagnostic capture to inspect its binary data.";
     }

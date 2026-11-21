@@ -106,6 +106,7 @@ struct EF_Effect {
     /* +2B */ s8 x2B;
 #if defined(MELEE_NATIVE)
     u32 native_generation;
+    u32 native_model_units;
     u32 native_creator_generation;
     const struct NativeFighterDefinition* native_author;
     const struct NativeFighterModelEffect* native_policy;
@@ -121,6 +122,9 @@ struct EF_Effect {
 struct EF_EffectDesc {
     /* +0 */ float lifetime;
     /* +4 */ StaticModelDesc model_desc;
+#ifdef MELEE_NATIVE
+    u32 model_units; // Prepared when a packaged model is imported.
+#endif
 }; /* size = 0x14 */
 
 struct EF_QueuedEffect {

@@ -2,6 +2,7 @@
 
 #ifdef MELEE_NATIVE
 #include <sysdolphin/baselib/jobj.h>
+#include <sysdolphin/baselib/quatlib.h>
 #include <math.h>
 
 HSD_JObj* nativeModelJoint_Resolve(HSD_JObj* root, const char* path)
@@ -55,6 +56,26 @@ float nativeModelJoint_Read(HSD_JObj* joint, unsigned channel)
     case 7: return joint->scale.y;
     default: return joint->scale.z;
     }
+}
+
+void nativeModelJoint_SetRoll(HSD_JObj* joint, float radians)
+{
+    if (!(joint->flags & JOBJ_USE_QUATERNION)) {
+        HSD_JObjSetRotationZ(joint, radians);
+        return;
+    }
+    Quaternion q = joint->rotate;
+    float scale = fmaxf(fmaxf(fabsf(q.x), fabsf(q.y)), fmaxf(fabsf(q.z), fabsf(q.w)));
+    Vec3 angles = {0};
+    if (scale > 0 && isfinite(scale)) {
+        q = (Quaternion){q.x / scale, q.y / scale, q.z / scale, q.w / scale};
+        Mtx matrix;
+        C_MTXQuat(matrix, &q);
+        HSD_QuatLib_8037EB28(matrix, &angles);
+    }
+    angles.z = radians;
+    EulerToQuat(&angles, &q);
+    HSD_JObjSetRotation(joint, &q);
 }
 
 void nativeModelJoint_Write(HSD_JObj* joint, unsigned channel, float value)

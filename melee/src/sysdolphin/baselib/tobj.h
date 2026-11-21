@@ -166,6 +166,8 @@ struct HSD_TObj {
     GXTexCoordID coord;
     struct _HSD_TObjTev* tev;
 #if defined(MELEE_NATIVE)
+    f32 native_lod_bias;
+    HSD_ImageDesc* native_base_image;
     GXTexObj native_texture;
     GXTlutObj native_palette;
     struct HSD_ImageDesc native_image;
@@ -268,7 +270,19 @@ typedef struct _HSD_TexAnim {
     struct _HSD_TlutDesc** tluttbl;
     u16 n_imagetbl;
     u16 n_tluttbl;
+#if defined(MELEE_NATIVE)
+    bool needs_tev;
+    bool selects_indexed_images;
+#endif
 } HSD_TexAnim;
+
+#if defined(MELEE_NATIVE)
+static inline bool HSD_TextureAnimationFits(const HSD_TexAnim* anim, bool has_tev, bool has_palette)
+{
+    return (!anim->needs_tev || has_tev) &&
+           (!anim->selects_indexed_images || has_palette || anim->n_tluttbl);
+}
+#endif
 
 extern HSD_TObjInfo hsdTObj;
 bool HSD_TObjUsesStandardMethods(void);

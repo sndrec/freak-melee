@@ -3,6 +3,7 @@
 #include <melee/ef/efsync.h>
 #include <melee/ef/eflib.h>
 #include <melee/ef/efdata.h>
+#include <melee/ef/native_script_effect_actor.h>
 #include <sysdolphin/baselib/generator.h>
 #include <melee/ef/inlines.h>
 #include <melee/ft/native_callback_lifetime.h>
@@ -31,6 +32,7 @@ u8 HSD_GObj_JObjKind = 3;
 u32 efLib_EffectCount;
 EF_ParamEntry efLib_ParamTable[8];
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 static HSD_GObj* heads[32];
 static HSD_GObj owner, objects[2];
 static EF_Effect effects[2];

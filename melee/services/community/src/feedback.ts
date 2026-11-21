@@ -1,4 +1,5 @@
 import { boundedBytes, digest, HttpError, id, json, readJson, text } from "./http";
+import { feedbackImageSize } from "./feedback-image";
 
 // A report is FMREPORT + three little-endian uint32 sizes, then UTF-8 metadata,
 // the PNG, and the immutable diagnostic capture. Limits are shared with client.
@@ -6,6 +7,10 @@ const maximumMetadata = 512 * 1024;
 const maximumImage = 16 * 1024 * 1024;
 const maximumContext = 8 * 1024 * 1024;
 const maximumReport = 20 + maximumMetadata + maximumImage + maximumContext;
+const maximumReports = 4096;
+const maximumStoredBytes = 2 * 1024 * 1024 * 1024;
+const uploadLeaseMs = 15 * 60_000;
+const contextPreviewBytes = 64 * 1024;
 type Pin = { id: number; x: number; y: number; text: string };
 type ReportRow = {
   id: string; capture_at: string; build: string; notes_json: string;
@@ -30,18 +35,6 @@ function notes(value: unknown): Pin[] {
   });
 }
 
-function imageSize(bytes: Uint8Array): [number, number] {
-  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (bytes.length < 33 || !signature.every((v, i) => bytes[i] === v) ||
-      new TextDecoder().decode(bytes.subarray(12, 16)) !== "IHDR")
-    throw new HttpError(400, "The screenshot must be a PNG.");
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const w = view.getUint32(16), h = view.getUint32(20);
-  if (!w || !h || w > 16384 || h > 16384 || w * h > 64000000)
-    throw new HttpError(400, "Invalid screenshot dimensions.");
-  return [w, h];
-}
-
 export async function submitFeedback(request: Request, env: CloudflareBindings): Promise<Response> {
   if (request.method !== "POST") throw new HttpError(405, "Use POST.");
   if (request.headers.get("Content-Type") !== "application/octet-stream")
@@ -60,42 +53,70 @@ export async function submitFeedback(request: Request, env: CloudflareBindings):
   try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(20, 20 + metadataSize))); }
   catch { throw new HttpError(400, "Invalid feedback metadata."); }
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new HttpError(400, "Invalid feedback metadata.");
-  const reportId = id(text(value.id, 36));
+  const reportId = text(value.id, 36);
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(reportId))
+    throw new HttpError(400, "Invalid feedback ID.");
   const captured = text(value.capture_at, 40);
   if (!Number.isFinite(Date.parse(captured))) throw new HttpError(400, "Invalid capture time.");
   const build = text(value.build, 128);
   const pins = JSON.stringify(notes(value.pins));
   const screenshot = bytes.subarray(20 + metadataSize, 20 + metadataSize + imageBytes);
   const context = bytes.subarray(20 + metadataSize + imageBytes);
-  const [width, height] = imageSize(screenshot);
   const imageHash = await digest(screenshot), contextHash = await digest(context);
-  const previous = await env.COMMUNITY.prepare("SELECT * FROM feedback WHERE id=?").bind(reportId).first<ReportRow>();
-  function matches(row: ReportRow): boolean {
-    return row.screenshot_sha256 === imageHash && row.context_sha256 === contextHash &&
-      row.notes_json === pins && row.capture_at === captured && row.build === build;
-  }
-  if (previous) {
-    if (!matches(previous)) throw new HttpError(409, "This report ID already belongs to a different capture.");
+  async function receipt(): Promise<Response | null> {
+    const row = await env.COMMUNITY.prepare("SELECT * FROM feedback WHERE id=?").bind(reportId).first<ReportRow>();
+    if (!row) return null;
+    if (row.screenshot_sha256 !== imageHash || row.context_sha256 !== contextHash ||
+        row.notes_json !== pins || row.capture_at !== captured || row.build !== build)
+      throw new HttpError(409, "This report ID already belongs to a different capture.");
     return json({ id: reportId, stored: true });
   }
+  const previous = await receipt();
+  if (previous) return previous;
   const prefix = `feedback/${reportId}/${crypto.randomUUID()}`;
   const imageKey = `${prefix}/screen.png`, contextKey = `${prefix}/context.bin`;
-  let committed = false;
+  const amount = imageBytes + contextBytes;
+  const reservation = await env.COMMUNITY.prepare(`
+    INSERT INTO feedback_uploads(object_prefix,bytes,expires_at)
+    SELECT ?,?,unixepoch()*1000+? FROM
+      (SELECT count(*) AS saved,coalesce(sum(screenshot_size+context_size),0) AS stored FROM feedback),
+      (SELECT count(*) AS pending,coalesce(sum(bytes),0) AS reserved FROM feedback_uploads WHERE expires_at>unixepoch()*1000)
+    WHERE saved+pending<? AND stored+reserved+?<=?`
+  ).bind(prefix, amount, uploadLeaseMs, maximumReports, amount, maximumStoredBytes).run();
+  if (!reservation.meta.changes) {
+    const concurrent = await receipt();
+    if (concurrent) return concurrent;
+    throw new HttpError(503, "The feedback inbox is full. Keep this report and try again later.");
+  }
+  const release = env.COMMUNITY.prepare("DELETE FROM feedback_uploads WHERE object_prefix=?").bind(prefix);
+  let attachmentsStarted = false;
+  let commitRequested = false;
   try {
+    const [width, height] = await feedbackImageSize(screenshot);
+    attachmentsStarted = true;
     await env.REPORTS.put(imageKey, screenshot, { httpMetadata: { contentType: "image/png" } });
     await env.REPORTS.put(contextKey, context, { httpMetadata: { contentType: "application/octet-stream" } });
-    const result = await env.COMMUNITY.prepare(
-      "INSERT OR IGNORE INTO feedback(id,capture_at,build,created_at,screenshot_key,context_key,notes_json,screenshot_sha256,context_sha256,screenshot_size,context_size,width,height) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(reportId, captured, build, Date.now(), imageKey, contextKey, pins, imageHash, contextHash,
-      imageBytes, contextBytes, width, height).run();
-    committed = result.meta.changes === 1;
-    if (!committed) {
-      const winner = await env.COMMUNITY.prepare("SELECT * FROM feedback WHERE id=?").bind(reportId).first<ReportRow>();
-      if (!winner || !matches(winner)) throw new HttpError(409, "This report ID was submitted with different content.");
-    }
-    return json({ id: reportId, stored: true }, committed ? 201 : 200);
+    const finished = Date.now();
+    const insert = env.COMMUNITY.prepare(`INSERT INTO feedback(id,capture_at,build,created_at,
+      screenshot_key,context_key,notes_json,screenshot_sha256,context_sha256,screenshot_size,context_size,width,height)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? FROM feedback_uploads WHERE object_prefix=? AND expires_at>unixepoch()*1000
+      ON CONFLICT(id) DO NOTHING`
+    ).bind(reportId, captured, build, finished, imageKey, contextKey, pins, imageHash, contextHash,
+      imageBytes, contextBytes, width, height, prefix);
+    // A lost response can follow a successful commit. Let the collector check ownership.
+    commitRequested = true;
+    const [result] = await env.COMMUNITY.batch([insert, release]);
+    if (result.meta.changes === 1) return json({ id: reportId, stored: true }, 201);
+    commitRequested = false;
+    const winner = await receipt();
+    if (winner) return winner;
+    throw new HttpError(503, "The upload expired. Please send the report again.");
   } finally {
-    if (!committed) await env.REPORTS.delete([imageKey, contextKey]);
+    if (!commitRequested) {
+      try {
+        if (attachmentsStarted) await env.REPORTS.delete([imageKey, contextKey]);
+      } finally { await release.run(); }
+    }
   }
 }
 
@@ -128,7 +149,9 @@ export async function adminFeedback(request: Request, env: CloudflareBindings): 
   if (request.method === "GET") {
     if (!match[2]) return json({ ...report, notes: JSON.parse(report.notes_json) });
     const image = match[2] === "screen";
-    const object = await env.REPORTS.get(image ? report.screenshot_key : report.context_key);
+    const preview = !image && url.searchParams.get("preview") === "1";
+    const object = await env.REPORTS.get(image ? report.screenshot_key : report.context_key,
+      preview ? { range: { offset: 0, length: Math.min(contextPreviewBytes, report.context_size) } } : {});
     if (!object) throw new HttpError(404, "Report attachment not found.");
     return new Response(object.body, { headers: {
       "Content-Type": image ? "image/png" : "application/octet-stream", "Cache-Control": "no-store",
@@ -147,7 +170,10 @@ export async function adminFeedback(request: Request, env: CloudflareBindings): 
   if (request.method === "DELETE") {
     // Remove the visible record first. A failed object delete can be retried;
     // the scheduled orphan scan also completes cleanup after an interruption.
-    await env.COMMUNITY.prepare("DELETE FROM feedback WHERE id=?").bind(key).run();
+    const deletion = await env.COMMUNITY.prepare("DELETE FROM feedback WHERE id=? AND screenshot_key=? AND context_key=?")
+      .bind(key, report.screenshot_key, report.context_key).run();
+    if (!deletion.meta.changes && await env.COMMUNITY.prepare("SELECT id FROM feedback WHERE id=?").bind(key).first())
+      throw new HttpError(409, "This report was replaced. Open it again before deleting it.");
     await env.REPORTS.delete([report.screenshot_key, report.context_key]);
     return json({ deleted: true });
   }

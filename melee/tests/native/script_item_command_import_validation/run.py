@@ -32,7 +32,7 @@ def main():
     stage_source=ROOT/'src/melee/gr/grdatfiles.c'
     stage_text=stage_source.read_text()
     (out/'stage_options.inc').write_text(stage_text[stage_text.index('typedef struct NativeStageArchiveSpec'):stage_text.index('static GrStageAssets* grDatFiles_ImportNativeAssets')])
-    units=[HERE/'test.c',ROOT/'src/melee/it/native_item_model_admission.c',ROOT/'src/melee/it/itarticle_data.c',
+    units=[HERE/'test.c',ROOT/'src/melee/lb/lbcommand_data.c',ROOT/'src/melee/it/native_item_model_admission.c',ROOT/'src/melee/it/itarticle_data.c',
            ROOT/'src/melee/it/itcommon_data.c',ROOT/'src/melee/ft/ftcharacter_assets.c',ROOT/'src/melee/gr/grstage_data.c']
     paths=[build/x for x in libs if x.endswith('.lib') and not x.startswith('-')]
     inputs=[stage_source,a.compiler.resolve(),HERE/'run.py',ROOT/'src/melee/it/itcommand_data.c',*units,

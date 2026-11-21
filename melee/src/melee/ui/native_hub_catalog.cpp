@@ -82,6 +82,7 @@ bool nativeHubCatalog_Load(void)
             f.pixels = nativeGxImage_Decode(data.portrait_png,
                                             unsigned(data.portrait_size),
                                             &f.width, &f.height);
+            nativeContentStore_ReleaseFighterData(&data);
         }
         std::free(bytes);
     }
@@ -242,9 +243,8 @@ bool nativeHubCatalog_ImportFighter(const char* package_path, char draft[512])
     uint8_t* bytes = nullptr;
     size_t size = 0;
     NativeFighterPackage fighter;
-    NativeFighterPackageData data;
     bool ok = read_file(package_path, &bytes, &size, NATIVE_CONTENT_MAX_PACKAGE_BYTES) &&
-        nativeContentStore_ParseFighter(bytes, size, &fighter, &data) && new_path(draft) &&
+        nativeContentStore_ParseFighter(bytes, size, &fighter, nullptr) && new_path(draft) &&
         nativeFighterDraft_CreateFromPackage(draft, fighter.title, bytes, size, error, sizeof(error));
     std::free(bytes);
     return ok;

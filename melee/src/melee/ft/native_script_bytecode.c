@@ -42,6 +42,8 @@ bool nativeScriptBytecode_Prepare(NativeScriptBytecodeProgram* program,
         return prepare_error(diagnostic,(NativeScriptSourceSpan){0},"Missing immutable bytecode storage");
     for(uint32_t f=0;f<program->function_count;++f) {
         const NativeScriptFunctionCode* code=&program->functions[f];
+        if(code->instruction_count > NATIVE_SCRIPT_CALLBACK_INSTRUCTIONS)
+            return prepare_error(diagnostic,code->source,"Function exceeds the callback instruction budget");
         if(!code->instruction_count || code->first_instruction>program->instruction_count ||
            code->instruction_count>program->instruction_count-code->first_instruction ||
            code->local_count>code->register_count || code->parameter_count>code->local_count ||

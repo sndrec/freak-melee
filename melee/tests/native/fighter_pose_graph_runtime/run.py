@@ -13,7 +13,10 @@ def main():
         if r.returncode:raise RuntimeError(str(out/name)+'\n'+(r.stdout+r.stderr)[-7000:])
         return r.stdout
     run([sys.executable,HERE/'fixture.py','--root',root,'--output',out],'extract.log')
-    sources=[HERE/'test.c',root/'src/melee/ft/native_fighter_pose.c',root/'src/melee/ft/native_fighter_pose_path.c',root/'src/melee/ft/native_callback_lifetime.c',root/'src/melee/ft/ftparts_table.c']
+    ft=root/'src/melee/ft'
+    sources=[HERE/'test.c', ft/'native_fighter_pose.c', ft/'native_fighter_pose_path.c',
+             ft/'native_fighter_pose_mapping.c', ft/'native_fighter_rig.c', ft/'native_callback_lifetime.c',
+             ft/'ftparts_table.c', root/'src/sysdolphin/baselib/dat.c']
     cmd=[base/'compiler/clang.exe','-std=gnu11','-O2','-fms-runtime-lib=dll','-DMELEE_NATIVE=1','-D_DLL','-D_MT','-D_USE_MATH_DEFINES','-D_CRT_SECURE_NO_WARNINGS','-I'+str(root/'src'),'-I'+str(root/'extern/dolphin/include'),'-I'+str(out)]+sources+['-o',out/'test.exe']
     batch=out/'compile.cmd';batch.write_text('@echo off\ncall "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat" >nul\n'+subprocess.list2cmdline(list(map(str,cmd)))+'\n',encoding='utf-8')
     run(['cmd','/c',batch],'compile.log');result=run([out/'test.exe'],'run.log')

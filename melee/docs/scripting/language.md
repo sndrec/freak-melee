@@ -541,6 +541,10 @@ combined source file and saves it as the draft's validated behavior after a
 successful check. Use the [move checks](authoring_checks.md#move-logic) to
 verify the behavior in practice.
 
+### Callback work limit
+
+Each callback can use up to 65,536 bytecode instructions. Entering a function reserves the length of its compiled body. Repeating a loop uses the length of the section it repeats. Helpers and synchronous callbacks started by that callback share its allowance. If the allowance runs out, the interpreter stops with a diagnostic at the function or loop that used it up. Changes the callback already made still apply.
+
 ### State storage limits
 
 The current package bank admits up to 2,048 state/parameter declarations across

@@ -1,5 +1,6 @@
 #include <melee/gm/native_content_transfer.h>
 
+#undef NDEBUG
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,29 +51,40 @@ int main(void)
     // without requiring those later chunks to be transmitted again.
     NativeContentTransferSend ordered_send={0};
     NativeContentTransferReceive reordered={0};
-    enum { REORDER_BYTES=4*512-13 };
+    enum { ReorderChunks = 5,
+           REORDER_BYTES = ReorderChunks * NATIVE_CONTENT_TRANSFER_CHUNK_BYTES - 13 };
     assert(nativeContentTransfer_StartSend(&ordered_send,&id,package,REORDER_BYTES));
     nativeContentTransfer_StartReceive(&reordered,&id);
-    uint8_t reordered_packets[4][576],control[576];size_t lengths[4];
+    uint8_t reordered_packets[ReorderChunks][NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+    uint8_t control[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+    size_t lengths[ReorderChunks];
     size_t control_size=nativeContentTransfer_NextSend(&ordered_send,1,control);
     nativeContentTransfer_ReceivePacket(&reordered,control,control_size,1);
     control_size=nativeContentTransfer_NextReceive(&reordered,2,control);
     nativeContentTransfer_SendPacket(&ordered_send,control,control_size,2);
-    for(unsigned i=0;i<4;++i)lengths[i]=nativeContentTransfer_NextSend(&ordered_send,3,reordered_packets[i]);
-    for(unsigned i=1;i<4;++i) {
+    for(unsigned i=0;i<ReorderChunks;++i)
+        lengths[i]=nativeContentTransfer_NextSend(&ordered_send,3,reordered_packets[i]);
+    for(unsigned i=1;i<ReorderChunks;++i) {
         nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[i],lengths[i],4);
         assert(!reordered.received && !reordered.complete && !reordered.failed);
     }
     nativeContentTransfer_ReceivePacket(&reordered,reordered_packets[2],lengths[2],5);
     assert(!reordered.received && !reordered.failed);
-    // Time out and retransmit the missing first chunk. Its acknowledgement
-    // can jump past the retransmission cursor to previously sent later data.
-    control_size=nativeContentTransfer_NextSend(&ordered_send,1000,control);
-    nativeContentTransfer_ReceivePacket(&reordered,control,control_size,1000);
-    assert(reordered.complete && reordered.received==REORDER_BYTES && !reordered.received_window);
+    // The selective acknowledgement reports four later chunks. Repair the
+    // missing first chunk before the retransmission timeout.
+    control_size = nativeContentTransfer_NextReceive(&reordered, 6, control);
+    nativeContentTransfer_SendPacket(&ordered_send, control, control_size, 15);
+    assert(ordered_send.in_flight == 1 && !ordered_send.acknowledged);
+    assert(!nativeContentTransfer_NextSend(&ordered_send, 20, control));
+    control_size = nativeContentTransfer_NextSend(&ordered_send, 36, control);
+    assert(control_size == lengths[0] && !memcmp(control, reordered_packets[0], control_size));
+    assert(!nativeContentTransfer_NextSend(&ordered_send, 36, control));
+    nativeContentTransfer_ReceivePacket(&reordered, control, control_size, 46);
+    assert(reordered.complete && reordered.received == REORDER_BYTES &&
+           !reordered.received_window[0] && !reordered.received_window[1]);
     assert(!memcmp(package,reordered.bytes,REORDER_BYTES));
-    control_size=nativeContentTransfer_NextReceive(&reordered,1001,control);
-    nativeContentTransfer_SendPacket(&ordered_send,control,control_size,1001);
+    control_size=nativeContentTransfer_NextReceive(&reordered,47,control);
+    nativeContentTransfer_SendPacket(&ordered_send,control,control_size,57);
     assert(ordered_send.complete);
     nativeContentTransfer_StopReceive(&reordered);
 

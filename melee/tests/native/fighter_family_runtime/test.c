@@ -1,3 +1,4 @@
+#include "../fixture_portrait.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <bcrypt.h>
@@ -289,18 +290,13 @@ static void reset(void)
 
 static void packets(NativeFighterFamilyMode mode)
 {
-    static const uint8_t portrait[45] = {
-        137, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R',
-        0, 0, 0, 64, 0, 0, 0, 56, 8, 6,
-        [37] = 'I', [38] = 'E', [39] = 'N', [40] = 'D',
-    };
     static const uint8_t bytes[32] = {0x20};
     for (unsigned f = 0; f < 4; ++f) {
         free(packet[f]); packet[f] = NULL;
         NativeFighterPackage metadata = {.mode = mode,
             .member_count = mode == NativeFighterFamily_Single ? 1 : 2};
         snprintf(metadata.title, sizeof(metadata.title), "Family %u", f);
-        NativeFighterPackageData data = {.portrait_png = portrait, .portrait_size = 45};
+        NativeFighterPackageData data = {.portrait_png = fixture_portrait, .portrait_size = sizeof(fixture_portrait)};
         for (unsigned m = 0; m < metadata.member_count; ++m) {
             strcpy(metadata.members[m].key, m == 0 ? "main" : "partner");
             snprintf(metadata.members[m].code_key, 32, "actor_%u", f * 2 + m);

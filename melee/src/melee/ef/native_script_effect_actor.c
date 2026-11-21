@@ -166,8 +166,8 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
     }
     if(deferred) {
         if(!on_part||p->family!=EF_MODEL_POSITION)return NativeScriptVM_Error;
-        EF_QueuedEffect* queued=HSD_ObjAlloc(&efAsync_AllocData);
-        if(!queued){if(d)snprintf(d->message,sizeof(d->message),"Deferred effect queue capacity exhausted");return NativeScriptVM_Error;}
+        EF_QueuedEffect* queued = efAsync_AllocateRequest();
+        if (!queued) return NativeScriptVM_Ok;
         *queued=(EF_QueuedEffect){.spawn_kind=EF_SPAWN_POS,.gfx_id=p->gfx_id,.jobj=origin,
             .native_creator_generation=context->generation,.native_sample_part=(s16)selected.part,
             .native_script_owner=owner,.native_script_epoch=context->scene_epoch,
@@ -190,7 +190,7 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
     if(!a && nativeScriptEffectInitializedCount<NATIVE_SCRIPT_EFFECT_ACTORS){
         a=&nativeScriptEffectActors[nativeScriptEffectInitializedCount++];memset(a,0,sizeof(*a));
     }
-    if(!a){if(d)snprintf(d->message,sizeof(d->message),"Interpreted effect capacity exhausted");return NativeScriptVM_Error;}
+    if (!a) return NativeScriptVM_Ok;
     if (!p->model_path.length) {
         const EF_ModelRecipe* recipe = efSync_ModelRecipe(p->gfx_id);
         if (!recipe || recipe->family != p->family || recipe->model_count != p->member_count)
@@ -208,19 +208,19 @@ NativeScriptVMStatus nativeScriptEffect_Spawn(NativeScriptRuntimeContext* contex
     EF_SpawnResult spawned = {0};
     if (p->model_path.length) {
         EF_Effect* effect = efLib_Create(p->gfx_id, object, &p->model);
-        if (effect) {
-            HSD_JObj* root = effect->gobj->hsd_obj;
-            HSD_JObjSetTranslate(root, &position);
-            if (owned_follow) {
-                lb_8000C1C0(root, origin);
-                effect->attach_jobj = origin;
-            }
-            spawned.kind = EF_SPAWN_MODEL;
-            spawned.member_count = 1;
-            spawned.members[0] = (EF_ModelMember){effect->gobj, effect->native_generation};
-            spawned.model_generation = effect->native_generation;
-            spawned.object.model = effect;
+        if (!effect) return current_caller(context,creator,view) && origin_current(&selected,origin,object) ?
+            NativeScriptVM_Ok : NativeScriptVM_SourceRetired;
+        HSD_JObj* root = effect->gobj->hsd_obj;
+        HSD_JObjSetTranslate(root, &position);
+        if (owned_follow) {
+            lb_8000C1C0(root, origin);
+            effect->attach_jobj = origin;
         }
+        spawned.kind = EF_SPAWN_MODEL;
+        spawned.member_count = 1;
+        spawned.members[0] = (EF_ModelMember){effect->gobj, effect->native_generation};
+        spawned.model_generation = effect->native_generation;
+        spawned.object.model = effect;
     } else {
         spawned = p->family == EF_MODEL_POSITION
             ? efSync_Spawn(p->gfx_id, object, &position)

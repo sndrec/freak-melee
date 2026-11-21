@@ -53,6 +53,8 @@ int main(void)
         .checksum = UINT64_C(0x0123456789ABCDEF),
         .sample_frame = 47,
         .observed_frames = { 45, 49, UINT64_MAX, 44 },
+        .ack_boundary = 41,
+        .ack_selective = 0x12,
         .sender_peer = 2,
         .port_mask = (1U << 0) | (1U << 2),
         .frame_count = 3,
@@ -72,7 +74,7 @@ int main(void)
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
     size_t packet_size =
         nativeNetplayInput_Encode(&sent, packet, sizeof(packet));
-    require(packet_size == 80 + 3 * 2 * 15,
+    require(packet_size == 96 + 3 * 2 * 15,
             "encode compact explicit controller fields");
     NativeNetplayInputBatch received;
     require(nativeNetplayInput_Decode(&received, packet, packet_size),
@@ -82,6 +84,8 @@ int main(void)
                 received.checksum_frame == sent.checksum_frame &&
                 received.checksum == sent.checksum &&
                 received.sample_frame == sent.sample_frame &&
+                received.ack_boundary == sent.ack_boundary &&
+                received.ack_selective == sent.ack_selective &&
                 memcmp(received.observed_frames, sent.observed_frames,
                        sizeof(sent.observed_frames)) == 0 &&
                 received.sender_peer == sent.sender_peer &&
@@ -152,9 +156,22 @@ int main(void)
     packet[0] ^= 1;
     require(!nativeNetplayInput_Decode(&received, packet, packet_size),
             "reject the wrong packet type");
+    sent.checksum_frame = 48;
+    require(!nativeNetplayInput_Encode(&sent, packet, sizeof(packet)),
+            "a checksum describes a frame the sender has already reached");
+    sent.checksum_frame = 38;
     sent.sample_frame = 39;
     require(nativeNetplayInput_Encode(&sent, packet, sizeof(packet)) == 0,
             "reject input scheduled beyond the maximum delay");
+    sent.sample_frame = 76;
+    sent.repair = true;
+    packet_size = nativeNetplayInput_Encode(&sent, packet, sizeof(packet));
+    require(packet_size && nativeNetplayInput_Decode(&received, packet, packet_size) &&
+                received.repair && received.start_frame == 42,
+            "repair can carry older retained inputs independently of sample time");
+    sent.ack_selective |= 1;
+    require(!nativeNetplayInput_Encode(&sent, packet, sizeof(packet)),
+            "reject an unnormalized acknowledgement");
 
     puts("Netplay input packets round-trip and commit atomically");
     return 0;

@@ -54,17 +54,10 @@ export default {
         return turnCredentialsResponse(env);
       }
 
-      if (url.pathname === "/chat/connect") {
-        const authenticated = await authenticatedConnection(request, env);
-        if (authenticated instanceof Response) return authenticated;
-        return env.GLOBAL_CHAT.getByName("friends").fetch(authenticated);
-      }
-      if (url.pathname === "/v1/lobbies/connect") {
-        return env.LOBBY_DIRECTORY.getByName("public").fetch(request);
-      }
-
+      const chat = url.pathname === "/chat/connect";
+      const directory = url.pathname === "/v1/lobbies/connect";
       const match = /^\/v1\/rooms\/([^/]+)\/connect$/.exec(url.pathname);
-      if (match === null) {
+      if (!chat && !directory && !match) {
         return jsonError("Not found", 404);
       }
       if (request.method !== "GET") {
@@ -73,20 +66,27 @@ export default {
       if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
         return jsonError("Expected a WebSocket upgrade", 426);
       }
-      const roomId = match[1];
-      if (!isRoomId(roomId)) {
+      const roomId = match?.[1] ?? "";
+      if (match && !isRoomId(roomId)) {
         return jsonError("Invalid room ID", 400);
       }
-      if (request.headers.has("X-Freak-Lobby-Password")) {
+      const network = request.headers.get("CF-Connecting-IP") ?? "local";
+      if (!(await env.SOCKET_NETWORK_LIMIT.limit({ key: network })).success) {
+        return Response.json({ error: "Too many connection attempts. Please wait a minute." }, {
+          status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+        });
+      }
+      if (directory) return env.LOBBY_DIRECTORY.getByName("public").fetch(request);
+      if (match && request.headers.has("X-Freak-Lobby-Password")) {
         if (url.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
           return jsonError("Lobby passwords require HTTPS.", 403);
-        const network = request.headers.get("CF-Connecting-IP") ?? "local";
         const limit = await env.ACCOUNT_LIMIT.limit({ key: `lobby:${roomId}:${network}` });
         if (!limit.success) return jsonError("Please wait before trying the lobby password again.", 429);
       }
 
       const authenticated = await authenticatedConnection(request, env);
       if (authenticated instanceof Response) return authenticated;
+      if (chat) return env.GLOBAL_CHAT.getByName("friends").fetch(authenticated);
       return env.ROOMS.getByName(roomId).fetch(authenticated);
     } catch (error) {
       console.error(

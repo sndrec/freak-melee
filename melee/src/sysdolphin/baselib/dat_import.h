@@ -43,12 +43,20 @@ typedef struct HSD_DatImport {
     size_t arena_used;
     HSD_DatImportRecord* records;
     u32* slots;
+    u32* sorted_targets;
     u32 slot_count;
     u32 record_capacity;
     u32 record_count;
     u32 decoded_count;
+    u32 animation_stream_bytes;
+    // RGBA8-equivalent bytes for all image and palette descriptors in the graph.
+    size_t decoded_texture_bytes;
+    size_t texture_byte_limit;
+    size_t display_list_bytes;
+    size_t display_list_limit;
     u32 unresolved_external_count;
     bool allow_unresolved_externals;
+    bool has_joint_bindings;
     HSD_DatResult status;
     u32 error_offset;
     const char* external_symbol;
@@ -59,10 +67,11 @@ typedef struct HSD_DatImport {
     void* source_context;
 } HSD_DatImport;
 
-// Uses only caller-owned memory. Arena and DAT bytes outlive all returned
+// The caller owns all returned data. Arena and DAT bytes outlive all returned
 // objects. A failed context must be reset before reuse; no partial root returns.
 HSD_DatResult HSD_DatImportInit(HSD_DatImport* import, const HSD_Dat* dat,
                                void* arena, size_t arena_size, u32 max_records);
+u32 HSD_DatImportNextTarget(const HSD_DatImport* import, u32 offset);
 void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType type);
 
 #endif

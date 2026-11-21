@@ -31,7 +31,7 @@ def cache(client):
 def remove_match_content(profile,identities,workspace):
     data=(profile/'Freak Melee').resolve();assert data.is_relative_to(workspace)
     for identity in identities:
-        for relative in [f'content/installed/{identity}.fmi',f'content/cache/{identity}.fmc']:
+        for relative in [f'content/installed/{identity}.fmi',f'content/cache/{identity}.fmc', f'content/downloads/{identity}.fmc']:
             (data/relative).unlink(missing_ok=True)
     path=data/'css-layout.bin';raw=path.read_bytes();count=struct.unpack_from('<H',raw,4)[0]
     entries=[raw[6+48*i:54+48*i] for i in range(count) if raw[14+48*i:46+48*i].hex() not in identities]
@@ -79,7 +79,7 @@ def main():
                       window_size=(1280,800),without_drafts=True)
         clients.append(viewer)
         for identity in identities:
-            assert not (viewer.data/'content/cache'/(identity+'.fmc')).exists()
+            assert not (viewer.data/'content/downloads'/(identity+'.fmc')).exists()
             assert not (viewer.data/'content/installed'/(identity+'.fmi')).exists()
         print('PASS required match cache is empty before late join',flush=True)
         joined_at=time.monotonic()
@@ -105,7 +105,7 @@ def main():
         receipt['download_seconds']=time.monotonic()-download_started
         receipt['download_samples']=samples
         for identity in identities:
-            path=viewer.data/'content/cache'/(identity+'.fmc')
+            path=viewer.data/'content/downloads'/(identity+'.fmc')
             assert hashlib.sha256(path.read_bytes()).hexdigest()==identity
             assert not (viewer.data/'content/installed'/(identity+'.fmi')).exists()
         receipt['content_ready_seconds']=time.monotonic()-joined_at

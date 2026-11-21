@@ -56,7 +56,7 @@ bool itCommonAssets_Import(const void* bytes, size_t size, void* arena,
         !resolve_local(&output->dat, root + 12, &pokemon_table) ||
         !resolve_local(&output->dat, root + 16, &zako_offset) ||
         !resolve_local(&output->dat, root + 20, &color_table) ||
-        HSD_DatNextTarget(&output->dat, color_table) - color_table !=
+        HSD_DatImportNextTarget(&output->import, color_table) - color_table !=
             IT_COMMON_COLOR_ENTRY_COUNT * 8 ||
         !import_words(&output->dat, common_offset, &output->common_data,
                       sizeof(output->common_data)) ||

@@ -1,6 +1,7 @@
 #include "itcommand_data.h"
 #include "native_item_model_admission.h"
 
+#include <melee/lb/lbcommand_data.h>
 #include <melee/lb/types.h>
 #include <melee/it/types.h>
 #include <sysdolphin/baselib/dat_import_internal.h>
@@ -89,63 +90,17 @@ static u32 transcode_word(u32 source, const FieldLayout* layout)
 }
 
 
-// Import-time limits, not interpreter/tick budgets. Native Item construction
-// stores its traversal in DynamicBoneTable.bones; commands share the actual
-// CommandInfo.event_return array, including both slots consumed by SetLoop.
 enum {
-    FLOW_STATE_LIMIT = 65536,
-    FLOW_HASH_SIZE = 131072,
-    COMMAND_STACK_SIZE = sizeof(((CommandInfo*) 0)->event_return) /
-                         sizeof(((CommandInfo*) 0)->event_return[0]),
     ITEM_BONE_CAPACITY = sizeof(((DynamicBoneTable*) 0)->bones) /
                          sizeof(((DynamicBoneTable*) 0)->bones[0]),
     ITEM_HITBOX_CAPACITY = sizeof(((Item*) 0)->x5D4_hitboxes) /
                            sizeof(((Item*) 0)->x5D4_hitboxes[0]),
 };
 
-enum { SLOT_CALL = 1, SLOT_LOOP = 2, SLOT_COUNT = 3 };
-typedef struct FlowState {
-    u32 pc;
-    u32 values[COMMAND_STACK_SIZE];
-    u8 types[COMMAND_STACK_SIZE];
-    u8 depth;
-} FlowState;
-
-typedef struct FlowWork {
-    FlowState* states;
-    u32* hash;
-    u32 count;
-} FlowWork;
-
-static bool flow_add(HSD_DatImport* import, FlowWork* work,
-                     const FlowState* state)
+static bool validate_operands(HSD_DatImport* import, const void* owner,
+                              u32 at, u32 raw)
 {
-    u32 hash = state->pc * 16777619U + state->depth;
-    for (u32 i = 0; i < state->depth; ++i)
-        hash = (hash ^ (state->values[i] + state->types[i])) * 16777619U;
-    for (u32 at = hash & (FLOW_HASH_SIZE - 1);;
-         at = (at + 1) & (FLOW_HASH_SIZE - 1)) {
-        u32 found = work->hash[at];
-        if (found != 0) {
-            const FlowState* old = &work->states[found - 1];
-            if (old->pc == state->pc && old->depth == state->depth &&
-                memcmp(old->values, state->values,
-                       state->depth * sizeof(state->values[0])) == 0 &&
-                memcmp(old->types, state->types, state->depth) == 0)
-                return true;
-            continue;
-        }
-        if (work->count == FLOW_STATE_LIMIT)
-            return fail(import, HSD_DAT_CAPACITY, state->pc);
-        work->states[work->count] = *state;
-        work->hash[at] = ++work->count;
-        return true;
-    }
-}
-
-static bool validate_operands(HSD_DatImport* import, const Article* article,
-                               u32 at, u32 raw)
-{
+    const Article* article = owner;
     u32 opcode = raw >> 26;
     if (((opcode == 11 || opcode == 12 || opcode == 13) &&
          ((raw >> 23) & 7) >= ITEM_HITBOX_CAPACITY) ||
@@ -162,81 +117,6 @@ static bool validate_operands(HSD_DatImport* import, const Article* article,
         (model->x4_bone_count != 0 &&
          ((raw >> 16) & 1023) >= ITEM_BONE_CAPACITY)))
         return fail(import, HSD_DAT_DESCRIPTOR, at);
-    return true;
-}
-
-static bool validate_flow(HSD_DatImport* import, const ItScriptEntry* entry,
-                           const u8* instruction, FlowWork* work)
-{
-    if (entry->article != NULL && entry->article->x10_modelDesc != NULL &&
-        entry->article->x10_modelDesc->x4_bone_count != 0) {
-        u32 count;
-        if (!nativeItemModel_Admit(import, entry->article->x10_modelDesc,
-                              entry->source, &count)) return false;
-    }
-    work->count = 0;
-    memset(work->hash, 0, FLOW_HASH_SIZE * sizeof(*work->hash));
-    FlowState initial = { .pc = entry->source };
-    if (!flow_add(import, work, &initial)) return false;
-    for (u32 cursor = 0; cursor < work->count; ++cursor) {
-        FlowState current = work->states[cursor];
-        u32 at = current.pc, raw;
-        if ((at & 3) != 0 || at >= import->dat->data_size ||
-            instruction[at / 4] != 1 ||
-            !HSD_DatReadU32(import->dat, at, &raw))
-            return fail(import, HSD_DAT_DESCRIPTOR, at);
-        if (!validate_operands(import, entry->article, at, raw)) return false;
-        u32 opcode = raw >> 26;
-        current.pc += command_width(opcode, raw) * 4;
-        switch (opcode) {
-        case 0: continue;
-        case 3:
-            if (current.depth + 2 > COMMAND_STACK_SIZE)
-                return fail(import, HSD_DAT_DESCRIPTOR, at);
-            current.values[current.depth] = current.pc;
-            current.types[current.depth++] = SLOT_LOOP;
-            // Count 1 exits directly. Count 0 wraps; other counts repeat. The
-            // repeat/exit abstraction is finite without enumerating counters.
-            current.values[current.depth] = (raw & 0x3FFFFFF) != 1;
-            current.types[current.depth++] = SLOT_COUNT;
-            break;
-        case 4:
-            if (current.depth < 2 ||
-                current.types[current.depth - 1] != SLOT_COUNT ||
-                current.types[current.depth - 2] != SLOT_LOOP)
-                return fail(import, HSD_DAT_DESCRIPTOR, at);
-            if (current.values[current.depth - 1] != 0) {
-                FlowState repeat = current;
-                repeat.pc = current.values[current.depth - 2];
-                if (!flow_add(import, work, &repeat)) return false;
-            }
-            current.depth -= 2;
-            break;
-        case 5:
-            if (current.depth == COMMAND_STACK_SIZE)
-                return fail(import, HSD_DAT_DESCRIPTOR, at);
-            current.values[current.depth] = current.pc;
-            current.types[current.depth++] = SLOT_CALL;
-            // Fall through: Call and Goto both consume a relocation operand.
-        case 7: {
-            const char* external;
-            HSD_DatReferenceKind kind = HSD_DatResolve(
-                import->dat, at + 4, &current.pc, &external);
-            if (kind == HSD_DAT_REF_NULL) continue;
-            if (kind != HSD_DAT_REF_LOCAL)
-                return fail(import, HSD_DAT_RELOCATION, at + 4);
-            break;
-        }
-        case 6:
-            if (current.depth == 0 ||
-                current.types[current.depth - 1] != SLOT_CALL)
-                return fail(import, HSD_DAT_DESCRIPTOR, at);
-            current.pc = current.values[--current.depth];
-            break;
-        default: break;
-        }
-        if (!flow_add(import, work, &current)) return false;
-    }
     return true;
 }
 
@@ -262,7 +142,7 @@ bool itCommandData_Import(HSD_DatImport* import,
         free(pending);
         return fail(import, HSD_DAT_CAPACITY, 0);
     }
-    FlowWork flow = {0};
+    LbCommandEntry* entries = NULL;
     bool okay = false;
     u32 pending_count = 0;
     u32 source_begin = UINT32_MAX;
@@ -288,11 +168,11 @@ bool itCommandData_Import(HSD_DatImport* import,
                 goto cleanup;
             }
             u32 index = at / 4;
-            if (state[index] == 2) {
+            if (state[index] == LB_COMMAND_OPERAND) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
             }
-            if (state[index] == 1) break;
+            if (state[index] != 0) break;
             u32 raw;
             if (!HSD_DatReadU32(import->dat, at, &raw)) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
@@ -306,13 +186,13 @@ bool itCommandData_Import(HSD_DatImport* import,
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
             }
-            state[index] = 1;
+            state[index] = (u8) width;
             for (u32 word = 1; word < width; ++word) {
                 if (state[index + word] != 0) {
                     fail(import, HSD_DAT_DESCRIPTOR, at + word * 4);
                     goto cleanup;
                 }
-                state[index + word] = 2;
+                state[index + word] = LB_COMMAND_OPERAND;
             }
             if (at < source_begin) source_begin = at;
             if (at + width * 4 > source_end) source_end = at + width * 4;
@@ -343,15 +223,27 @@ bool itCommandData_Import(HSD_DatImport* import,
         fail(import, HSD_DAT_DESCRIPTOR, source_begin);
         goto cleanup;
     }
-    flow.states = malloc(FLOW_STATE_LIMIT * sizeof(*flow.states));
-    flow.hash = calloc(FLOW_HASH_SIZE, sizeof(*flow.hash));
-    if (flow.states == NULL || flow.hash == NULL) {
+    entries = malloc((size_t) scripts->count * sizeof(*entries));
+    if (entries == NULL) {
         fail(import, HSD_DAT_CAPACITY, source_begin);
         goto cleanup;
     }
-    for (u32 i = 0; i < scripts->count; ++i)
-        if (!validate_flow(import, &scripts->entries[i], state, &flow))
-            goto cleanup;
+    const ItemModelDesc* last_model = NULL;
+    for (u32 i = 0; i < scripts->count; ++i) {
+        const ItScriptEntry* entry = &scripts->entries[i];
+        const ItemModelDesc* model =
+            entry->article != NULL ? entry->article->x10_modelDesc : NULL;
+        if (model != last_model && model != NULL && model->x4_bone_count != 0) {
+            u32 count;
+            if (!nativeItemModel_Admit(import, model, entry->source, &count))
+                goto cleanup;
+        }
+        last_model = model;
+        entries[i] = (LbCommandEntry) { entry->source, entry->article };
+    }
+    if (!lbCommandData_ValidateFlow(import, state, data_words, entries,
+                                    scripts->count, false, validate_operands))
+        goto cleanup;
     u32 word_count = (source_end - source_begin) / 4;
     union CmdUnion* commands = HSD_DatImportAlloc(
         import, (size_t) word_count * sizeof(*commands));
@@ -360,7 +252,7 @@ bool itCommandData_Import(HSD_DatImport* import,
         goto cleanup;
     }
     for (u32 at = source_begin; at < source_end; at += 4) {
-        if (state[at / 4] != 1) continue;
+        if (state[at / 4] == 0 || state[at / 4] == LB_COMMAND_OPERAND) continue;
         u32 raw;
         HSD_DatReadU32(import->dat, at, &raw);
         u32 opcode = raw >> 26;
@@ -405,8 +297,7 @@ bool itCommandData_Import(HSD_DatImport* import,
     okay = true;
 
 cleanup:
-    free(flow.hash);
-    free(flow.states);
+    free(entries);
     free(pending);
     free(state);
     return okay;

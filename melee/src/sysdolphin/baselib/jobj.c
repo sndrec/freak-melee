@@ -618,7 +618,8 @@ static inline HSD_JObj* JObjLoadJointSub(HSD_Joint* joint, HSD_JObj* parent)
         return NULL;
     }
     if (joint->class_name == NULL ||
-        !(info = hsdSearchClassInfo(joint->class_name)))
+        !(info = hsdSearchClassInfo(joint->class_name)) ||
+        !hsdIsDescendantOf(info, &hsdJObj))
     {
         jobj = HSD_JObjAlloc();
     } else {
@@ -640,13 +641,8 @@ s32 JObjLoad(HSD_JObj* jobj, HSD_Joint* joint, HSD_JObj* parent)
     if (union_type_spline(jobj)) {
         jobj->u.spline = joint->u.spline;
     } else if (union_type_ptcl(jobj)) {
-        HSD_SList* slist;
+        // Each instance starts with the full list of first-draw events.
         jobj->u.ptcl = joint->u.ptcl;
-        slist = joint->u.ptcl;
-        while (slist != NULL) {
-            *(u32*) &slist->data |= 0x80000000;
-            slist = slist->next;
-        }
     } else {
         jobj->u.dobj = HSD_DObjLoadDesc(joint->u.dobjdesc);
     }
@@ -1087,13 +1083,10 @@ static inline HSD_JObj* jobj_get_effector(HSD_JObj* jobj)
     return NULL;
 }
 
-/// Note: this must not be declared inline, so that
-/// the "eff" assertion string data is placed before "robj".
 HSD_JObj* jobj_get_effector_checked(HSD_JObj* eff)
 {
     eff = jobj_get_effector(eff);
-    HSD_ASSERT(2084, eff);
-    if (HSD_RObjGetByType(eff->robj, REFTYPE_JOBJ, 1) != NULL) {
+    if (eff && HSD_RObjGetByType(eff->robj, REFTYPE_JOBJ, 1) != NULL) {
         return eff;
     } else {
         return NULL;
@@ -1102,8 +1095,6 @@ HSD_JObj* jobj_get_effector_checked(HSD_JObj* eff)
 
 extern const Vec3 HSD_JObj_803B94C4;
 
-/// @todo Variables @c var_f27 and @c var_f28 are used uninitialized
-///       whenever 'if' condition is false.
 void resolveIKJoint1(HSD_JObj* jobj)
 {
     HSD_JObj* robj_4;
@@ -1154,13 +1145,15 @@ void resolveIKJoint1(HSD_JObj* jobj)
         spBC = *temp_r4;
     }
     robj = HSD_RObjGetByType(jobj->robj, REFTYPE_IKHINT, 0);
-    HSD_ASSERT(0x853, robj);
+    // Constraint animation can disable either segment's hint. The matrix
+    // already contains this frame's animated pose when the solve is skipped.
+    if (!robj) return;
     new_var = &robj->u.ik_hint;
     temp_f26 = new_var->rotate_x;
     temp_f30 = new_var->bone_length * spBC.x;
     if (var_r31 != NULL) {
         robj = HSD_RObjGetByType(var_r31->robj, REFTYPE_IKHINT, 0);
-        HSD_ASSERT(0x85E, robj);
+        if (!robj) return;
         var_f29 = robj->u.ik_hint.bone_length * var_r31->scale.x * spBC.x;
         var_r30 = robj->flags & 4 ? 1 : 0;
         var_r28 = jobj_get_effector_checked(var_r31->child);
@@ -1187,7 +1180,7 @@ void resolveIKJoint1(HSD_JObj* jobj)
         C_VECSubtract(&var_r28->translate, &spB0, &sp8C);
         temp_f31 = C_VECDotProduct(&sp8C, &sp8C);
 
-        if (temp_f31 > var_f5) {
+        if (temp_f31 > var_f5 && isfinite(temp_f31)) {
             sp68 = sp8C;
             if (HSD_RObjGetGlobalPosition(jobj->robj, 3, &sp5C)) {
                 C_VECSubtract(&sp5C, &spB0, &sp5C);
@@ -1204,15 +1197,20 @@ void resolveIKJoint1(HSD_JObj* jobj)
                 C_VECCrossProduct(&sp50, &sp68, &sp5C);
                 C_VECCrossProduct(&sp68, &sp5C, &sp50);
             }
-            var_f4 = sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp50, &sp50)));
+            f32 normal_length_sq = C_VECDotProduct(&sp50, &sp50);
+            f32 up_length_sq = C_VECDotProduct(&sp5C, &sp5C);
+            if (!(normal_length_sq > 0 && isfinite(normal_length_sq) &&
+                  up_length_sq > 0 && isfinite(up_length_sq))) return;
+            var_f4 = sqrtf(1.0F / (1e-10F + normal_length_sq));
             C_VECScale(&sp50, &sp80, var_f4);
-            var_f4_2 = sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp5C, &sp5C)));
+            var_f4_2 = sqrtf(1.0F / (1e-10F + up_length_sq));
             C_VECScale(&sp5C, &sp74, var_f4_2);
             temp_f5 = temp_f30 * temp_f30;
             var_f28 = var_f29 * var_f29;
             temp_f1_7 = temp_f5 - var_f28;
             temp_f1_8 = 0.25F * (((2.0F * (temp_f5 + var_f28)) - temp_f31) -
                                  ((temp_f1_7 * temp_f1_7) / temp_f31));
+            if (!isfinite(temp_f1_8)) return;
             var_f27 = temp_f1_8;
             if (temp_f1_8 < 0.0F) {
                 var_f27 = 0.0F;
@@ -1223,8 +1221,8 @@ void resolveIKJoint1(HSD_JObj* jobj)
             var_f5 = sqrtf(1.0F / (1e-10F + var_f27));
             var_f29_2 = var_f27 * var_f5;
         } else {
-            var_f1 = 0.0F;
-            var_f29_2 = temp_f30;
+            // A target at the chain origin supplies no aiming direction.
+            return;
         }
         if (var_r30 != 0) {
             var_f29_2 = -var_f29_2;
@@ -1236,7 +1234,9 @@ void resolveIKJoint1(HSD_JObj* jobj)
         }
         C_VECScale(&sp74, &sp5C, var_f29_2);
         C_VECAdd(&sp98, &sp5C, &sp98);
-        var_f4_4 = sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp98, &sp98)));
+        f32 axis_length_sq = C_VECDotProduct(&sp98, &sp98);
+        if (!(axis_length_sq > 0 && isfinite(axis_length_sq))) return;
+        var_f4_4 = sqrtf(1.0F / (1e-10F + axis_length_sq));
         C_VECScale(&sp98, &sp98, var_f4_4);
         jobj->mtx[0][0] = sp98.x * spBC.x;
         jobj->mtx[1][0] = sp98.y * spBC.x;
@@ -1289,6 +1289,8 @@ void resolveIKJoint2(HSD_JObj* jobj)
     if (var_r29 == NULL || jobj->parent == NULL) {
         return;
     }
+    HSD_RObj* hint = HSD_RObjGetByType(jobj->robj, REFTYPE_IKHINT, 0);
+    if (!hint) return;
     if (jobj->scl != NULL) {
         spA0 = *jobj->scl;
     }
@@ -1304,25 +1306,26 @@ void resolveIKJoint2(HSD_JObj* jobj)
         sp7C.y = mtx[1][0];
         sp7C.z = mtx[2][0];
     }
-    var_f4 = sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp7C, &sp7C)));
+    f32 axis_length_sq = C_VECDotProduct(&sp7C, &sp7C);
+    if (!(axis_length_sq > 0 && isfinite(axis_length_sq))) return;
+    var_f4 = sqrtf(1.0F / (1e-10F + axis_length_sq));
     C_VECScale(&sp7C, &sp7C, var_f4);
     if (jobj->parent->scl != NULL) {
         var_f31 = jobj->parent->scl->x;
     }
     robj = HSD_RObjGetByType(jobj->parent->robj, REFTYPE_IKHINT, 0);
-    HSD_ASSERT(0x8FC, robj);
+    if (!robj) return;
     C_VECScale(&sp7C, &sp7C, robj->u.ik_hint.bone_length * var_f31);
     C_VECAdd(&sp88, &sp7C, &sp94);
     C_VECSubtract(&var_r29->translate, &sp94, &sp7C);
-    C_VECScale(&sp7C, &sp7C,
-             sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp7C, &sp7C))));
+    f32 distance_sq = C_VECDotProduct(&sp7C, &sp7C);
+    if (!(distance_sq > 1e-8F && isfinite(distance_sq))) return;
+    C_VECScale(&sp7C, &sp7C, sqrtf(1.0F / (1e-10F + distance_sq)));
     temp_r28 = HSD_RObjGetByType(jobj->robj, 0x20000000, 5);
     temp_r29 = HSD_RObjGetByType(jobj->robj, 0x20000000, 6);
     if ((temp_r28 != NULL) || (temp_r29 != NULL)) {
         var_r27 = 0;
-        robj = HSD_RObjGetByType(jobj->robj, REFTYPE_IKHINT, 0);
-        HSD_ASSERT(0x91E, robj);
-        var_r30 = robj->flags & 4 ? 1 : 0;
+        var_r30 = hint->flags & 4 ? 1 : 0;
         {
             MtxPtr mtx = jobj->parent->mtx;
             sp28.x = mtx[0][0];
@@ -1368,7 +1371,9 @@ void resolveIKJoint2(HSD_JObj* jobj)
         sp64.z = mtx[2][2];
     }
     C_VECCrossProduct(&sp64, &sp7C, &sp70);
-    var_f4_2 = sqrtf(1.0F / (1e-10F + C_VECDotProduct(&sp70, &sp70)));
+    f32 up_length_sq = C_VECDotProduct(&sp70, &sp70);
+    if (!(up_length_sq > 0 && isfinite(up_length_sq))) return;
+    var_f4_2 = sqrtf(1.0F / (1e-10F + up_length_sq));
     C_VECScale(&sp70, &sp70, var_f4_2);
     C_VECCrossProduct(&sp7C, &sp70, &sp64);
     jobj->mtx[0][0] = sp7C.x * spA0.x;

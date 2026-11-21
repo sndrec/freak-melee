@@ -55,6 +55,8 @@ typedef struct NativeNetplayRoom {
     NativeMatchStream stream;
     uint8_t* stream_storage;
     NativeContentId needed_content[8];
+    void* match_package_files[8];
+    uint8_t needed_file_slots[8];
     char needed_sources[8][NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char content_failure[NATIVE_NETPLAY_CONNECTION_FAILURE_BYTES];
     const char* content_root;
@@ -79,6 +81,7 @@ typedef struct NativeNetplayRoom {
 bool nativeNetplayRoom_Connect(NativeNetplayRoom* room,
                                const NativeNetplayConnectionConfig* config);
 bool nativeNetplayRoom_PumpLobby(NativeNetplayRoom* room);
+bool nativeNetplayRoom_PumpAuxiliary(NativeNetplayRoom* room);
 bool nativeNetplayRoom_ConfigureMatch(NativeNetplayRoom* room,
                                       const NativeLobbyMatch* match,
                                       uint8_t artificial_delay_frames);

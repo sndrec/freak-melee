@@ -6,9 +6,11 @@ import argparse
 import hashlib
 import json
 import shutil
+import time
 import zipfile
 from pathlib import Path
 from prepare_workshop_docs import check_tree
+from release_signer import PUBLIC_KEY, public_modulus, render_launcher
 
 
 def sha256(path: Path) -> str:
@@ -25,6 +27,8 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--release", required=True)
     parser.add_argument("--channel", help="HTTPS URL of the hosted release manifest")
+    parser.add_argument("--public-key", type=Path, default=PUBLIC_KEY,
+                        help="Trusted release public key for this distribution")
     args = parser.parse_args()
 
     release = args.release
@@ -103,37 +107,46 @@ def main() -> None:
     if archive_path.exists() or setup_path.exists() or \
             (output / "latest.json").exists() or install.exists():
         raise SystemExit(f"Refusing to overwrite an existing release in {output}")
+    issued = time.time_ns() // 1_000_000
+    launcher = render_launcher(scripts / "freak_launcher.ps1", public_modulus(args.public_key), issued)
     files = []
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED,
                          compresslevel=3) as archive:
         for source, name in payload:
+            if name == "freak_launcher.ps1":
+                files.append({"path": name, "size": len(launcher),
+                              "sha256": hashlib.sha256(launcher).hexdigest()})
+                archive.writestr(name, launcher)
+                continue
             files.append({"path": name, "size": source.stat().st_size,
                           "sha256": sha256(source)})
             archive.write(source, name)
 
-    manifest = {"release": release, "archive": archive_name,
+    manifest = {"release": release, "issued_ms": issued, "archive": archive_name,
                 "size": archive_path.stat().st_size, "sha256": sha256(archive_path),
                 "files": files}
-    (output / "latest.json").write_text(json.dumps(manifest, indent=2) + "\n",
-                                         encoding="utf-8")
-
     version = install / "versions" / release
     version.mkdir(parents=True)
     for source, name in payload:
         destination = version / name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
+        if name == "freak_launcher.ps1":
+            destination.write_bytes(launcher)
+        else:
+            shutil.copy2(source, destination)
     (install / "state.json").write_text(
-        json.dumps({"current": release, "previous": None, "blocked": None}, indent=2) + "\n",
+        json.dumps({"current": release, "previous": None, "blocked": None, "latest_ms": issued}, indent=2) + "\n",
         encoding="utf-8",
     )
-    shutil.copy2(scripts / "freak_launcher.ps1", install / "freak_launcher.ps1")
+    (install / "freak_launcher.ps1").write_bytes(launcher)
     shutil.copy2(scripts / "Freak Melee.bat", install / "Freak Melee.bat")
     (install / "channel.txt").write_text((args.channel or "") + "\n", encoding="utf-8")
     with zipfile.ZipFile(setup_path, "w", compression=zipfile.ZIP_DEFLATED,
                          compresslevel=3) as archive:
         for source in sorted(path for path in install.rglob("*") if path.is_file()):
             archive.write(source, source.relative_to(install).as_posix())
+    manifest["setup_sha256"] = sha256(setup_path)
+    (output / "latest.json").write_bytes((json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
     print(f"Release: {archive_path}\nManifest: {output / 'latest.json'}"
           f"\nFriend installation: {install}\nFriend download: {setup_path}")
     print("The ISO is intentionally absent."

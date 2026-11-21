@@ -1,4 +1,5 @@
 #include "native_agent_internal.h"
+#include <melee/ft/native_authoring_file.h>
 #include <melee/gm/native_content_store.h>
 #include <cstdio>
 #include <cstdlib>
@@ -18,27 +19,19 @@ static void add_capture_image(Reply& reply, yyjson_mut_val* content)
     const char* path = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "output"));
     const char* hash = yyjson_mut_get_str(yyjson_mut_obj_get(reply.result, "png_sha256"));
     const uint64_t size = yyjson_mut_get_uint(yyjson_mut_obj_get(reply.result, "bytes"));
-    std::string image;
+    std::vector<uint8_t> image;
     NativeContentId id;
-    if (path && hash && size > 8 && size <= 64 * 1024 * 1024) {
-        if (FILE* file = std::fopen(path, "rb")) {
-            image.resize(size);
-            const bool complete = std::fread(image.data(), 1, image.size(), file) == size &&
-                std::fgetc(file) == EOF && !std::ferror(file);
-            std::fclose(file);
-            if (!complete) image.clear();
-        }
-    }
     DWORD length = 0;
     const DWORD format = CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF;
-    const auto* bytes = reinterpret_cast<const BYTE*>(image.data());
     char actual[65]{};
-    if (!image.empty() && nativeContent_Hash(image.data(), image.size(), &id))
+    if (path && hash && size > 8 && size <= 64 * 1024 * 1024 &&
+        NativeAuthoring::read_file(path, size, image) && image.size() == size &&
+        nativeContent_Hash(image.data(), image.size(), &id))
         nativeContentStore_IdHex(&id, actual);
     if (*actual && !std::strcmp(hash, actual) &&
-        CryptBinaryToStringA(bytes, DWORD(image.size()), format, nullptr, &length)) {
+        CryptBinaryToStringA(image.data(), DWORD(image.size()), format, nullptr, &length)) {
         std::string encoded(length, '\0');
-        if (CryptBinaryToStringA(bytes, DWORD(image.size()), format, encoded.data(), &length)) {
+        if (CryptBinaryToStringA(image.data(), DWORD(image.size()), format, encoded.data(), &length)) {
             auto* item = yyjson_mut_obj(reply.document);
             yyjson_mut_obj_add_str(reply.document, item, "type", "image");
             yyjson_mut_obj_add_str(reply.document, item, "mimeType", "image/png");

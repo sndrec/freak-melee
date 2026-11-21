@@ -19,24 +19,28 @@ typedef enum NativeLobbySessionState {
     NativeLobbySessionState_Failed,
 } NativeLobbySessionState;
 
+typedef enum NativeLobbyMatchSource {
+    NativeLobbyMatchSource_Lobby,
+    NativeLobbyMatchSource_QuickPlay,
+    NativeLobbyMatchSource_Direct,
+} NativeLobbyMatchSource;
+
 typedef struct NativeLobbySession {
     NativeNetplayRoom room;
     NativeLobbySessionState state;
+    NativeLobbyMatchSource match_source;
+    uint64_t observed_match_epoch;
     uint64_t finished_match_epoch;
     char failure[NATIVE_NETPLAY_CONNECTION_FAILURE_BYTES];
 } NativeLobbySession;
 
 // Session storage must remain at a stable address until Shutdown returns.
 bool nativeLobbySession_Start(NativeLobbySession* session,
-                              const NativeNetplayConnectionConfig* config);
+                              const NativeNetplayConnectionConfig* config,
+                              NativeLobbyMatchSource source);
 void nativeLobbySession_Shutdown(NativeLobbySession* session);
 bool nativeLobbySession_Pump(NativeLobbySession* session);
 bool nativeLobbySession_FinishMatch(NativeLobbySession* session);
-// The room owner publishes the active roster. A fighting owner enters setup;
-// a spectating owner stays in Waiting and can continue practicing or watching.
-bool nativeLobbySession_BeginMatch(NativeLobbySession* session,
-                                   const NativeLobbyMatch* selection,
-                                   uint8_t artificial_delay_frames);
 bool nativeLobbySession_UpdateParticipant(NativeLobbySession* session,
                                           const NativeSignalingUpdate* update);
 const NativeSignalingPresence*

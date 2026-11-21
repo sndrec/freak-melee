@@ -25,7 +25,7 @@ static u32 walk(HSD_JObj* root)
  }
  return count;
 }
-static void no_data_admission(const NativeSourceImportedAssets* accepted,const NativeSourceAssetInput* input,const NativeScriptSourceTree* tree,const char* declaration)
+static void no_data_admission(const NativeSourceImportedAssets* accepted,const NativeScriptSourceTree* tree,const char* declaration)
 {
  NativeSourceImportedAssets* fixture=calloc(1,sizeof(*fixture));NativeSourceEntityAssets* result=calloc(1,sizeof(*result));CHECK(fixture&&result);
  fixture->ready=true;fixture->character.import=accepted->character.import;
@@ -35,9 +35,9 @@ static void no_data_admission(const NativeSourceImportedAssets* accepted,const N
  CHECK(fixture->facts.article_count==1);HSD_Joint joints[101]={0};for(unsigned i=0;i<100;++i)joints[i].child=&joints[i+1];
  ItemModelDesc model={.x0_joint=joints,.x4_bone_count=1};Article article={.x10_modelDesc=&model};
  fixture->character.fighter_items[fixture->facts.articles[0].slot]=&article;NativeSourceResources resources={0};
- CHECK(!nativeSourceEntityAssets_Prepare(result,fixture,input,&resources,tree,&diagnostic));CHECK(!result->count&&!result->blueprint_count);++cases;
- joints[99].child=NULL;CHECK(nativeSourceEntityAssets_Prepare(result,fixture,input,&resources,tree,&diagnostic));CHECK(result->count==1);nativeSourceEntityAssets_Release(result);++cases;
- model.x0_joint=NULL;CHECK(nativeSourceEntityAssets_Prepare(result,fixture,input,&resources,tree,&diagnostic));CHECK(result->count==1);nativeSourceEntityAssets_Release(result);++cases;
+ CHECK(!nativeSourceEntityAssets_Prepare(result,fixture,&resources,tree,&diagnostic));CHECK(!result->count&&!result->blueprint_count);++cases;
+ joints[99].child=NULL;CHECK(nativeSourceEntityAssets_Prepare(result,fixture,&resources,tree,&diagnostic));CHECK(result->count==1);nativeSourceEntityAssets_Release(result);++cases;
+ model.x0_joint=NULL;CHECK(nativeSourceEntityAssets_Prepare(result,fixture,&resources,tree,&diagnostic));CHECK(result->count==1);nativeSourceEntityAssets_Release(result);++cases;
  free(result);free(fixture);
 }
 static void probe(const char* directory,const char* declaration)
@@ -52,8 +52,8 @@ static void probe(const char* directory,const char* declaration)
  char source[2048];snprintf(source,sizeof(source),"fighter:\n    behavior independent\narticle %s states 1:\n    render standard\n    state int observed\n    on spawned:\n        item.state.observed = 1\n    state 0 anim -1:\n",declaration);
  NativeScriptSourceNode nodes[128];NativeScriptSourceTree tree={.source=source,.source_bytes=(u32)strlen(source),.nodes=nodes,.capacity=128};
  CHECK(nativeScriptSource_Parse(&tree,&diagnostic));NativeSourceResources resources={0};
- CHECK(nativeSourceEntityAssets_Prepare(entities,imported,&input,&resources,&tree,&diagnostic));
- no_data_admission(imported,&input,&tree,declaration);
+ CHECK(nativeSourceEntityAssets_Prepare(entities,imported,&resources,&tree,&diagnostic));
+ no_data_admission(imported,&tree,declaration);
  const NativeScriptItemAsset* binding=NULL;for(unsigned i=0;i<entities->count;++i)if(!strcmp(entities->rows[i].declaration,declaration))binding=&entities->rows[i];
  CHECK(binding&&binding->article&&binding->article->x10_modelDesc&&binding->article->x10_modelDesc->x0_joint);
  CHECK(nativeSourceBank_Allocate(&bank,&diagnostic));

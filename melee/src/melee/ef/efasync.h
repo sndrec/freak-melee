@@ -9,6 +9,19 @@ extern HSD_ObjAllocData efAsync_AllocData;
 #include <stdarg.h>
 
 #include <melee/ef/types.h>
+#ifdef MELEE_NATIVE
+#include <melee/ef/native_effect_limits.h>
+#endif
+
+static inline EF_QueuedEffect* efAsync_AllocateRequest(void)
+{
+#ifdef MELEE_NATIVE
+    // A slot can be reused immediately. Its allocation still counts for this tick.
+    if (efLib_Usage.requests_this_tick >= EF_MAX_QUEUED_EFFECTS) return NULL;
+    ++efLib_Usage.requests_this_tick;
+#endif
+    return HSD_ObjAlloc(&efAsync_AllocData);
+}
 
 /* 063930 */ EF_SpawnResult efAsync_Dispatch(s32 gfx_id, HSD_GObj* gobj,
                                              va_list vlist);

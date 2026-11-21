@@ -3,6 +3,7 @@
 // Actual particle/generator/AppSRT storage, accessed directly by source code.
 // Allocator descriptors have their own shared ObjAlloc snapshot owner.
 u32 particle_float_bits;
+HSD_ParticleWork particle_work_this_tick;
 int (**particle_callbacks)(HSD_Particle*);
 u16 hsd_804D78D8=0,hsd_804D78DA=0,particle_peak_count;
 u16 hsd_804D78DE=0,hsd_804D78E0=0,particle_count;

@@ -38,6 +38,7 @@ static bool independent(const void* data,size_t bytes)
 #define EXCLUDE(v) if(overlap(data,bytes,&(v),sizeof(v)))return false
     EXCLUDE(scene);EXCLUDE(nativeGObjPool);EXCLUDE(efLib_LoadKind);EXCLUDE(efLib_EffectCount);
     EXCLUDE(efLib_AnimCount);EXCLUDE(efLib_AllocationSerial);EXCLUDE(efLib_AnimQueue);EXCLUDE(efLib_ParamTable);
+    EXCLUDE(efLib_Usage);
 #undef EXCLUDE
     if(efLib_AnimCount<0 || efLib_AnimCount>EFFECT_ANIMATION_QUEUE)return false;
     for(unsigned i=0;i<(unsigned)efLib_AnimCount;++i) {
@@ -63,6 +64,9 @@ bool nativeEffectControl_Validate(const void* data,size_t bytes)
     if(!boundary() || bytes!=sizeof(NativeEffectControlSnapshot) || !independent(data,bytes))return false;
     NativeEffectControlSnapshot s;memcpy(&s,data,sizeof(s));
     if(s.epoch!=scene.epoch || s.load_kind>1 || s.animation_count<0 || s.animation_count>EFFECT_ANIMATION_QUEUE)return false;
+    if (s.usage.model_units_this_tick > EF_MODEL_UNITS_PER_TICK ||
+        s.usage.requests_this_tick > EF_MAX_QUEUED_EFFECTS ||
+        s.usage.live_model_units > EF_MODEL_LIVE_UNITS) return false;
     for(unsigned i=0;i<EFFECT_PARAMETER_SLOTS;++i) {
         NativeMatchPoolReference r=s.objects[i];
         if(!s.parameters[i].gobj) {if(!zero_object(r))return false;}
@@ -95,6 +99,7 @@ bool nativeEffectControl_Save(void* data,size_t capacity,size_t* written)
         overlap(data,bytes,written,sizeof(*written)) || efLib_AnimCount<0 || efLib_AnimCount>EFFECT_ANIMATION_QUEUE)return false;
     NativeEffectControlSnapshot s;memset(&s,0,sizeof(s));s.epoch=scene.epoch;
     s.load_kind=efLib_LoadKind;s.effect_count=efLib_EffectCount;s.animation_count=efLib_AnimCount;s.allocation_serial=efLib_AllocationSerial;
+    s.usage = efLib_Usage;
     memcpy(s.parameters,efLib_ParamTable,sizeof(s.parameters));memcpy(s.animations,efLib_AnimQueue,sizeof(s.animations));
     for(unsigned i=0;i<EFFECT_PARAMETER_SLOTS;++i)if(s.parameters[i].gobj)
         if(!nativeMatchPool_Reference(&nativeGObjPool,s.parameters[i].gobj,&s.objects[i]))return false;
@@ -113,6 +118,7 @@ bool nativeEffectControl_Load(const void* data,size_t bytes)
     // agreement is still needed before any owner performs writes.
     if(!live(&s))return false;
     efLib_LoadKind=s.load_kind;efLib_EffectCount=s.effect_count;efLib_AnimCount=s.animation_count;efLib_AllocationSerial=s.allocation_serial;
+    efLib_Usage = s.usage;
     memcpy(efLib_ParamTable,s.parameters,sizeof(s.parameters));memcpy(efLib_AnimQueue,s.animations,sizeof(s.animations));
     return true;
 }
@@ -126,6 +132,7 @@ bool nativeEffectControl_AdmitHistory(NativeMatchArena* arena)
     ROOT(efLib_EffectCount);
     ROOT(efLib_AnimCount);
     ROOT(efLib_AllocationSerial);
+    ROOT(efLib_Usage);
     ROOT(efLib_ParamTable);
     ROOT(efLib_AnimQueue);
 #undef ROOT

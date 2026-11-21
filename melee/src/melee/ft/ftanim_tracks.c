@@ -1,4 +1,5 @@
 #include "ftanim.h"
+#include "ftanim_track_parts.h"
 #include "fighter.h"
 #include "ftparts.h"
 #include "types.h"
@@ -11,34 +12,16 @@ void ftAnim_8006F4C8(Fighter* fp, bool do_blending, FigaTree* tree)
 {
     s8* cur_node;
     FigaTrack* cur_track;
-    u32 flags;
-    u32 temp_r3;
-    int i = 0;
+    unsigned count = ftPartsTable[fp->kind]->parts_num;
+    unsigned i = 0;
 
     cur_node = tree->nodes;
     cur_track = tree->tracks;
 
-    flags = fp->x594_bits;
-
     while (*cur_node != -1) {
-        while (!fp->parts[i].flags_b1) {
-            i++;
-        }
-        while (1) {
-            if (!fp->parts[i].flags_b2) {
-                break;
-            }
-            temp_r3 = ftParts_8007506C(fp->kind, i);
-            if (temp_r3 == 0 || (temp_r3 & flags)) {
-                break;
-            }
-            i++;
-        }
-        if (i >= 0x8C) {
-            HSD_ASSERTREPORT(767, 0, "atree data error! player %d\n",
-                             fp->player_id);
-        }
-        if (!fp->parts[i].flags_b0 && !fp->parts[i].flags_b5) {
+        i = ftAnim_NextTrackPart(fp, i, count);
+        if (i == count) break;
+        if (fp->parts[i].flags_b1 && !fp->parts[i].flags_b0 && !fp->parts[i].flags_b5) {
             HSD_JObj* jobj = (do_blending ? fp->parts[i].x4_jobj2 : fp->parts[i].joint);
             lbAnim_8001E6D8(jobj, tree, cur_track, *cur_node);
         }
@@ -113,6 +96,7 @@ void ftAnim_8006E7B8(Fighter* fp, Fighter_Part part)
     int i;
     HSD_JObj* temp_r30;
     int temp_r27;
+    int count = ftPartsTable[fp->kind]->parts_num;
 
     HSD_AObjInitEndCallBack();
     i = part;
@@ -120,9 +104,10 @@ void ftAnim_8006E7B8(Fighter* fp, Fighter_Part part)
     temp_r27 = fp->parts[part].xC;
     jobj = temp_r30;
     while (jobj != NULL) {
-        while (!fp->parts[i].flags_b1) {
+        while (i < count && !fp->parts[i].flags_b1) {
             i++;
         }
+        if (i == count) break;
         if (fp->parts[i].xC <= temp_r27 && i != part) {
             break;
         }

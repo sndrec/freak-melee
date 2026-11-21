@@ -14,12 +14,11 @@
 #include <sysdolphin/baselib/gobjuserdata.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <sysdolphin/baselib/mobj.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
 
-enum { CSS_UNNUMBERED = 4, HAND_STYLES = 5, POINTER_IDLE_MS = 1200 };
+enum { CSS_UNNUMBERED = 4, HAND_STYLES = 5 };
 static struct {
     HSD_GObj* owner;
     HSD_JObj* hand[HAND_STYLES][2];
@@ -95,13 +94,13 @@ static void draw(HSD_GObj* object, int pass)
     (void)object;
     const NativeRemoteCssPointers* points = nativeOnlineSession_CssPointers();
     if (!points || !nativeCssCards_Active() || nativeHub_IsVisible()) return;
-    const uint64_t now = GetTickCount64();
+    const uint64_t now = SDL_GetTicks();
     float left, right, top, bottom;
     nativeCssOriginal_Viewport(&left, &right, &top, &bottom);
     for (unsigned peer = 0; peer < NATIVE_SIGNALING_MAX_PARTICIPANTS; ++peer) {
         const NativeRemoteCssPointers* received = &points[peer];
         const NativeCssPointers* pointers = &received->pointers;
-        if (!pointers->visible || now - received->received_ms > POINTER_IDLE_MS)
+        if (!pointers->visible || now - received->received_ms > NATIVE_CURSOR_IDLE_MS)
             continue;
         for (unsigned seat = 0; seat < 4; ++seat) {
             const unsigned bit = 1u << seat;
@@ -110,10 +109,10 @@ static void draw(HSD_GObj* object, int pass)
             if (!nativeCssCards_RemotePort(pointers->peer_id, seat, &display))
                 continue;
             const bool holding = pointers->held & bit;
-            const float x = left + (right - left) * pointers->point[seat][0] /
-                NATIVE_CSS_POINTER_UNITS;
-            const float y = top - (top - bottom) * pointers->point[seat][1] /
-                NATIVE_CSS_POINTER_UNITS;
+            float sample_x, sample_y;
+            nativeCursorMotion_Sample(&received->motion[seat], now, &sample_x, &sample_y);
+            const float x = left + (right - left) * sample_x / NATIVE_CSS_POINTER_UNITS;
+            const float y = top - (top - bottom) * sample_y / NATIVE_CSS_POINTER_UNITS;
             if (holding) place_art(remote.token[display], x + 2.7f, y - 2, 1, pass);
             place_art(remote.hand[display][holding], x, y, 0, pass);
         }
@@ -148,9 +147,11 @@ void nativeCssRemote_Begin(const StaticModelDesc* hand, const StaticModelDesc* t
 void nativeCssRemote_Publish(const NativeCssPointers* pointers)
 {
     if (!remote.owner) return;
-    const uint64_t now = GetTickCount64();
+    const uint64_t now = SDL_GetTicks();
     const uint64_t elapsed = now - remote.last_sent;
-    if (elapsed < 40 ||
+    const bool changed_pose = pointers->held != remote.sent.held ||
+                              pointers->visible != remote.sent.visible;
+    if ((!changed_pose && elapsed < NATIVE_CURSOR_SEND_MS) ||
         (elapsed < 420 && memcmp(pointers, &remote.sent, sizeof(*pointers)) == 0))
         return;
     if (nativeOnlineSession_PublishCssPointers(pointers)) {
@@ -171,10 +172,10 @@ void nativeCssRemote_End(void)
 void nativeCssRemote_Inspect(void)
 {
     const NativeRemoteCssPointers* points = nativeOnlineSession_CssPointers();
-    const uint64_t now = GetTickCount64();
+    const uint64_t now = SDL_GetTicks();
     for (unsigned i = 0; points && i < NATIVE_SIGNALING_MAX_PARTICIPANTS; ++i) {
         const NativeCssPointers* p = &points[i].pointers;
-        if (!p->visible || now - points[i].received_ms > POINTER_IDLE_MS) continue;
+        if (!p->visible || now - points[i].received_ms > NATIVE_CURSOR_IDLE_MS) continue;
         for (unsigned seat = 0; seat < 4; ++seat) {
             unsigned display;
             if (!(p->visible & (1u << seat)) ||

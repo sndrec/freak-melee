@@ -1,4 +1,5 @@
 #include <melee/ef/eflib.h>
+#include <melee/ef/efdata.h>
 #include <melee/ef/efsync.h>
 #include <melee/ef/efalt.h>
 #include <melee/ef/efasync.h>
@@ -23,10 +24,14 @@ static void* queue_allocate(void)
 {for(unsigned i=0;i<32;++i)if(!queue_live[i]){queue_live[i]=true;return &queue_payloads[i];}return NULL;}
 static void queue_free(void* object)
 {for(unsigned i=0;i<32;++i)if(object==&queue_payloads[i]&&queue_live[i]){queue_live[i]=false;++effect_queue_frees;return;}abort();}
-volatile u32 efLib_LoadKind;
-volatile s32 efLib_AnimCount;
-s32 efLib_EffectCount;
+u32 efLib_LoadKind;
+s32 efLib_AnimCount;
+u32 efLib_EffectCount;
 u32 efLib_AllocationSerial;
+EF_EffectUsage efLib_Usage;
+void nativeWorkshopPractice_ScriptFault(const char* kind, unsigned generation,
+    unsigned line, unsigned column, const char* message)
+{ fprintf(stderr, "%s %u at %u:%u: %s\n", kind, generation, line, column, message); }
 HSD_JObj* efLib_AnimQueue[32];
 EF_DAT_Entry efAsync_DatEntries[51];
 static EF_Effect effect_payloads[520];static bool effect_live[520];static HSD_JObj effect_joints[520][3];

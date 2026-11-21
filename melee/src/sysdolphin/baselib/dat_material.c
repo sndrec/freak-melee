@@ -9,6 +9,7 @@ void HSD_DatDecodeMaterialRecord(HSD_DatImport* import,
     const HSD_Dat* dat = import->dat;
     u32 offset = record->offset;
     u32 value;
+    size_t decoded_bytes = 0;
     HSD_DatResult status = HSD_DAT_OK;
     switch (record->type) {
     case DAT_MOBJ: {
@@ -75,18 +76,22 @@ void HSD_DatDecodeMaterialRecord(HSD_DatImport* import,
         break;
     }
     case DAT_IMAGE: {
-        size_t bytes;
+        HSD_DatImageSize size;
         HSD_ImageDesc* obj = record->object;
-        status = HSD_DatDecodeImage(dat, offset, obj, &bytes);
-        if (status == HSD_DAT_OK)
-            HSD_DatImportSource(import, (u32)((const u8*)obj->image_ptr - dat->data), bytes, 0);
+        status = HSD_DatDecodeImage(dat, offset, obj, &size);
+        if (status == HSD_DAT_OK) {
+            HSD_DatImportSource(import, (u32)((const u8*)obj->image_ptr - dat->data), size.source_bytes, 0);
+            decoded_bytes = (size_t)size.texels * 4;
+        }
         break;
     }
     case DAT_PALETTE: {
         HSD_TlutDesc* obj = record->object;
         status = HSD_DatDecodePalette(dat, offset, obj);
-        if (status == HSD_DAT_OK)
+        if (status == HSD_DAT_OK) {
             HSD_DatImportSource(import, (u32)((const u8*)obj->lut - dat->data), (size_t)obj->n_entries * 2, 0);
+            decoded_bytes = (size_t)obj->n_entries * 4;
+        }
         break;
     }
     case DAT_LOD:
@@ -95,6 +100,11 @@ void HSD_DatDecodeMaterialRecord(HSD_DatImport* import,
     default:
         status = HSD_DAT_DESCRIPTOR;
         break;
+    }
+    if (decoded_bytes) {
+        if (decoded_bytes > import->texture_byte_limit - import->decoded_texture_bytes)
+            status = HSD_DAT_RESOURCE_LIMIT;
+        else import->decoded_texture_bytes += decoded_bytes;
     }
     if (import->status == HSD_DAT_OK && status != HSD_DAT_OK) {
         import->status = status;

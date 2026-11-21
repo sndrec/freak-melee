@@ -10,13 +10,15 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+from cryptography.exceptions import InvalidSignature
+from release_signer import PUBLIC_KEY, public_modulus, render_launcher, sign, signature_name, verify
 
 
 BUCKET = "freak-melee-releases"
 CHANNEL = "https://freak-melee-releases.sndrec32exe.workers.dev/3ShgcrpBLwN2237YIwwm6kX0/latest.json"
 ROOT = Path(__file__).resolve().parents[1]
 WORKER = ROOT / "services" / "releases"
-WRANGLER = WORKER / "node_modules" / ".bin" / "wrangler.cmd"
+WRANGLER = WORKER / "node_modules/wrangler/bin/wrangler.js"
 RELEASE_ID = re.compile(r"[a-zA-Z0-9._-]{1,64}\Z")
 
 
@@ -29,7 +31,7 @@ def digest(path: Path) -> str:
 
 
 def wrangler(*args: str) -> None:
-    subprocess.run([str(WRANGLER), *args], cwd=WORKER, check=True)
+    subprocess.run(["node", str(WRANGLER), *args], cwd=WORKER, check=True)
 
 
 def main() -> None:
@@ -37,6 +39,8 @@ def main() -> None:
     parser.add_argument("release_dir", type=Path,
                         help="Directory produced by prepare_native_release.py")
     mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--sign-only", action="store_true",
+                      help="Sign the validated manifest locally without uploading")
     mode.add_argument("--dry-run", action="store_true",
                         help="Validate the prepared release without uploading")
     mode.add_argument("--stage-only", action="store_true",
@@ -47,7 +51,14 @@ def main() -> None:
 
     release_dir = args.release_dir.resolve(strict=True)
     manifest_path = release_dir / "latest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest_path.stat().st_size > 4 * 1024 * 1024:
+        parser.error("Manifest exceeds the launcher's size limit")
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    issued = manifest.get("issued_ms")
+    if type(issued) is not int or not 0 < issued <= 2**53 - 1:
+        parser.error("Invalid release timestamp")
+    public = public_modulus(PUBLIC_KEY)
     release = manifest.get("release")
     if not isinstance(release, str) or not RELEASE_ID.fullmatch(release) or \
             release in (".", ".."):
@@ -87,7 +98,7 @@ def main() -> None:
         expected_setup.update(f"versions/{release}/{name}" for name in names)
         if len(setup_names) != len(set(setup_names)) or set(setup_names) != expected_setup:
             parser.error("Friend installer does not contain the complete release exactly")
-        if json.loads(installer.read("state.json")) != dict(current=release, previous=None, blocked=None):
+        if json.loads(installer.read("state.json")) != dict(current=release, previous=None, blocked=None, latest_ms=issued):
             parser.error("Friend installer has an invalid initial version selection")
         for entry in entries:
             if not isinstance(entry, dict) or entry.get("path") not in names or \
@@ -114,8 +125,32 @@ def main() -> None:
                     setup_hash.update(block)
             if setup_member.file_size != entry["size"] or setup_hash.hexdigest() != entry["sha256"]:
                 parser.error(f"Friend installer file differs: {name}")
+        if installer.read("Freak Melee.bat") != (ROOT / "tools/Freak Melee.bat").read_bytes():
+            parser.error("Installer batch launcher differs from the publishing checkout")
         if installer.read("freak_launcher.ps1") != package.read("freak_launcher.ps1"):
             parser.error("Friend installer launcher differs from the release")
+        if installer.read("freak_launcher.ps1") != render_launcher(ROOT / "tools/freak_launcher.ps1", public, issued):
+            parser.error("Installer launcher differs from the source, trusted release key or issue time")
+    if manifest.get("setup_sha256") != digest(setup):
+        parser.error("Prepared setup ZIP does not match latest.json")
+    signature_file = release_dir / signature_name(manifest_bytes)
+    if args.sign_only and not signature_file.exists():
+        signature = sign(manifest_bytes, public)
+        with signature_file.open("xb") as output:
+            output.write(signature)
+    if signature_file.exists():
+        if signature_file.stat().st_size != 384:
+            parser.error("Invalid release signature length")
+        signature = signature_file.read_bytes()
+        try:
+            verify(manifest_bytes, signature, public)
+        except InvalidSignature:
+            parser.error("The release signature does not match latest.json")
+    elif not args.dry_run:
+        parser.error("Sign the prepared manifest with --sign-only before publishing")
+    if args.sign_only:
+        print(f"Verified release signature: {signature_file.name}")
+        return
     if args.dry_run:
         print(f"Validated {archive_name}; no upload performed.")
         return
@@ -123,25 +158,28 @@ def main() -> None:
         parser.error("Install services/releases dependencies with npm install first")
 
     with tempfile.TemporaryDirectory(prefix="freak-release-") as directory:
-        for filename, source, expected in (
-            (archive_name, archive, manifest["sha256"]),
-            (setup_name, setup, digest(setup)),
+        for filename, source, expected, content_type in (
+            (archive_name, archive, manifest["sha256"], "application/zip"),
+            (setup_name, setup, manifest["setup_sha256"], "application/zip"),
+            (signature_file.name, signature_file, hashlib.sha256(signature).hexdigest(), "application/octet-stream"),
         ):
             object_path = f"{BUCKET}/{filename}"
             if not args.activate_only:
                 wrangler("r2", "object", "put", object_path, "--file", str(source),
-                         "--content-type", "application/zip", "--remote")
+                         "--content-type", content_type, "--remote")
             verification = Path(directory) / filename
             wrangler("r2", "object", "get", object_path, "--file",
                      str(verification), "--remote")
             if digest(verification) != expected:
                 raise SystemExit(f"Remote {filename} verification failed; latest.json was not changed")
-    if args.stage_only:
-        print(f"Staged and verified {release}; latest.json was not changed.")
-        return
-    wrangler("r2", "object", "put", f"{BUCKET}/latest.json", "--file",
-             str(manifest_path), "--content-type", "application/json",
-             "--cache-control", "no-store", "--remote")
+        if args.stage_only:
+            print(f"Staged and verified {release}; latest.json was not changed.")
+            return
+        activation = Path(directory) / "latest.json"
+        activation.write_bytes(manifest_bytes)
+        wrangler("r2", "object", "put", f"{BUCKET}/latest.json", "--file",
+                 str(activation), "--content-type", "application/json",
+                 "--cache-control", "no-store", "--remote")
     print(f"Published {release} after verifying the remote ZIP.")
 
 

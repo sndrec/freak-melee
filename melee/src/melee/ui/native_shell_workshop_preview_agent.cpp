@@ -4,6 +4,8 @@
 
 #include <aurora/aurora.h>
 #include <bcrypt.h>
+#include <filesystem>
+#include <melee/ft/native_file_publish.h>
 #include <melee/gm/native_feedback.h>
 #include <melee/gm/native_workshop_practice.h>
 
@@ -13,7 +15,9 @@ using namespace WorkshopEditor;
 
 namespace {
 struct Capture {
-    std::string token, temporary, output, scope, hash, error;
+    std::string token, scope, hash, error;
+    std::filesystem::path output;
+    bool pending = false;
     AuroraPresentedCapture frame{};
     yyjson_mut_doc* metadata = nullptr;
     size_t bytes = 0;
@@ -35,7 +39,8 @@ void report_capture(Reply& reply)
     const char* status = "pending";
     if (!capture.hash.empty()) {
         status = "ready";
-        add_string(reply, reply.result, "output", capture.output);
+        auto path = capture.output.u8string();
+        add_string(reply, reply.result, "output", std::string(path.begin(), path.end()));
         add_string(reply, reply.result, "png_sha256", capture.hash);
         yyjson_mut_obj_add_uint(reply.document, reply.result, "bytes", capture.bytes);
         yyjson_mut_obj_add_uint(reply.document, reply.result, "width", capture.frame.width);
@@ -52,22 +57,26 @@ void report_capture(Reply& reply)
 bool reserve_capture(yyjson_val* args, yyjson_mut_val* view, Reply& reply,
     unsigned practice_id = 0, unsigned practice_frame = 0)
 {
-    if (!capture.temporary.empty()) {
+    if (capture.pending) {
         reply.fail("capture_busy", "Wait for the outstanding Workshop capture.");
         return false;
     }
     const char* scope = yyjson_get_str(yyjson_obj_get(args, "scope"));
     const bool viewport = std::strcmp(scope, "viewport") == 0;
     const std::string requested = yyjson_get_str(yyjson_obj_get(args, "output"));
-    char full[768];
     const bool drive_path = requested.size() >= 7 && requested[1] == ':' &&
         (requested[2] == '/' || requested[2] == '\\') && requested.find(':', 2) == std::string::npos;
-    DWORD length = drive_path ? GetFullPathNameA(requested.c_str(), sizeof(full), full, nullptr) : 0;
-    if (!length || length >= sizeof(full) || !requested.ends_with(".png")) {
+    if (!drive_path || !requested.ends_with(".png")) {
         reply.fail("invalid_output", "Choose an absolute .png file path on a local drive.");
         return false;
     }
-    if (GetFileAttributesA(full) != INVALID_FILE_ATTRIBUTES) {
+    std::error_code error;
+    auto full = std::filesystem::absolute(std::filesystem::u8path(requested), error);
+    if (error || !std::filesystem::is_directory(full.parent_path(), error)) {
+        reply.fail("invalid_output", "Choose an existing output directory.");
+        return false;
+    }
+    if (GetFileAttributesW(full.c_str()) != INVALID_FILE_ATTRIBUTES) {
         reply.fail("output_exists", "Choose a new PNG path.");
         return false;
     }
@@ -78,23 +87,14 @@ bool reserve_capture(yyjson_val* args, yyjson_mut_val* view, Reply& reply,
     }
     char token[33]{};
     for (unsigned i = 0; i < sizeof(random); ++i) std::snprintf(token + i * 2, 3, "%02x", random[i]);
-    const std::string temporary = std::string(full) + "." + token + ".png";
     auto* metadata = yyjson_mut_doc_new(nullptr);
     if (!metadata) {
         reply.fail("capture_failed", "Could not allocate frame metadata.");
         return false;
     }
     yyjson_mut_doc_set_root(metadata, yyjson_mut_val_mut_copy(metadata, view));
-    HANDLE file = CreateFileA(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
-        yyjson_mut_doc_free(metadata);
-        reply.fail("capture_failed", "Could not reserve a file in the requested output directory.");
-        return false;
-    }
-    CloseHandle(file);
     AuroraPresentedCapture reserved{};
-    if (!practice_id && !aurora_capture_next_frame(temporary.c_str(), viewport, &reserved)) {
-        DeleteFileA(temporary.c_str());
+    if (!practice_id && !aurora_capture_next_frame(viewport, &reserved)) {
         yyjson_mut_doc_free(metadata);
         reply.fail("capture_busy", "Finish the current screenshot or feedback capture first.");
         return false;
@@ -102,7 +102,7 @@ bool reserve_capture(yyjson_val* args, yyjson_mut_val* view, Reply& reply,
     yyjson_mut_doc_free(capture.metadata);
     capture = {};
     capture.token = token;
-    capture.temporary = temporary;
+    capture.pending = true;
     capture.output = full;
     capture.scope = scope;
     capture.frame = reserved;
@@ -249,24 +249,23 @@ bool nativeWorkshopPreview_ReservePracticeCapture(yyjson_val* args, const char* 
 
 extern "C" void nativeShell_CapturePracticeFrame(void)
 {
-    if (!capture.practice_id || capture.temporary.empty() || capture.frame.capture_id) return;
+    if (!capture.practice_id || !capture.pending || capture.frame.capture_id) return;
     const auto& state = *nativeWorkshopPractice_State();
     if (!nativeWorkshopPractice_Stepping() || state.id != capture.practice_id ||
         state.frame + 1 != capture.practice_frame) return;
-    if (!aurora_capture_next_frame(capture.temporary.c_str(), capture.scope == "viewport", &capture.frame))
+    if (!aurora_capture_next_frame(capture.scope == "viewport", &capture.frame))
         capture.error = "The requested practice frame could not reserve the renderer.";
 }
 
 void nativeWorkshopPreview_UpdateCapture()
 {
-    if (capture.temporary.empty()) return;
+    if (!capture.pending) return;
     if (capture.practice_id && !capture.frame.capture_id) {
         const auto& state = *nativeWorkshopPractice_State();
         if (capture.error.empty() && state.id == capture.practice_id && nativeWorkshopPractice_Stepping() &&
             state.frame < capture.practice_frame) return;
         if (capture.error.empty()) capture.error = "The requested practice frame was not presented.";
-        DeleteFileA(capture.temporary.c_str());
-        capture.temporary.clear();
+        capture.pending = false;
         return;
     }
     AuroraPresentedCapture completed{};
@@ -274,32 +273,23 @@ void nativeWorkshopPreview_UpdateCapture()
     if (completed.capture_id == capture.frame.capture_id && completed.status == AURORA_CAPTURE_PENDING) return;
     if (completed.capture_id == capture.frame.capture_id && completed.status == AURORA_CAPTURE_READY) {
         capture.frame = completed;
-        FILE* file = std::fopen(capture.temporary.c_str(), "rb");
-        long size = 0;
-        std::vector<uint8_t> bytes;
-        bool ok = file && !std::fseek(file, 0, SEEK_END) && (size = std::ftell(file)) > 0 &&
-            size <= 64 * 1024 * 1024 && !std::fseek(file, 0, SEEK_SET);
-        if (ok) {
-            bytes.resize(size);
-            ok = std::fread(bytes.data(), 1, bytes.size(), file) == bytes.size();
-        }
-        if (file) std::fclose(file);
+        size_t size = 0;
+        const void* bytes = aurora_presented_png(completed.capture_id, &size);
         NativeContentId digest;
-        if (ok && nativeContent_Hash(bytes.data(), bytes.size(), &digest) &&
-            MoveFileExA(capture.temporary.c_str(), capture.output.c_str(), MOVEFILE_WRITE_THROUGH)) {
+        if (bytes && nativeContent_Hash(bytes, size, &digest) &&
+            nativeFile_PublishWide(capture.output.c_str(), bytes, size, NATIVE_FILE_PRESERVE, nullptr) == NATIVE_FILE_PUBLISHED) {
             char hex[65];
             nativeContentStore_IdHex(&digest, hex);
             capture.hash = hex;
-            capture.bytes = bytes.size();
+            capture.bytes = size;
         } else {
             capture.error = "Could not publish the captured PNG. Choose a new writable output path.";
         }
     } else {
         capture.error = *completed.error ? completed.error : "The frame capture was interrupted.";
     }
-    if (completed.capture_id == capture.frame.capture_id) aurora_release_presented_capture();
-    if (capture.hash.empty()) DeleteFileA(capture.temporary.c_str());
-    capture.temporary.clear();
+    aurora_release_presented_capture(capture.frame.capture_id);
+    capture.pending = false;
 }
 
 void nativeWorkshopPreview_CaptureStatus(yyjson_val* args, Reply& reply)
@@ -313,10 +303,7 @@ void nativeWorkshopPreview_CaptureStatus(yyjson_val* args, Reply& reply)
 
 void nativeWorkshopPreview_Shutdown()
 {
-    if (!capture.temporary.empty()) {
-        if (capture.frame.capture_id) aurora_release_presented_capture();
-        DeleteFileA(capture.temporary.c_str());
-    }
+    if (capture.pending) aurora_release_presented_capture(capture.frame.capture_id);
     yyjson_mut_doc_free(capture.metadata);
     capture = {};
 }

@@ -20,8 +20,8 @@ bool fail(char* error, size_t capacity, const char* message)
 uint32_t allocate(std::vector<uint8_t>& data, size_t size)
 {
     const size_t at = (data.size() + 3) & ~size_t(3);
-    if (at > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
-        size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - at) return UINT32_MAX;
+    if (at > NATIVE_CONTENT_MAX_ASSET_BYTES ||
+        size > NATIVE_CONTENT_MAX_ASSET_BYTES - at) return UINT32_MAX;
     data.resize(at + size, 0);
     return (uint32_t)at;
 }
@@ -97,7 +97,7 @@ extern "C" bool nativeFighterAnimation_RemapNodes(
     const NativeFighterAnimationNodeMap* maps, unsigned map_count, void** output,
     size_t* output_size, char* error, size_t error_size)
 {
-    if (!source || source_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
+    if (!source || source_size > NATIVE_CONTENT_MAX_ASSET_BYTES ||
         !output || !output_size || *output || *output_size ||
         !maps || !map_count || map_count > max_roots)
         return fail(error, error_size, "Animation remapping needs a bounded node map and empty output.");
@@ -151,7 +151,7 @@ extern "C" bool nativeFighterAnimation_RemapNodes(
     const size_t strings_at = 32 + data.size() + relocations.size() * 4 + roots.size() * 8;
     size_t total = strings_at;
     for (const Root& r : roots) total += std::strlen(r.name) + 1;
-    if (total > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+    if (total > NATIVE_CONTENT_MAX_ASSET_BYTES)
         return fail(error, error_size, "Remapped animation exceeds the asset size limit.");
     std::vector<uint8_t> bytes(total, 0);
     auto word = [&](size_t at, uint32_t value) { NativeAssetDat::be32(bytes.data() + at, value); };

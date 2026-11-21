@@ -70,6 +70,11 @@ describe("Quick Play ready countdown", () => {
     expect(lockedChoices(bytes.subarray(0, bytes.length - 1), 2)).toBeNull();
     expect(lockedChoices(bytes, 1)).toBeNull();
     expect(lockedChoices(choices(2, false), 2)).toBeNull();
+    const oneActive = bytes.slice(0, 7 + 50 + 18);
+    oneActive.fill(0, 57);
+    expect(lockedChoices(oneActive, 2, 1)).toHaveLength(2);
+    oneActive[58] = 1;
+    expect(lockedChoices(oneActive, 2, 1)).toBeNull();
     bytes[57] = 0;
     expect(lockedChoices(bytes, 2)).toBeNull();
   });

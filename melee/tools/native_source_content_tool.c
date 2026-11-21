@@ -61,7 +61,7 @@ int nativeSourceContentTool_Package(const char* cache,const char* path,const cha
 }
 int nativeSourceContentTool_Verify(const char* cache,const char* hex)
 {
-    NativeContentId id;NativeFighterPackage metadata;NativeFighterPackageData data;uint8_t* packet=NULL;size_t bytes=0;
+    NativeContentId id;NativeFighterPackage metadata;NativeFighterPackageData data={0};uint8_t* packet=NULL;size_t bytes=0;
     NativeSourcePackage* candidates=calloc(NATIVE_FIGHTER_FAMILY_MEMBERS,sizeof(*candidates));NativeScriptDiagnostic diagnostic={0};
     bool ok=candidates&&nativeContentStore_IdFromHex(hex,&id)&&nativeContentStore_Read(cache,&id,&packet,&bytes)&&
         nativeContentStore_ParseFighter(packet,bytes,&metadata,&data);
@@ -78,5 +78,5 @@ int nativeSourceContentTool_Verify(const char* cache,const char* hex)
     ok=ok&&released;
     if(ok)printf("Verified source package %s: %u members, %u bodies, %u imports.\n",hex,metadata.member_count,bodies,imports);
     else fprintf(stderr,"Source package member %u rejected at %u:%u: %s\n",failed_member,diagnostic.source.line,diagnostic.source.column,diagnostic.message);
-    free(packet);return ok?0:1;
+    nativeContentStore_ReleaseFighterData(&data);free(packet);return ok?0:1;
 }

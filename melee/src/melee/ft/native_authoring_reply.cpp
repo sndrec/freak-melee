@@ -30,10 +30,21 @@ bool validate_arguments(yyjson_val* input, yyjson_val* schema, std::string& erro
     if (type && !std::strcmp(type, "object") && yyjson_is_obj(input)) {
         size_t index, count; yyjson_val *key, *value;
         auto* properties = yyjson_obj_get(schema, "properties");
+        if (yyjson_obj_size(input) > yyjson_obj_size(properties)) {
+            error = "Too many fields in " + path; return false;
+        }
         yyjson_obj_foreach(input, index, count, key, value) {
             const char* name = yyjson_get_str(key);
-            auto* field = yyjson_obj_get(properties, name);
-            if (!field) { error = "Unknown field: " + path + "." + name; return false; }
+            size_t length = yyjson_get_len(key);
+            auto* field = yyjson_obj_getn(properties, name, length);
+            if (!field) {
+                error = length <= 128 && std::strlen(name) == length ?
+                    "Unknown field: " + path + "." + name : "Unknown field in " + path;
+                return false;
+            }
+            if (yyjson_obj_getn(input, name, length) != value) {
+                error = "Repeated field: " + path + "." + name; return false;
+            }
             if (!validate_arguments(value, field, error, path + "." + name)) return false;
         }
         yyjson_arr_foreach(yyjson_obj_get(schema, "required"), index, count, value) {

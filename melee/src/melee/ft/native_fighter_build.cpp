@@ -20,7 +20,7 @@ struct Packet {
     size_t size = 0;
     NativeFighterPackage metadata{};
     NativeFighterPackageData data{};
-    ~Packet() { std::free(bytes); }
+    ~Packet() { nativeContentStore_ReleaseFighterData(&data); std::free(bytes); }
     bool read(const char* root, const NativeContentId& expected, std::string& error) {
         NativeContentId actual{};
         return (root && nativeContentStore_Read(root, &expected, &bytes, &size) &&

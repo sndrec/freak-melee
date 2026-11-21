@@ -62,7 +62,7 @@ bool nativeFighterProject_ValidateAssets(const NativeFighterProject* p,
     if (!p) return error(message, capacity, "Asset validation needs a project.");
     AssetBytes bytes[CORE_COUNT]; assets(p, bytes);
     for (unsigned i = 0; i < CORE_COUNT; ++i)
-        if (!bytes[i].data || !bytes[i].size || bytes[i].size > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+        if (!bytes[i].data || !bytes[i].size || bytes[i].size > NATIVE_CONTENT_MAX_ASSET_BYTES)
             return error(message, capacity, "The draft has a missing or oversized asset.");
     NativeSourceAssetFacts facts;
     NativeScriptDiagnostic diagnostic = {0};
@@ -148,7 +148,7 @@ static bool read_saved(const char* path,unsigned asset,const char* suffix,bool o
     if(!file)return optional && errno==ENOENT;
     long length=0;
     bool ok=!fseek(file,0,SEEK_END) && (length=ftell(file))>=0 &&
-        (size_t)length<=NATIVE_CONTENT_MAX_PACKAGE_BYTES && !fseek(file,0,SEEK_SET);
+        (size_t)length<=NATIVE_CONTENT_MAX_ASSET_BYTES && !fseek(file,0,SEEK_SET);
     uint8_t* data=ok?malloc((size_t)length+1):NULL;
     ok=ok && data && fread(data,1,(size_t)length,file)==(size_t)length;
     if(fclose(file))ok=false;

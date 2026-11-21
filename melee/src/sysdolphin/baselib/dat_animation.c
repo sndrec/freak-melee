@@ -1,4 +1,74 @@
 #include "dat_import_internal.h"
+#include "native_fobj_stream.h"
+
+// Include repeated references in the work budget even when they share bytes.
+static bool inspect_track(HSD_DatImport* import, const HSD_FObjDesc* track, HSD_TrackFacts* facts)
+{
+    if (track->length > 64u * 1024 * 1024 - import->animation_stream_bytes) return false;
+    import->animation_stream_bytes += track->length;
+    return HSD_TrackInspect(track->ad, track->length, track->frac_value,
+                            track->frac_slope, 131072, facts) == HSD_TRACK_VALID;
+}
+
+bool HSD_DatBindTextureAnimation(HSD_DatImport* import, HSD_TexAnim* anim)
+{
+    if (!anim->aobjdesc) return true;
+    unsigned count = 0;
+    bool extend_images = false, extend_palettes = false, selects_images = false;
+    for (const HSD_FObjDesc* track = anim->aobjdesc->fobjdesc; track; track = track->next) {
+        if (++count > 256) return false;
+        if (track->type >= HSD_A_T_KONST_R && track->type <= HSD_A_T_TEV1_A)
+            anim->needs_tev = true;
+        bool palette = track->type == HSD_A_T_TCLT;
+        if (track->type != HSD_A_T_TIMG && !palette) continue;
+        // A texture without animated palettes ignores the palette channel.
+        if (palette && !anim->n_tluttbl) continue;
+        if (!palette) selects_images = true;
+        HSD_TrackFacts facts;
+        unsigned entries = palette ? anim->n_tluttbl : anim->n_imagetbl;
+        if (palette && entries > 255) entries = 255;
+        if (!inspect_track(import, track, &facts)) return false;
+        if (HSD_TrackFitsTable(&facts, entries, palette)) continue;
+        // Stock stage select holds an index equal to its table length on the
+        // final frame. Give that index a real entry holding the last image.
+        if (!entries || entries == UINT16_MAX ||
+            !HSD_TrackFitsTable(&facts, entries + 1, palette)) return false;
+        if (palette) extend_palettes = true;
+        else extend_images = true;
+    }
+    if (selects_images) {
+        u32 bytes = anim->n_imagetbl * 4u;
+        if (bytes > 64u * 1024 * 1024 - import->animation_stream_bytes) return false;
+        import->animation_stream_bytes += bytes;
+        for (unsigned i = 0; i < anim->n_imagetbl; ++i) {
+            const HSD_ImageDesc* image = anim->imagetbl[i];
+            if (image && (image->format == GX_TF_C4 || image->format == GX_TF_C8 ||
+                          image->format == GX_TF_C14X2)) {
+                anim->selects_indexed_images = true;
+                break;
+            }
+        }
+    }
+    if (extend_images) {
+        unsigned n = anim->n_imagetbl;
+        HSD_ImageDesc** table = HSD_DatImportAlloc(import, (n + 1) * sizeof(*table));
+        if (!table) return false;
+        memcpy(table, anim->imagetbl, n * sizeof(*table));
+        table[n] = table[n - 1];
+        anim->imagetbl = table;
+        ++anim->n_imagetbl;
+    }
+    if (extend_palettes) {
+        unsigned n = anim->n_tluttbl;
+        HSD_TlutDesc** table = HSD_DatImportAlloc(import, (n + 1) * sizeof(*table));
+        if (!table || !anim->tluttbl[n - 1]) return false;
+        memcpy(table, anim->tluttbl, n * sizeof(*table));
+        table[n] = table[n - 1];
+        anim->tluttbl = table;
+        ++anim->n_tluttbl;
+    }
+    return true;
+}
 
 void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
                                  const HSD_DatImportRecord* record)
@@ -93,8 +163,14 @@ void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
         HSD_DatReferenceKind kind;
         HSD_DatReadU32(dat, offset, &obj->flags);
         HSD_DatReadF32(dat, offset + 4, &obj->end_frame);
+        if (!isfinite(obj->end_frame) || obj->end_frame < 0) {
+            import->status = HSD_DAT_DESCRIPTOR;
+            import->error_offset = offset + 4;
+            break;
+        }
         obj->fobjdesc = HSD_DatImportReference(import, offset + 8, DAT_FOBJ, 1);
         kind = HSD_DatResolve(dat, offset + 12, &obj_id, &external);
+        obj->obj_id_is_joint = kind == HSD_DAT_REF_LOCAL;
         if (kind == HSD_DAT_REF_LOCAL) {
             obj->obj_id = (uintptr_t) HSD_DatImportObject(
                 import, obj_id, DAT_JOINT, 1);
@@ -122,6 +198,13 @@ void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
         // FObj's compressed stream has its own encoding (including little-endian
         // scalar values). Preserve it for the original interpreter, not DAT swap.
         obj->ad = HSD_DatImportBytes(import, offset + 16, obj->length);
+        HSD_TrackFacts facts;
+        if (import->status == HSD_DAT_OK &&
+            (!isfinite(obj->startframe) || obj->startframe <= -32769.0f || obj->startframe >= 32768.0f ||
+             !inspect_track(import, obj, &facts))) {
+            import->status = HSD_DAT_DESCRIPTOR;
+            import->error_offset = offset;
+        }
         break;
     }
     case DAT_IMAGE_TABLE:
@@ -130,6 +213,11 @@ void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
         u32 type = record->type == DAT_IMAGE_TABLE ? DAT_IMAGE : DAT_PALETTE;
         for (u32 i = 0; i < record->count && import->status == HSD_DAT_OK; ++i) {
             table[i] = HSD_DatImportReference(import, offset + i * 4, type, 1);
+            // The runtime uses the first null palette to end its owned list.
+            if (type == DAT_PALETTE && !table[i] && import->status == HSD_DAT_OK) {
+                import->status = HSD_DAT_DESCRIPTOR;
+                import->error_offset = offset + i * 4;
+            }
         }
         break;
     }

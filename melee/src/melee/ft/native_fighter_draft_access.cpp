@@ -15,16 +15,21 @@ bool fail(std::string& error, const std::string& text)
     error = text; return false;
 }
 
-bool acquire_directory(const char* path, NativeFighterDraftLease& lease, std::string& error)
+bool acquire_directory(const char* path, bool member_subdirectory,
+                       NativeFighterDraftLease& lease, std::string& error)
 {
     HANDLE directory = CreateFileA(path, FILE_READ_ATTRIBUTES,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
+            (member_subdirectory ? FILE_FLAG_OPEN_REPARSE_POINT : 0), nullptr);
     if (directory == INVALID_HANDLE_VALUE) return fail(error, "Could not identify draft directory.");
     BY_HANDLE_FILE_INFORMATION identity{};
     bool ok = GetFileInformationByHandle(directory, &identity) != 0;
     CloseHandle(directory);
     if (!ok) return fail(error, "Could not identify draft directory.");
+    if (!(identity.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+        (member_subdirectory && (identity.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)))
+        return fail(error, "A fighter's member directory must belong to its draft.");
     char name[128];
     std::snprintf(name, sizeof(name), "Local\\FreakMeleeDraft-%08lx-%08lx%08lx",
         identity.dwVolumeSerialNumber, identity.nFileIndexHigh, identity.nFileIndexLow);
@@ -51,7 +56,7 @@ bool ignored(const std::string& name)
 }
 
 bool files(const std::string& root, const std::string& relative,
-           std::vector<std::string>& result, unsigned depth, std::string& error)
+           std::vector<std::string>& result, unsigned depth, unsigned& remaining, std::string& error)
 {
     if (depth > 12 || result.size() > 8192) return fail(error, "Draft directory exceeds inspection limits.");
     WIN32_FIND_DATAA info{};
@@ -62,12 +67,16 @@ bool files(const std::string& root, const std::string& relative,
     bool ok = true;
     do {
         const std::string name = info.cFileName;
-        if (name == "." || name == ".." || ignored(name)) continue;
+        if (name == "." || name == "..") continue;
+        if (!remaining) { ok = fail(error, "Draft directory exceeds inspection limits."); break; }
+        --remaining;
+        if (ignored(name)) continue;
         if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
             ok = fail(error, "Reparse points inside a draft are not supported: " + name); break;
         }
         const std::string path = relative.empty() ? name : relative + "/" + name;
-        if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ok = files(root, path, result, depth + 1, error);
+        if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            ok = files(root, path, result, depth + 1, remaining, error);
         else if (result.size() < 8192) result.push_back(path);
         else ok = fail(error, "Draft directory exceeds inspection limits.");
         if (!ok) break;
@@ -97,9 +106,9 @@ extern "C" bool nativeFighterDraft_Acquire(const char* path, NativeFighterDraftL
         if (error && capacity) std::snprintf(error, capacity, "A lease needs a valid draft and an empty lease owner.");
         return false;
     }
-    if (ok) ok = acquire_directory(path, *lease, problem);
+    if (ok) ok = acquire_directory(path, false, *lease, problem);
     for (unsigned i = 0; ok && i < family.member_count; ++i)
-        ok = acquire_directory(family.paths[i], *lease, problem);
+        ok = acquire_directory(family.paths[i], i > 0, *lease, problem);
     // Recovery is part of opening an exclusive authoring session, before any
     // asset/source loads. A member opened directly overlaps its family's lease.
     for (unsigned i = 0; ok && i < family.member_count; ++i)
@@ -120,7 +129,8 @@ bool Lease::acquire(const char* path, std::string& error)
 bool revision(const std::string& root, std::string& hash, std::string& error)
 {
     std::vector<std::string> names;
-    if (!files(root, "", names, 0, error)) return false;
+    unsigned remaining = 16384;
+    if (!files(root, "", names, 0, remaining, error)) return false;
     std::sort(names.begin(), names.end());
     BCRYPT_ALG_HANDLE algorithm = nullptr;
     BCRYPT_HASH_HANDLE digest = nullptr;
@@ -131,9 +141,13 @@ bool revision(const std::string& root, std::string& hash, std::string& error)
     for (const auto& name : names) {
         if (!ok) break;
         HANDLE file = CreateFileA((root + "/" + name).c_str(), GENERIC_READ, FILE_SHARE_READ,
-            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
         LARGE_INTEGER size{};
-        ok = file != INVALID_HANDLE_VALUE && GetFileSizeEx(file, &size) && size.QuadPart >= 0;
+        BY_HANDLE_FILE_INFORMATION info{};
+        ok = file != INVALID_HANDLE_VALUE && GetFileType(file) == FILE_TYPE_DISK &&
+            GetFileInformationByHandle(file, &info) &&
+            !(info.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) &&
+            GetFileSizeEx(file, &size) && size.QuadPart >= 0;
         uint64_t length = (uint64_t)size.QuadPart;
         total += length;
         if (total > 1024ull * 1024 * 1024) ok = false;

@@ -17,6 +17,7 @@ enum {
     NATIVE_SIGNALING_COMMAND_CAPACITY = 16,
     NATIVE_SIGNALING_EVENT_CAPACITY = 16,
     NATIVE_SIGNALING_CHAT_CAPACITY = 128,
+    NATIVE_SIGNALING_MOTION_CAPACITY = 64,
     NATIVE_SIGNALING_ENDPOINT_BYTES = 512,
     NATIVE_SIGNALING_ROOM_ID_BYTES = 12,
 };
@@ -72,10 +73,25 @@ typedef struct NativeSignalingChatQueue {
     _Atomic bool overflow;
 } NativeSignalingChatQueue;
 
+typedef struct NativeSignalingMotion {
+    union {
+        NativeStageCursor stage;
+        NativeCssPointers css;
+    } data;
+    uint64_t received_ms;
+    bool is_stage;
+} NativeSignalingMotion;
+
+typedef struct NativeSignalingMotionQueue {
+    NativeSignalingMotion slots[NATIVE_SIGNALING_MOTION_CAPACITY];
+    _Atomic uint32_t read, write;
+} NativeSignalingMotionQueue;
+
 typedef struct NativeSignalingClient {
     NativeSignalingCommandQueue commands;
     NativeSignalingEventQueue events;
     NativeSignalingChatQueue chat;
+    NativeSignalingMotionQueue motion;
     uintptr_t thread_handle;
     uintptr_t wake_event;
     _Atomic bool stop_requested;
@@ -122,6 +138,8 @@ bool nativeSignalingClient_CssPointers(NativeSignalingClient* client,
 bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
                                        uint64_t epoch,
                                        uint8_t winners, uint8_t loser_port);
+bool nativeSignalingClient_StartLobbyMatch(NativeSignalingClient* client,
+                                          uint64_t epoch, const uint8_t digest[32]);
 bool nativeSignalingClient_PickLobbyStage(NativeSignalingClient* client,
                                           uint64_t epoch, uint8_t seat,
                                           uint8_t stage);
@@ -140,6 +158,7 @@ bool nativeSignalingClient_VoteQuickStage(NativeSignalingClient* client,
                                           uint64_t epoch, uint8_t seat, uint8_t stage);
 bool nativeSignalingClient_PostChat(NativeSignalingClient* client, uint32_t nonce, const char* text);
 bool nativeSignalingClient_PollChat(NativeSignalingClient* client, NativeRoomChatEvent* event);
+bool nativeSignalingClient_PollMotion(NativeSignalingClient* client, NativeSignalingMotion* motion);
 bool nativeSignalingClient_Poll(NativeSignalingClient* client,
                                 NativeSignalingClientEvent* event);
 bool nativeSignalingClient_IsRunning(const NativeSignalingClient* client);

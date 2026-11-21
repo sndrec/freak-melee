@@ -13,6 +13,7 @@
 #include "abi/abi/expected.inc"
 
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 static EF_QueuedEffect packets[16];static bool occupied[16],allocation_failure,generator_failure;
 static HSD_Generator generators[256];static HSD_psAppSRT app_srt[256];
 static HSD_GObjProc proc;static HSD_GObj* active_object;

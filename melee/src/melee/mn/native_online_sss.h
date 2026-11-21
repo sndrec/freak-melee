@@ -23,7 +23,7 @@ NativeOnlineSssAction nativeOnlineSss_Pump(SSSData* sss,
                                            bool stage_selected,
                                            uint8_t stage);
 void nativeOnlineSss_Reset(void);
-bool nativeOnlineSss_ReadCursor(float* x, float* y, uint8_t* tile);
+bool nativeOnlineSss_ReadCursor(float* x, float* y, uint8_t* tile, bool local_moved);
 void nativeOnlineSss_WriteCursor(float x, float y, uint8_t tile, bool moved);
 struct HSD_GObj;
 void nativeOnlineSss_DrawChooser(struct HSD_GObj* object, int pass);

@@ -46,7 +46,7 @@ static bool commands(const u32* words,u32 count,const u32* reloc,u32 reloc_count
             if(opcode>=10)break;
             if(opcode==3&&state.u->Command_03.value==0)break;
             CHECK(Command_Execute(&state,opcode));
-            CHECK(state.loop_count<=COMMAND_STACK_SIZE);
+            CHECK(state.loop_count<=ARRAY_SIZE(state.event_return));
         }
     }
     return okay;
@@ -91,7 +91,13 @@ static void flow_cases(void)
     const u32 loop1[]={3<<26|1,1<<26|1,4<<26,0};
     CHECK(commands(loop1,4,NULL,0,NULL,UINT32_MAX));
     const u32 loop0[]={3<<26,4<<26,0};
-    CHECK(commands(loop0,3,NULL,0,NULL,UINT32_MAX));
+    CHECK(!commands(loop0,3,NULL,0,NULL,UINT32_MAX-1));
+    const u32 timed_loop[]={3<<26,1<<26|1,4<<26,0};
+    CHECK(commands(timed_loop,4,NULL,0,NULL,UINT32_MAX));
+    u32 batch[]={3<<26|1022,4<<26,0};
+    CHECK(commands(batch,3,NULL,0,NULL,UINT32_MAX));
+    ++batch[0];
+    CHECK(!commands(batch,3,NULL,0,NULL,8));
     const u32 underflow[]={6<<26};CHECK(!commands(underflow,1,NULL,0,NULL,0));
     const u32 endloop[]={4<<26,0};CHECK(!commands(endloop,2,NULL,0,NULL,0));
     const u32 mismatch[]={3<<26|1,6<<26,0};CHECK(!commands(mismatch,3,NULL,0,NULL,4));
@@ -100,7 +106,7 @@ static void flow_cases(void)
     const u32 calls[]={5<<26,12,0,5<<26,24,6<<26,5<<26,36,6<<26,6<<26};
     const u32 rc[]={4,16,28};CHECK(commands(calls,10,rc,3,NULL,UINT32_MAX));
     const u32 jump[]={7<<26,8,7<<26,8}; const u32 rj[]={4,12};
-    CHECK(commands(jump,4,rj,2,NULL,UINT32_MAX));
+    CHECK(!commands(jump,4,rj,2,NULL,UINT32_MAX-1));
     const u32 nullcall[]={5<<26,0,0};CHECK(commands(nullcall,3,NULL,0,NULL,UINT32_MAX));
     // End may halt with a nonempty stack; this is not an underflow.
     const u32 halt[]={3<<26|2,0};CHECK(commands(halt,2,NULL,0,NULL,UINT32_MAX));

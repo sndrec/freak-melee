@@ -1625,6 +1625,74 @@ TEST_F(GXFifoTest, LoadTexObj_EncodesSdkBpBurstAndAuroraMetadata) {
   EXPECT_EQ(slot.texDataVersion, 1u);
 }
 
+TEST_F(GXFifoTest, TextureDataAfterRestoreUsesNewCacheRevisions) {
+  alignas(32) u8 original[64]{};
+  alignas(32) u8 predicted[64]{};
+  alignas(32) u8 corrected[64]{};
+  GXTexObj texture{};
+  GXTlutObj palette{};
+  GXInitTexObjCI(&texture, original, 8, 8, GX_TF_C4, GX_CLAMP, GX_CLAMP, GX_FALSE, GX_TLUT0);
+  GXInitTlutObj(&palette, original, GX_TL_RGB5A3, 16);
+  const GXTexObj savedTexture = texture;
+  const GXTlutObj savedPalette = palette;
+
+  GXInitTexObjData(&texture, predicted);
+  GXInitTlutObjData(&palette, predicted);
+  GXLoadTexObj(&texture, GX_TEXMAP0);
+  GXLoadTlut(&palette, GX_TLUT0);
+  auto predictedBytes = capture_fifo();
+  reset_gx_state();
+  decode_fifo(predictedBytes);
+  const auto predictedTexture = gxState().loadedTextures[GX_TEXMAP0];
+  const auto predictedPalette = gxState().loadedTluts[GX_TLUT0];
+
+  texture = savedTexture;
+  palette = savedPalette;
+  GXInitTexObjData(&texture, corrected);
+  GXInitTlutObjData(&palette, corrected);
+  GXLoadTexObj(&texture, GX_TEXMAP0);
+  GXLoadTlut(&palette, GX_TLUT0);
+  auto correctedBytes = capture_fifo();
+  reset_gx_state();
+  decode_fifo(correctedBytes);
+  const auto& correctedTexture = gxState().loadedTextures[GX_TEXMAP0];
+  const auto& correctedPalette = gxState().loadedTluts[GX_TLUT0];
+  EXPECT_EQ(correctedTexture.texObjId, predictedTexture.texObjId);
+  EXPECT_EQ(correctedPalette.tlutObjId, predictedPalette.tlutObjId);
+  EXPECT_NE(correctedTexture.texDataVersion, predictedTexture.texDataVersion);
+  EXPECT_NE(correctedPalette.tlutDataVersion, predictedPalette.tlutDataVersion);
+  EXPECT_EQ(correctedTexture.data, corrected);
+  EXPECT_EQ(correctedPalette.data, corrected);
+}
+
+TEST_F(GXFifoTest, TextureMipRangeAndSignedBias) {
+  alignas(32) u8 image[128]{};
+  GXTexObj texture{};
+  GXInitTexObj(&texture, image, 8, 8, GX_TF_I4, GX_CLAMP, GX_CLAMP, GX_TRUE);
+  auto load = [&] {
+    GXLoadTexObj(&texture, GX_TEXMAP0);
+    auto bytes = capture_fifo();
+    reset_gx_state();
+    decode_fifo(bytes);
+    return gxState().loadedTextures[GX_TEXMAP0];
+  };
+  auto full = load();
+  GXInitTexObjLOD(&texture, GX_LIN_MIP_LIN, GX_LINEAR, 0, 1, -1.5f, GX_FALSE, GX_FALSE, GX_ANISO_1);
+  auto reduced = load();
+  EXPECT_EQ(reduced.mip_count(), 2u);
+  EXPECT_FLOAT_EQ(reduced.lod_bias(), -1.5f);
+  EXPECT_NE(reduced.texDataVersion, full.texDataVersion);
+  GXInitTexObjLODBias(&texture, -0.5f);
+  GXInitTexObjMaxLOD(&texture, 1);
+  auto filtered = load();
+  EXPECT_FLOAT_EQ(filtered.lod_bias(), -0.5f);
+  EXPECT_EQ(filtered.texDataVersion, reduced.texDataVersion);
+  GXInitTexObjMaxLOD(&texture, 3);
+  auto restored = load();
+  EXPECT_EQ(restored.mip_count(), full.mip_count());
+  EXPECT_NE(restored.texDataVersion, reduced.texDataVersion);
+}
+
 TEST_F(GXFifoTest, LoadTexObjPcFormat_PreservesFullFormatMetadata) {
   alignas(32) u8 image[64]{};
   GXTexObj obj{};

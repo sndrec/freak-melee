@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 
 export const CHALLENGE_MS = 120_000;
 export const SESSION_MS = 30 * 24 * 60 * 60_000;
@@ -28,8 +29,8 @@ export function secretValue(value: unknown): string {
     throw new AccountError(400, "Invalid sign-in code.");
   return value;
 }
-export async function secretHash(value: string): Promise<string> {
-  return Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))).toString("base64url");
+export function secretHash(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("base64url");
 }
 export function equalHash(left: string, right: string): boolean {
   return crypto.subtle.timingSafeEqual(new TextEncoder().encode(left), new TextEncoder().encode(right));

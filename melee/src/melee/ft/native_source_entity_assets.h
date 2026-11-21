@@ -22,6 +22,6 @@ typedef struct NativeSourceEntityAssets {
 // advance when adding secondary descriptors. Failure discards that candidate;
 // it does not rewind import arenas or mutate a separately accepted package.
 bool nativeSourceEntityAssets_Prepare(NativeSourceEntityAssets*,NativeSourceImportedAssets*,
-    const NativeSourceAssetInput*,const NativeSourceResources*,const NativeScriptSourceTree*,NativeScriptDiagnostic*);
+    const NativeSourceResources*,const NativeScriptSourceTree*,NativeScriptDiagnostic*);
 void nativeSourceEntityAssets_Release(NativeSourceEntityAssets*);
 #endif

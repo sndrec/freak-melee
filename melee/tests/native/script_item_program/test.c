@@ -33,16 +33,18 @@ static bool provider(void* context,const NativeScriptProgramIndex* index,const N
 static void be32(uint8_t* bytes,uint32_t value){bytes[0]=(uint8_t)(value>>24);bytes[1]=(uint8_t)(value>>16);bytes[2]=(uint8_t)(value>>8);bytes[3]=(uint8_t)value;}
 static void dat_setup(void)
 {
+    static HSD_Dat archives[2];
     for(unsigned n=0;n<2;++n){dats[n]=VirtualAlloc(NULL,4096,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);CHECK(dats[n]);
         uint8_t* bytes=dats[n];be32(bytes,128);be32(bytes+4,80);be32(bytes+8,2);
         be32(bytes+32,32);be32(bytes+36,64);be32(bytes+112,0);be32(bytes+116,4);
         be32(bytes+64,n?UINT32_C(0x3f000000):UINT32_C(0x3fa00000));be32(bytes+68,(uint32_t)-123456);
         bytes[72]=1;bytes[73]=239;memcpy(original_dat[n],bytes,128);DWORD old;
         CHECK(VirtualProtect(bytes,4096,PAGE_READONLY,&old));
+        CHECK(HSD_DatOpen(&archives[n],bytes,128)==HSD_DAT_OK);
     }
     for(unsigned n=0;n<4;++n)articles[n]=(Article){.x0_common_attr=&attributes,.x10_modelDesc=&model,.xC_itemStates=&animations,.native_special_attribute_source=32};
-    assets[0]=(NativeScriptItemAsset){.declaration="SharedA",.kind=It_Kind_Mario_Fire,.article=&articles[0],.dat_bytes=dats[0],.dat_size=128};
-    assets[1]=(NativeScriptItemAsset){.declaration="SharedB",.kind=It_Kind_Mario_Fire,.article=&articles[1],.dat_bytes=dats[1],.dat_size=128};
+    assets[0]=(NativeScriptItemAsset){.declaration="SharedA",.kind=It_Kind_Mario_Fire,.article=&articles[0],.dat=&archives[0],.attribute_bytes=32};
+    assets[1]=(NativeScriptItemAsset){.declaration="SharedB",.kind=It_Kind_Mario_Fire,.article=&articles[1],.dat=&archives[1],.attribute_bytes=32};
     assets[2]=(NativeScriptItemAsset){.declaration="Snack",.kind=It_Kind_NativeHoldable,.article=&articles[2],.icon_path="icons/snack.png",.icon_png=png,.icon_bytes=sizeof(png)};
     assets[3]=(NativeScriptItemAsset){.declaration="Pear",.kind=It_Kind_NativeHoldable,.article=&articles[3]};
     metadata=(NativeScriptItemMetadataContext){.assets=assets,.asset_count=4};

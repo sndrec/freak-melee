@@ -33,6 +33,7 @@ enum {
     CLIENT_STAGE_CURSOR = 22,
     CLIENT_CHANGE_CARD = 23,
     CLIENT_CSS_POINTERS = 24,
+    CLIENT_START_LOBBY_MATCH = 25,
     SERVER_WELCOME = 0x81,
     SERVER_PRESENCE = 0x82,
     SERVER_SIGNAL = 0x83,
@@ -408,6 +409,15 @@ size_t nativeSignalingWire_EncodeReportMatch(uint64_t epoch,
         return 0;
     }
     return writer_finish(&writer);
+}
+
+size_t nativeSignalingWire_EncodeStartLobbyMatch(uint64_t epoch, const uint8_t digest[32],
+                                                uint8_t* output, size_t capacity)
+{
+    WireWriter writer;
+    return digest && writer_begin(&writer, output, capacity, CLIENT_START_LOBBY_MATCH) &&
+        writer_u64(&writer, epoch) && writer_bytes16(&writer, digest, 32)
+        ? writer_finish(&writer) : 0;
 }
 
 size_t nativeSignalingWire_EncodePickLobbyStage(uint64_t epoch, uint8_t seat,

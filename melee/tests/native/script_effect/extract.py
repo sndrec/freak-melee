@@ -40,6 +40,20 @@ def extract(root,out):
  for relative,names in [('src/melee/ft/native_script_binding_kinetics.c',['error','nativeScriptBindingKinetics_Read']),('src/melee/ft/native_script_binding_state.c',['nativeScriptBindingState_Read']),('src/melee/ft/native_script_binding_setup.c',['command_index','nativeScriptBindingSetup_Read'])]:
   path=root/relative;text=path.read_text();hashes[str(path)]=hashlib.sha256(path.read_bytes()).hexdigest();helpers.extend(spawn.body(text,n).replace('error(','effect_binding_error(') for n in names)
  parts.extend(helpers)
+ # Use the same disabled profiling and trace hooks as the other VM fixtures.
+ observers = root/'tests/native/script_graph_observers.c'
+ parts.append('#include <sysdolphin/baselib/native_callback_profile.h>\nbool nativeCallbackProfileEnabled;')
+ for name in ['nativeCallbackProfile_Begin','nativeCallbackProfile_End','nativeRandom_TraceEvent']:
+  parts.append(spawn.body(observers.read_text(),name))
+ matrix = root.parent/'aurora/lib/dolphin/mtx/mtx.c'
+ # Aurora's implementation accepts a const quaternion. Melee's SDK header
+ # declares the same ABI with a mutable pointer.
+ parts.append('#include <assert.h>\n' + spawn.body(matrix.read_text(),'C_MTXQuat')
+              .replace('const Quaternion* q','QuaternionPtr q'))
+ rotations = root/'src/sysdolphin/baselib/quatlib.c'
+ for name in ['HSD_QuatLib_8037EB28','EulerToQuat']:
+  parts.append(spawn.body(rotations.read_text(),name))
+ paths.extend([matrix, rotations, observers])
  (out/'actual_effect.inc').write_text('\n\n'.join(parts)+'\n')
  for path in paths+[root/'tests/native/script_item_spawn/spawn_leaves.h',Path(__file__).resolve()]:hashes[str(path)]=hashlib.sha256(path.read_bytes()).hexdigest()
  return hashes

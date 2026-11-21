@@ -3,6 +3,9 @@
 
 #include <dolphin/types.h>
 #include <sysdolphin/baselib/objalloc.h>
+#ifdef MELEE_NATIVE
+#include "native_effect_limits.h"
+#endif
 
 extern HSD_ObjAllocData efLib_AllocData;
 extern HSD_ObjAllocData efAsync_AllocData;

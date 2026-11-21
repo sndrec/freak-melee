@@ -4495,6 +4495,11 @@ bool mpCollGetSpeedFloor(CollData* coll, Vec3* speed)
 
 bool mpColl_IsOnPlatform(CollData* coll)
 {
+#ifdef MELEE_NATIVE
+    // A fighter can query the current floor while its collision probe is
+    // still airborne. The missing-floor sentinel never names a platform.
+    if (coll->floor.index == -1) return false;
+#endif
     return mpLineGetFlags(coll->floor.index) & LINE_FLAG_PLATFORM;
 }
 

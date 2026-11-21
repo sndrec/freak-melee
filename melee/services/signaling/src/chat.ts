@@ -8,9 +8,11 @@ export const CHAT_NAME_BYTES = 32;
 export const CHAT_TEXT_BYTES = 512;
 export const CHAT_PACKET_BYTES = 48 + CHAT_NAME_BYTES + CHAT_TEXT_BYTES + 2 + 43 + 24;
 export const CHAT_PLAYERS = 128;
+const CHAT_BURST = 32;
+const CHAT_MESSAGE_INTERVAL_MS = 125;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-interface ChatIdentity { peer: string; name: string; playerIdentity: string; account?: ConnectionAccount; lastMessageAt: number; uncertain: boolean }
+interface ChatIdentity { peer: string; name: string; playerIdentity: string; account?: ConnectionAccount; lastMessageAt: number; uncertain: boolean; messageBudgetMs?: number }
 function accountBytes(id: string, handle: string): Uint8Array {
   const bytes = new Uint8Array(2 + id.length + handle.length);
   bytes.set([id.length, handle.length]); bytes.set(encoder.encode(id), 2);
@@ -86,7 +88,7 @@ function countPacket(type: number, count: number): Uint8Array {
 }
 
 export class GlobalChat extends DurableObject<CloudflareBindings> {
-  private accountMessages = new Map<string, Promise<void>>();
+  private accountMessages = new WeakMap<WebSocket, { tail?: Promise<void>; pending: number }>();
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
     ctx.blockConcurrencyWhile(async () => {
@@ -103,11 +105,15 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
         ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN account_handle TEXT NOT NULL DEFAULT ''");
       ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS chat_accounts (peer TEXT PRIMARY KEY, account_id TEXT NOT NULL)");
       this.trimHistory();
+      const livePeers: string[] = [];
       for (const socket of ctx.getWebSockets()) {
         const identity = socket.deserializeAttachment() as ChatIdentity;
         if (!identity.playerIdentity || !Number.isFinite(identity.lastMessageAt) || typeof identity.uncertain !== "boolean")
           socket.close(4002, "Connection protocol updated; reconnect with the current client");
+        else if (socket.readyState === WebSocket.OPEN) livePeers.push(identity.peer);
       }
+      ctx.storage.sql.exec(`DELETE FROM chat_accounts WHERE peer NOT IN (SELECT peer FROM chat_messages)
+        AND peer NOT IN (SELECT value FROM json_each(?))`, JSON.stringify(livePeers));
     });
   }
 
@@ -122,13 +128,18 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     if (!identity) return new Response("Missing guest installation key", { status: 400 });
     const binding = this.ctx.storage.sql.exec<{ account_id: string }>("SELECT account_id FROM chat_accounts WHERE peer=?", peer).toArray()[0];
     if (binding && binding.account_id !== account?.profile.id) return new Response("This connection belongs to another account", { status: 403 });
+    const replacements: WebSocket[] = [];
+    let otherPlayers = 0;
     for (const old of this.ctx.getWebSockets()) {
+      if (old.readyState !== WebSocket.OPEN) continue;
       const attached = old.deserializeAttachment() as ChatIdentity;
       if (attached.peer === peer && attached.playerIdentity !== identity)
         return new Response("This connection belongs to another player", { status: 403 });
-      if (attached.playerIdentity === identity) old.close(4001, "Reconnected from another client");
+      if (attached.playerIdentity === identity) replacements.push(old);
+      else ++otherPlayers;
     }
-    if (this.connections().length >= CHAT_PLAYERS) {
+    // Keep the seat during heartbeat recovery, including when presence hides it.
+    if (otherPlayers >= CHAT_PLAYERS) {
       return new Response("Chatroom is full", { status: 503 });
     }
     const pair = new WebSocketPair();
@@ -136,6 +147,7 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
     pair[1].serializeAttachment({ peer, name: account?.profile.name ?? "Player", account,
       playerIdentity: identity, lastMessageAt: Date.now(), uncertain: false } satisfies ChatIdentity);
     this.ctx.acceptWebSocket(pair[1], [peer]);
+    for (const old of replacements) old.close(4001, "Reconnected from another client");
     const rows = this.ctx.storage.sql.exec<ChatRow>(
       "SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?", CHAT_HISTORY,
     ).toArray().reverse();
@@ -147,28 +159,44 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
   }
 
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    if (typeof message === "string" || !message.byteLength || message.byteLength > CHAT_PACKET_BYTES) {
+      socket.close(1008, "Invalid chat message");
+      return;
+    }
     const initial = socket.deserializeAttachment() as ChatIdentity;
-    let release: (() => void) | undefined, lane: Promise<void> | undefined;
-    if (initial.account) {
-      const previous = this.accountMessages.get(initial.peer);
-      lane = new Promise<void>(resolve => { release = resolve; });
-      this.accountMessages.set(initial.peer, lane);
-      if (previous) await previous;
+    const now = Date.now();
+    const budget = Math.max(now - (CHAT_BURST - 1) * CHAT_MESSAGE_INTERVAL_MS,
+      initial.messageBudgetMs ?? 0) + CHAT_MESSAGE_INTERVAL_MS;
+    const queue = initial.account ? this.accountMessages.get(socket) ?? { pending: 0 } : undefined;
+    if (budget > now + CHAT_MESSAGE_INTERVAL_MS || (queue && queue.pending >= CHAT_BURST)) {
+      socket.close(1008, "Too many chat messages");
+      return;
+    }
+    socket.serializeAttachment({ ...initial, lastMessageAt: now, messageBudgetMs: budget, uncertain: false });
+    if (initial.uncertain) this.presence();
+    const previousCommand = queue?.tail;
+    let release: (() => void) | undefined;
+    if (queue) {
+      queue.tail = new Promise<void>(resolve => { release = resolve; });
+      ++queue.pending;
+      this.accountMessages.set(socket, queue);
     }
     try {
+      if (previousCommand) await previousCommand;
       if (socket.readyState !== WebSocket.OPEN) return;
-      const identity = socket.deserializeAttachment() as ChatIdentity;
-      socket.serializeAttachment({ ...identity, lastMessageAt: Date.now(), uncertain: false });
-      if (identity.uncertain) this.presence();
+      let identity = socket.deserializeAttachment() as ChatIdentity;
       if (identity.account) {
         const profile = await currentConnectionAccount(identity.account, this.env);
         if (!profile) { socket.close(1008, "Account sign-in expired"); return; }
         if (socket.readyState !== WebSocket.OPEN) return;
-        identity.account.profile = profile;
-        socket.serializeAttachment({ ...identity, lastMessageAt: Date.now(), uncertain: false });
+        const latest = socket.deserializeAttachment() as ChatIdentity;
+        if (!latest.account || latest.account.session !== identity.account.session) return;
+        latest.account.profile = profile;
+        socket.serializeAttachment(latest);
+        identity = latest;
         this.identify(socket, profile.name);
       }
-      if (typeof message === "string" || message.byteLength > CHAT_PACKET_BYTES) throw new Error();
       const bytes = new Uint8Array(message);
       if (bytes.length === 1 && bytes[0] === 2) {
         this.send(socket, new Uint8Array([0x84]));
@@ -215,20 +243,32 @@ export class GlobalChat extends DurableObject<CloudflareBindings> {
       socket.close(1008, "Invalid chat message");
     } finally {
       release?.();
-      if (this.accountMessages.get(initial.peer) === lane) this.accountMessages.delete(initial.peer);
+      if (queue && !--queue.pending) this.accountMessages.delete(socket);
     }
   }
 
   private trimHistory(): void {
-    this.ctx.storage.sql.exec(
-      "DELETE FROM chat_messages WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT ?)",
+    const removed = this.ctx.storage.sql.exec<{ peer: string }>(
+      "DELETE FROM chat_messages WHERE id NOT IN (SELECT id FROM chat_messages ORDER BY id DESC LIMIT ?) RETURNING peer",
       CHAT_HISTORY,
-    );
+    ).toArray();
+    for (const row of removed) this.releaseUnusedPeer(row.peer);
   }
 
-  webSocketClose(): void { this.presence(); }
+  private releaseUnusedPeer(peer: string): void {
+    if (this.ctx.getWebSockets(peer).some(socket => socket.readyState === WebSocket.OPEN)) return;
+    this.ctx.storage.sql.exec(
+      "DELETE FROM chat_accounts WHERE peer=? AND NOT EXISTS (SELECT 1 FROM chat_messages WHERE peer=?)", peer, peer);
+  }
+
+  webSocketClose(socket: WebSocket): void {
+    socket.close(1000, "Chat connection closed");
+    this.releaseUnusedPeer((socket.deserializeAttachment() as ChatIdentity).peer);
+    this.presence();
+  }
   webSocketError(socket: WebSocket): void {
     socket.close(1011, "Chat connection failed");
+    this.releaseUnusedPeer((socket.deserializeAttachment() as ChatIdentity).peer);
     this.presence();
   }
 

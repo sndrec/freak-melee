@@ -483,14 +483,13 @@ bool nativeScriptItemMetadata_ImportParameters(const NativeScriptProgramIndex* i
         uint32_t written=0;
         for(uint32_t i=0;i<index->value_count;++i) {
             const NativeScriptValueDeclaration* field=&index->values[i];if(!field->owner || !field->imported)continue;
-            const NativeScriptItemAsset* binding=asset(context,index->tree,field->owner);HSD_Dat dat;NativeScriptValue value;
-            if(!binding || !binding->article || !binding->dat_bytes || !binding->dat_size ||
-                field->array || field->count!=1 || !field->parameter ||
-                HSD_DatOpen(&dat,binding->dat_bytes,binding->dat_size)!=HSD_DAT_OK)
+            const NativeScriptItemAsset* binding=asset(context,index->tree,field->owner);
+            NativeScriptValue value;
+            if(!binding || !binding->article || !binding->dat || !binding->attribute_bytes ||
+                field->array || field->count!=1 || !field->parameter)
                 return error(diagnostic,field->name,"Entity parameter lacks its owned original DAT source");
-            uint32_t begin=binding->article->native_special_attribute_source,end=HSD_DatNextTarget(&dat,begin);
-            if(!begin || end<begin || !HSD_DatBytes(&dat,begin,end-begin) ||
-                !nativeScriptMetadata_ReadAttribute(&dat,begin,end-begin,field,&value,diagnostic))return false;
+            uint32_t begin = binding->article->native_special_attribute_source;
+            if(!nativeScriptMetadata_ReadAttribute(binding->dat,begin,binding->attribute_bytes,field,&value,diagnostic))return false;
             if(pass)supplies[written]=(NativeScriptParameterSupply){NATIVE_SCRIPT_PARAMETER_SEMANTIC|i,field->owner,value};++written;
         }
         if(pass)*count=written;

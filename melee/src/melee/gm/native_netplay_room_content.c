@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { CONTENT_SEND_BURST = 8 };
+enum { CONTENT_SEND_BURST = 32 };
 
 static bool has_id(const NativeContentId* id)
 {
@@ -74,7 +74,7 @@ static bool locally_selected(const NativeNetplayRoom* room,
     return false;
 }
 
-void nativeNetplayRoom_ClearContent(NativeNetplayRoom* room)
+void nativeNetplayRoom_ClearContent(NativeNetplayRoom* room, bool keep_match_files)
 {
     if (room == NULL) {
         return;
@@ -86,6 +86,8 @@ void nativeNetplayRoom_ClearContent(NativeNetplayRoom* room)
         room->content_sends[i] = (NativeContentTransferSend){ 0 };
     }
     nativeContentTransfer_StopReceive(&room->content_receive);
+    if (!keep_match_files)
+        for (unsigned i = 0; i < 8; ++i) nativeContentStore_Unpin(&room->match_package_files[i]);
     room->needed_count = 0;
     room->needed_index = 0;
     room->content_prepared = false;
@@ -127,7 +129,9 @@ bool nativeNetplayRoom_PrepareContent(NativeNetplayRoom* room)
                 }
                 continue;
             }
-            if (nativeContentStore_IsCached(root, id)) {
+            unsigned slot = 2 * port + package;
+            if (room->match_package_files[slot] ||
+                nativeContentStore_Pin(root, id, &room->match_package_files[slot])) {
                 continue;
             }
             bool already_needed = false;
@@ -139,6 +143,7 @@ bool nativeNetplayRoom_PrepareContent(NativeNetplayRoom* room)
             }
             unsigned index = room->needed_count++;
             room->needed_content[index] = *id;
+            room->needed_file_slots[index] = (uint8_t)slot;
             memcpy(room->needed_sources[index], source,
                    strlen(source) + 1);
         }
@@ -196,7 +201,7 @@ bool nativeNetplayRoom_ContentPacket(
         size_t length = nativeContentTransfer_Missing(&id, packet);
         return nativeNetplayConnection_Send(&room->connection,
                                              datagram->peer_id, packet,
-                                             length) ||
+                                             length) != NativeNetplayIceSend_Failed ||
                content_fail(room, "Could not reject unavailable package.");
     }
     if (type == NativeContentTransferPacket_Ack) {
@@ -213,6 +218,8 @@ bool nativeNetplayRoom_ContentPacket(
                                              datagram->datagram.bytes,
                                              datagram->datagram.size,
                                              GetTickCount64());
+        nativeContentStore_UpdatePreview(room->content_receive.bytes,
+            room->content_receive.received, &room->content_receive.preview);
     }
     return true;
 }
@@ -232,11 +239,12 @@ bool nativeNetplayRoom_PumpContent(NativeNetplayRoom* room, bool* ready)
             if (length == 0) {
                 break;
             }
-            if (!nativeNetplayConnection_Send(&room->connection,
-                                               room->peers[i].peer_id,
-                                               packet, length)) {
+            NativeNetplayIceSend sent = nativeNetplayConnection_Send(
+                &room->connection, room->peers[i].peer_id, packet, length);
+            if (sent == NativeNetplayIceSend_Failed) {
                 return content_fail(room, "Could not send content data.");
             }
+            if (sent == NativeNetplayIceSend_Retry) break;
         }
     }
     if (room->needed_index < room->needed_count) {
@@ -252,22 +260,23 @@ bool nativeNetplayRoom_PumpContent(NativeNetplayRoom* room, bool* ready)
             nativeNetplayConnection_RemoteCount(&room->connection)) {
             size_t length =
                 nativeContentTransfer_NextReceive(receive, now, packet);
-            if (length != 0 &&
-                !nativeNetplayConnection_Send(
-                    &room->connection,
-                    room->needed_sources[room->needed_index], packet, length)) {
-                return content_fail(room, "Could not request selected content.");
+            if (length != 0) {
+                NativeNetplayIceSend sent = nativeNetplayConnection_Send(
+                    &room->connection, room->needed_sources[room->needed_index], packet, length);
+                if (sent == NativeNetplayIceSend_Failed)
+                    return content_fail(room, "Could not request selected content.");
+                if (sent == NativeNetplayIceSend_Retry) {
+                    receive->ack_pending = true;
+                    return true;
+                }
             }
         }
         if (receive->complete) {
             char default_path[512];
             const char* root = content_root(room, default_path);
-            NativeContentId cached;
-            if (root == NULL ||
-                !nativeContentStore_Cache(root, receive->bytes,
-                                          receive->size, &receive->id,
-                                          &cached) ||
-                !same_id(&cached, &receive->id)) {
+            unsigned slot = room->needed_file_slots[room->needed_index];
+            if (root == NULL || !nativeContentStore_CachePeer(root, receive->bytes,
+                receive->size, &receive->id, &room->match_package_files[slot])) {
                 return content_fail(room, "Received content failed verification.");
             }
             nativeContentTransfer_StopReceive(receive);
@@ -300,8 +309,7 @@ bool nativeNetplayRoom_ContentProgress(
             .package_count = room->needed_count,
             .direction = NativeNetplayContent_Receiving,
         };
-        nativeContentStore_ReadPreview(receive->bytes, receive->received,
-                                       &progress->preview);
+        progress->preview = receive->preview;
         return true;
     }
     for (unsigned i = 0; i < room->peer_count; ++i) {

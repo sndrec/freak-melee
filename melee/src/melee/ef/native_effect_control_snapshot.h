@@ -1,5 +1,6 @@
 #ifndef MELEE_EF_NATIVE_EFFECT_CONTROL_SNAPSHOT_H
 #define MELEE_EF_NATIVE_EFFECT_CONTROL_SNAPSHOT_H
+#include "native_effect_limits.h"
 #include "eflib.h"
 #include <melee/gm/native_match_pool.h>
 #include <sysdolphin/baselib/native_class_snapshot.h>
@@ -8,6 +9,7 @@ enum { EFFECT_ANIMATION_QUEUE=32, EFFECT_PARAMETER_SLOTS=8 };
 typedef struct NativeEffectControlSnapshot {
     uint64_t epoch;
     uint32_t load_kind, effect_count, allocation_serial;
+    EF_EffectUsage usage;
     int32_t animation_count;
     EF_ParamEntry parameters[EFFECT_PARAMETER_SLOTS];
     HSD_JObj* animations[EFFECT_ANIMATION_QUEUE];

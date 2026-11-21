@@ -30,11 +30,11 @@ joint graphs may share an archive table, but this operation accepts only graphs.
 part, parent part, insertion mode and source descriptor ordinal. These are asset
 facts, separate from editable move behavior and physical skeleton count.
 
-The descriptor ordinal selects one joint in preorder. The special value 255
-selects the root. Its child and sibling descriptors are excluded: this operation
-installs the selected **single reserved part**, rather than a whole accessory
-tree. Use [costume attachments](model_attachments.md#attachmentsloadslot-root-bone-visibility_entry-visibility_costume)
-for a separate multi-joint accessory tree.
+The descriptor ordinal selects one joint in preorder. The value 255 selects the
+root. The selected joint becomes a single reserved part. Its mesh and constraints
+must work independently. For example, if its vertices use weights from another
+donor bone, installation returns `false`. Use a costume attachment for an
+accessory that needs several bones. [Costume attachments](model_attachments.md#attachmentsloadslot-root-bone-visibility_entry-visibility_costume)
 
 ## Insertion and failure
 

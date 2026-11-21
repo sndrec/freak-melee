@@ -60,10 +60,14 @@ def finish_round(clients,players,losers,after_epoch=0):
     epoch,winner,_=map(int,reports[0])
     time.sleep(2)
     for index,c in enumerate(clients):
-        for _ in range(30):
-            for port in range(players[index]):c.tap('start',port=port)
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
             text=c.inspect('quick-play')
-            if f'completed={epoch}' in text and 'phase=3' in text:break
+            if f'completed={epoch}' in text and 'phase=3' in text and 'origin=' in c.inspect('stage-pick-0'):
+                break
+            if '[css-slot]' not in c.inspect('css-selection'):
+                for port in range(players[index]):
+                    c.tap('START', frames=4, port=port)
             time.sleep(.25)
         else:raise RuntimeError(f'{c.folder}: Results did not return to stage choice: {text}')
     return epoch,winner
@@ -134,7 +138,9 @@ def main():
                        launch_args=('--netplay-delay',args.delay))
             clients.append(c)
             if seats == 2:
-                c.command('hold', 1, 'sx=0'); c.click('nav-1'); c.click('local-players-2')
+                c.command('hold', 1, 'sx=0')
+                c.click('nav-6'); c.click('settings-category-4'); c.click('local-players-2')
+                c.click('controls-back'); c.click('settings-back')
             if args.split_party and index == 1:
                 c.click('nav-1'); c.enter('lobby-code', party_room); c.click('join-lobby')
                 c.wait_cards(4); c.click('lobby-ready')
@@ -150,11 +156,12 @@ def main():
             choose(c)
             if seats == 2:
                 choose(c, 1)
-            c.click('play-ready'); c.element('play-selection')
         for index in leaders:
             clients[index].click('play-queue')
         for c in clients:
             assignments.append(wait_quick(c, 2))
+        for c in clients:
+            c.tap('START', frames=5)
         assert all(initial['peer'] == assigned['peer'] for initial, assigned in zip(initials, assignments))
         losers = [i for i, assignment in enumerate(assignments) if assignment['team'] == assignments[0]['team']]
         winner = next(i for i in range(len(clients)) if i not in losers)
@@ -216,7 +223,7 @@ def main():
                 time.sleep(.1)
             else:
                 raise RuntimeError(f'{c.folder}: stage agreement did not complete: {text}')
-            c.click('play-ready'); c.element('play-selection')
+            c.tap('START', frames=5)
         second = [live_session(c, first[0][0]) for c in clients]
         assert all(session == second[0] for session in second)
         assert second[0][0] != first[0][0] and second[0][1] == first[0][1]
@@ -260,7 +267,7 @@ def main():
                 for seat in range(players[index]):clients[index].command('room-stage',seat,stage)
             for c in clients:
                 c.element('play-ready',timeout=60)
-                c.click('play-ready');c.element('play-selection')
+                c.tap('START', frames=5)
             third=[live_session(c,second[0][0]) for c in clients]
             assert all(session==third[0] for session in third)
             assert third[0][0]!=second[0][0] and third[0][1]==second[0][1]

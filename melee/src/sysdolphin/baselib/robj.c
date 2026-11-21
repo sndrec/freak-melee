@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "aobj.h"
+#include "bytecode.h"
 #include "class.h"
 #include "debug.h"
 #include "fobj.h"
@@ -16,6 +17,7 @@
 #include "object.h"
 #include "util.h"
 #ifdef MELEE_NATIVE
+#include "native_constraint.h"
 #include "native_robj_snapshot.h"
 #include "native_hsd_reservation.h"
 #include "native_objalloc_snapshot.h"
@@ -588,8 +590,9 @@ void HSD_RObjResolveRefs(HSD_RObj* robj, HSD_RObjDesc* desc)
             HSD_ASSERT(883, robj->u.jobj);
             HSD_JObjRefThis(robj->u.jobj);
             break;
-        case 0x0:
-            HSD_RvalueResolveRefsAll(robj->u.exp.rvalue, desc->u.exp->rvalue);
+        case REFTYPE_EXP:
+            HSD_RvalueResolveRefsAll(robj->u.exp.rvalue, robj->u.exp.is_bytecode
+                                     ? desc->u.bcexp->rvalue : desc->u.exp->rvalue);
             break;
         }
     }
@@ -695,8 +698,6 @@ void HSD_RObjFree(HSD_RObj* robj)
 
 static char HSD_RObj_80406F14[] = "(ptr && nitems) || !ptr";
 
-extern float HSD_ByteCodeEval(u8*, f32*, s32);
-
 static void expEvaluate(HSD_Exp* exp, u32 type, void* obj,
                         HSD_ObjUpdateFunc update_func)
 {
@@ -705,13 +706,19 @@ static void expEvaluate(HSD_Exp* exp, u32 type, void* obj,
     Vec3 scale;
     float temp_f31;
     float* cur_arg;
-    int cur_bit;
+    float* arguments;
+    u32 cur_bit;
     Vec3 sp2C;
     u8 _[4]; ///< @todo should HSD_ObjData be 4 bytes larger?
     HSD_ObjData sp1C;
     HSD_RObj* robj = (HSD_RObj*) obj;
 
 #ifdef MELEE_NATIVE
+    float nested_arguments[HSD_CONSTRAINT_ARGUMENTS];
+    // A nested matrix update may read this joint while its inputs are being
+    // sampled. Its last applied transform stays available to that reader.
+    if (exp->evaluating) return;
+    exp->evaluating = true;
     ++expression_depth;
 #endif
 
@@ -739,7 +746,12 @@ static void expEvaluate(HSD_Exp* exp, u32 type, void* obj,
             exp->nb_args, arg_buf_size);
         HSD_Panic(__FILE__, 0x45E, "");
     }
-    cur_arg = arg_buf;
+    arguments = arg_buf;
+#ifdef MELEE_NATIVE
+    // Reading a source joint can evaluate its own constraints.
+    if (expression_depth > 1) arguments = nested_arguments;
+#endif
+    cur_arg = arguments;
     temp_f31 = 57.29578F;
     for (rvalue = exp->rvalue; rvalue != NULL; rvalue = rvalue->next) {
         jobj = rvalue->jobj;
@@ -816,9 +828,9 @@ static void expEvaluate(HSD_Exp* exp, u32 type, void* obj,
         }
     }
     if (exp->is_bytecode) {
-        sp1C.fv = HSD_ByteCodeEval(exp->expr.bytecode, arg_buf, exp->nb_args);
+        sp1C.fv = HSD_ByteCodeEval(exp->expr.bytecode, arguments, exp->nb_args);
     } else {
-        sp1C.fv = exp->expr.func(arg_buf);
+        sp1C.fv = exp->expr.func(arguments);
     }
     if (type - 1 <= 2) {
         sp1C.fv = sp1C.fv * 0.017453292F;
@@ -826,6 +838,7 @@ static void expEvaluate(HSD_Exp* exp, u32 type, void* obj,
     update_func(obj, type, &sp1C);
 #ifdef MELEE_NATIVE
     --expression_depth;
+    exp->evaluating = false;
 #endif
 }
 

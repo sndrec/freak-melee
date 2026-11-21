@@ -13,6 +13,7 @@ import secrets
 import struct
 import subprocess
 import time
+import zlib
 
 from PIL import Image
 from review_native_css_room import Client
@@ -30,13 +31,24 @@ def digest(data):
 
 def package(path):
     data = path.read_bytes()
-    assert data[:5] == b'FMSC\0' and data[7] == 0
+    assert len(data) <= 12 * 1024 * 1024
+    assert data[:4] == b'FMSC' and data[4] in (0, 1) and data[7] == 0
     mode, count = data[5:7]
     assert (mode, count) in [(0, 1), (1, 2), (2, 2)]
     portrait_bytes = struct.unpack_from('<I', data, 8)[0]
     tile_bytes = int.from_bytes(data[12:16], 'little')
     assert tile_bytes < 64
-    at = 208 + portrait_bytes + tile_bytes
+    payload_start = 208 + portrait_bytes + tile_bytes
+    expanded_bytes = sum(sum(struct.unpack_from('<8I', data, 112 + member * 64))
+                         for member in range(count))
+    assert payload_start + expanded_bytes <= 32 * 1024 * 1024
+    payload = data[payload_start:]
+    if data[4] == 1:
+        decoder = zlib.decompressobj()
+        payload = decoder.decompress(payload, expanded_bytes + 1)
+        assert decoder.eof and not decoder.unused_data
+    assert len(payload) == expanded_bytes
+    at = 0
     members = []
     for member in range(count):
         row = 80 + member * 64
@@ -44,12 +56,12 @@ def package(path):
         sizes = struct.unpack_from('<8I', data, row+32)
         chunks = {}
         for name, size in zip(CHUNKS, sizes):
-            assert at + size <= len(data)
-            chunks[name] = data[at:at+size]
+            assert at + size <= len(payload)
+            chunks[name] = payload[at:at+size]
             at += size
         assert chunks['behavior.fms'] and chunks['assets.fma']
         members.append({'key': key, 'chunks': chunks})
-    assert at == len(data)
+    assert at == len(payload)
     return {'mode': mode, 'count': count, 'members': members,
             'title': data[16:80].split(b'\0', 1)[0].decode('utf-8'),
             'id': digest(data)}

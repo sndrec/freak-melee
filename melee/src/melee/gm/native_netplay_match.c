@@ -47,6 +47,8 @@ enum {
     NETPLAY_TICK_NS = 1000000000 / 60,
     NETPLAY_LEAD_DEAD_ZONE = 1000, // milliframes
     NETPLAY_MAX_PACE_DELAY_NS = 5000000,
+    NETPLAY_RESEND_INTERVAL_NS = 4000000,
+    NETPLAY_IDLE_RESEND_NS = 6000000,
 };
 
 static const uint64_t sudden_death_session_tag =
@@ -59,6 +61,7 @@ typedef struct NativeNetplayReplayBoundary {
 } NativeNetplayReplayBoundary;
 
 typedef struct NativeNetplayPeerQuality {
+    uint64_t sample_frame, arrival_ns, max_arrival_gap_ns, arrival_jitter_ns;
     uint64_t echoed_frame;
     uint64_t echo_ns;
     uint64_t min_echo_ns;
@@ -108,12 +111,14 @@ static struct NativeNetplayMatch {
     uint32_t compared_digest_count;
     uint64_t input_stall_ms;
     uint64_t next_sample_ns;
+    uint64_t last_input_send_ns;
     uint64_t pace_delay_ns;
     uint64_t sample_times[NATIVE_ROLLBACK_INPUT_CAPACITY];
     NativeNetplayPeerQuality peer_quality[4];
     uint32_t input_corrections;
     uint32_t deep_corrections;
     uint32_t late_samples;
+    uint32_t idle_resends;
     unsigned max_correction_depth;
     uint64_t max_sample_late_ns;
     int32_t peak_lead_milliframes;
@@ -155,21 +160,37 @@ static void fail(const char* reason)
 
 static bool receive_packets(void)
 {
+    if (nativeNetplayTimingEnabled) nativeNetplayTiming_Begin(NativeNetplayTiming_Receive);
     bool ok = netplay.room_transport
                ? nativeNetplayRoom_Receive(netplay.room, &netplay.inputs)
                : nativeNetplayUdp_Receive(&netplay.udp, &netplay.inputs);
+    if (nativeNetplayTimingEnabled) nativeNetplayTiming_End(NativeNetplayTiming_Receive);
     NativeNetplayExchange* exchange = netplay.exchange;
     if (!ok || !netplay.active || !exchange->has_newest_frame) return ok;
+    const uint64_t now = SDL_GetTicksNS();
     for (unsigned i = 0; i < 4; ++i) {
         const NativeNetplayExchangePeer* peer = &exchange->peers[i];
         NativeNetplayPeerQuality* quality = &netplay.peer_quality[i];
+        if (!peer->has_sample) continue;
+        if (quality->arrival_ns && quality->sample_frame >= 120 &&
+            peer->sample_frame > quality->sample_frame) {
+            uint64_t actual = now - quality->arrival_ns;
+            uint64_t nominal = (peer->sample_frame - quality->sample_frame) * NETPLAY_TICK_NS;
+            uint64_t deviation = actual > nominal ? actual - nominal : nominal - actual;
+            if (actual > quality->max_arrival_gap_ns) quality->max_arrival_gap_ns = actual;
+            quality->arrival_jitter_ns = (7 * quality->arrival_jitter_ns + deviation) / 8;
+        }
+        if (!quality->arrival_ns || peer->sample_frame > quality->sample_frame) {
+            quality->sample_frame = peer->sample_frame;
+            quality->arrival_ns = now;
+        }
         uint64_t echo = peer->echoed_frame;
-        if (!peer->has_sample || echo > exchange->newest_frame ||
+        if (echo > exchange->newest_frame ||
             exchange->newest_frame - echo >= NATIVE_ROLLBACK_INPUT_CAPACITY ||
             (quality->echo_ns && echo <= quality->echoed_frame)) continue;
         uint64_t sent = netplay.sample_times[echo % NATIVE_ROLLBACK_INPUT_CAPACITY];
         if (!sent) continue;
-        uint64_t elapsed = SDL_GetTicksNS() - sent;
+        uint64_t elapsed = now - sent;
         quality->echoed_frame = echo;
         if (!quality->min_echo_ns || elapsed < quality->min_echo_ns)
             quality->min_echo_ns = elapsed;
@@ -181,8 +202,43 @@ static bool receive_packets(void)
 
 static bool send_packets(void)
 {
-    return netplay.room_transport ? nativeNetplayRoom_Send(netplay.room)
-                                  : nativeNetplayUdp_Send(&netplay.udp);
+    netplay.last_input_send_ns = SDL_GetTicksNS();
+    if (nativeNetplayTimingEnabled) nativeNetplayTiming_Begin(NativeNetplayTiming_Send);
+    bool ok = netplay.room_transport ? nativeNetplayRoom_Send(netplay.room)
+                                     : nativeNetplayUdp_Send(&netplay.udp);
+    if (nativeNetplayTimingEnabled) nativeNetplayTiming_End(NativeNetplayTiming_Send);
+    return ok;
+}
+
+static bool resend_packets(void)
+{
+    return SDL_GetTicksNS() - netplay.last_input_send_ns < NETPLAY_RESEND_INTERVAL_NS ||
+           send_packets();
+}
+
+static bool wait_for_sample(uint64_t now)
+{
+    const uint64_t deadline = netplay.next_sample_ns;
+    const uint64_t retry = netplay.last_input_send_ns + NETPLAY_IDLE_RESEND_NS;
+    if (netplay.exchange->has_newest_frame && retry + NETPLAY_RESEND_INTERVAL_NS < deadline) {
+        if (now < retry) SDL_DelayPrecise(retry - now);
+        now = SDL_GetTicksNS();
+        if (now < deadline) {
+            if (!receive_packets()) return false;
+            const uint64_t newest = netplay.exchange->newest_frame + netplay.exchange->input_delay_frames;
+            for (unsigned i = 0; i < 4; ++i) {
+                const NativeNetplayExchangePeer* peer = &netplay.exchange->peers[i];
+                if (peer->configured && peer->acknowledged.boundary <= newest) {
+                    ++netplay.idle_resends;
+                    if (!send_packets()) return false;
+                    break;
+                }
+            }
+            now = SDL_GetTicksNS();
+        }
+    }
+    if (now < deadline) SDL_DelayPrecise(deadline - now);
+    return true;
 }
 
 static void schedule_next_sample(void)
@@ -199,8 +255,10 @@ static void schedule_next_sample(void)
     netplay.pace_delay_ns += delay;
 
     uint64_t now = SDL_GetTicksNS();
-    if (netplay.current_frame >= 120 && now > netplay.next_sample_ns) {
-        uint64_t late = now - netplay.next_sample_ns;
+    uint64_t sampled = netplay.sample_times[netplay.current_frame % NATIVE_ROLLBACK_INPUT_CAPACITY];
+    uint64_t late = sampled > netplay.next_sample_ns ? sampled - netplay.next_sample_ns : 0;
+    if (nativeNetplayTimingEnabled) nativeNetplayTiming_Sample(late, lead);
+    if (netplay.current_frame >= 120) {
         if (late >= 4000000) ++netplay.late_samples;
         if (late > netplay.max_sample_late_ns) netplay.max_sample_late_ns = late;
     }
@@ -295,10 +353,6 @@ static bool publish_confirmed_digests(void)
 
 static bool compare_peer_digests(void)
 {
-    if (netplay.exchange->checksum_overflow) {
-        fail("peer checksum history overflowed before comparison");
-        return false;
-    }
     // The newest confirmed remote input can schedule restoration after this
     // frame. Until that happens, local history still contains predicted state
     // and must not be compared with a peer's canonical checksum.
@@ -375,7 +429,7 @@ static bool wait_for_remote_inputs(uint64_t frame)
     uint64_t deadline = started + NETPLAY_INPUT_TIMEOUT_MS;
     ++netplay.input_stall_count;
     do {
-        if (!receive_packets() || !send_packets()) {
+        if (!receive_packets() || !resend_packets()) {
             fail("input exchange failed while waiting for a peer");
             return false;
         }
@@ -411,16 +465,15 @@ static void filter_inputs(PADStatus pads[4])
             }
             memcpy(pads, local, sizeof(local));
         }
-        if (!receive_packets() ||
-            !nativeNetplayExchange_RecordLocal(netplay.exchange,
+        netplay.sample_times[netplay.current_frame % NATIVE_ROLLBACK_INPUT_CAPACITY] =
+            SDL_GetTicksNS();
+        if (!nativeNetplayExchange_RecordLocal(netplay.exchange,
                                                netplay.current_frame, pads) ||
-            !publish_confirmed_digests() || !send_packets())
+            !send_packets() || !receive_packets() || !publish_confirmed_digests())
         {
             fail("netplay input exchange failed");
             return;
         }
-        netplay.sample_times[netplay.current_frame % NATIVE_ROLLBACK_INPUT_CAPACITY] =
-            SDL_GetTicksNS();
         if (!nativeNetplayExchange_GetLocal(netplay.exchange,
                                             netplay.current_frame, pads)) {
             fail("local input buffer is missing a frame");
@@ -432,6 +485,15 @@ static void filter_inputs(PADStatus pads[4])
         }
         if (!compare_peer_digests()) {
             return;
+        }
+        if (netplay.room_transport) {
+            if (nativeNetplayTimingEnabled) nativeNetplayTiming_Begin(NativeNetplayTiming_RoomTransfers);
+            bool ok = nativeNetplayRoom_PumpAuxiliary(netplay.room);
+            if (nativeNetplayTimingEnabled) nativeNetplayTiming_End(NativeNetplayTiming_RoomTransfers);
+            if (!ok) {
+                fail("could not service lobby transfers");
+                return;
+            }
         }
     }
     PADStatus resolved[4];
@@ -639,9 +701,11 @@ bool nativeNetplayMatch_Init(void)
     netplay.input_corrections = netplay.deep_corrections = 0;
     netplay.max_correction_depth = 0;
     netplay.late_samples = 0;
+    netplay.idle_resends = 0;
     netplay.max_sample_late_ns = 0;
     netplay.paced = !nativeMatchLaunch_Fast();
     netplay.next_sample_ns = 0;
+    netplay.last_input_send_ns = 0;
     netplay.pace_delay_ns = 0;
     netplay.peak_lead_milliframes = 0;
     nativeCallbackProfile_Init();
@@ -755,11 +819,12 @@ static void report_match_quality(FILE* stream)
             audio.reused_starts, audio.new_starts, audio.canceled_starts, audio.protected_stops);
     fprintf(stream, "[netplay-quality] buffer=%u input_corrections=%u "
                     "depth_4_or_more=%u max_depth=%u checkpoint_refreshes=%u "
-                    "late_samples_over_4ms=%u max_sample_late_ms=%.1f\n",
+                    "late_samples_over_4ms=%u max_sample_late_ms=%.1f idle_resends=%u send_backpressure=%u\n",
             netplay.exchange->input_delay_frames, netplay.input_corrections,
             netplay.deep_corrections, netplay.max_correction_depth,
             netplay.correction_count - netplay.input_corrections,
-            netplay.late_samples, netplay.max_sample_late_ns / 1e6);
+            netplay.late_samples, netplay.max_sample_late_ns / 1e6, netplay.idle_resends,
+            netplay.exchange->send_backpressure);
     for (unsigned i = 0; i < 4; ++i) {
         if (!netplay.exchange->peers[i].configured) continue;
         const char* route = netplay.room_transport ? "unknown" : "direct";
@@ -781,9 +846,9 @@ static void report_match_quality(FILE* stream)
         }
         const NativeNetplayPeerQuality* quality = &netplay.peer_quality[i];
         fprintf(stream, "[netplay-route] peer=%u route=%s input_echo_ms=%.1f "
-                        "min_echo_ms=%.1f ice_queue_drops=%u\n",
+                        "min_echo_ms=%.1f ice_queue_drops=%u arrival_jitter_ms=%.1f max_arrival_gap_ms=%.1f\n",
                 i, route, quality->echo_ns / 1e6, quality->min_echo_ns / 1e6,
-                dropped);
+                dropped, quality->arrival_jitter_ns / 1e6, quality->max_arrival_gap_ns / 1e6);
     }
 }
 
@@ -1105,8 +1170,12 @@ bool nativeNetplayMatch_BeginFrame(uint64_t* frame)
         uint64_t now = netplay.paced ? SDL_GetTicksNS() : 0;
         if (netplay.paced && now < netplay.next_sample_ns) {
             if (nativeNetplayTimingEnabled) nativeNetplayTiming_Begin(NativeNetplayTiming_InputWait);
-            SDL_DelayPrecise(netplay.next_sample_ns - now);
+            bool ready = wait_for_sample(now);
             if (nativeNetplayTimingEnabled) nativeNetplayTiming_End(NativeNetplayTiming_InputWait);
+            if (!ready) {
+                fail("input exchange failed before the next sample");
+                return false;
+            }
         }
         // A reconstruction has already reconciled the current packet batch.
         // Give the normal tick its turn before starting another reconstruction.
@@ -1117,7 +1186,7 @@ bool nativeNetplayMatch_BeginFrame(uint64_t* frame)
         uint64_t started=GetTickCount64();bool stalled=false;
         while (!nativeConfirmedCheckpoint_CanAdvance(&netplay.checkpoint,nativeGObjPool.lifetime)) {
             if (!stalled) {++netplay.input_stall_count;stalled=true;}
-            if (!receive_packets() || !send_packets() ||
+            if (!receive_packets() || !resend_packets() ||
                 reconcile_inputs(frame)==NativeConfirmedCheckpoint_Failed) return false;
             if (GetTickCount64()-started>=NETPLAY_INPUT_TIMEOUT_MS) {
                 fail("confirmed checkpoint input window timed out");return false;
@@ -1269,7 +1338,7 @@ NativeConfirmedCheckpointStep nativeNetplayMatch_EndFrame(uint64_t frame,uint64_
                 fail("match-end inputs no longer retained");return NativeConfirmedCheckpoint_Failed;
             }
             if (confirmed==netplay.checkpoint.cursor) break;
-            if (!receive_packets() || !send_packets()) {
+            if (!receive_packets() || !resend_packets()) {
                 netplay.exchange->artificial_delay_frames=delay;
                 fail("match-end input exchange failed");return NativeConfirmedCheckpoint_Failed;
             }

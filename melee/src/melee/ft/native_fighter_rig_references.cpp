@@ -106,7 +106,7 @@ extern "C" bool nativeFighterRig_RemapReferences(const NativeFighterProject* pro
 {
     auto fail=[&](const char* message){if(error&&capacity)std::snprintf(error,capacity,"%s",message);return false;};
     if(!project||!map||!output||output->fighter||output->fighter_size||!project->fighter_dat||
-       project->fighter_size>NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+       project->fighter_size>NATIVE_CONTENT_MAX_ASSET_BYTES)
         return fail("Bone reference editing needs a project, part map and empty output.");
     bool used[MAX_FT_PARTS]={};
     for(unsigned n=0;n<MAX_FT_PARTS;++n)if(map[n]!=UINT16_MAX){

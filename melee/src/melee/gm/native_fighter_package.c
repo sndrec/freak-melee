@@ -4,10 +4,13 @@
 #ifdef MELEE_NATIVE
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <zlib.h>
 
 enum { FAMILY_HEADER = 80, MEMBER_DIRECTORY = 64, MEMBER_CHUNKS = 8,
-       FAMILY_PAYLOAD = FAMILY_HEADER + NATIVE_FIGHTER_FAMILY_MEMBERS * MEMBER_DIRECTORY };
+       FAMILY_PAYLOAD = FAMILY_HEADER + NATIVE_FIGHTER_FAMILY_MEMBERS * MEMBER_DIRECTORY,
+       FAMILY_STORED = 0, FAMILY_DEFLATE = 1, PORTRAIT_MAX_BYTES = 1024 * 1024 };
 
 static uint32_t read_u32(const uint8_t* p)
 {
@@ -54,16 +57,42 @@ static uint32_t read_be_u32(const uint8_t* p)
 
 bool nativeContent_ValidFighterPortrait(const uint8_t* p, size_t size)
 {
-    static const uint8_t png_magic[8] = {137, 'P', 'N', 'G', 13, 10, 26, 10};
-    if (p == NULL || size < 45 || size > 1024 * 1024 ||
-        memcmp(p, png_magic, 8) != 0 || read_be_u32(p + 8) != 13 ||
-        memcmp(p + 12, "IHDR", 4) != 0) return false;
-    uint32_t width = read_be_u32(p + 16), height = read_be_u32(p + 20);
-    return read_be_u32(p + size - 12) == 0 &&
-        memcmp(p + size - 8, "IEND", 4) == 0 &&
-        width >= 16 && width <= 512 && height >= 16 && height <= 512 &&
-        p[24] == 8 && (p[25] == 2 || p[25] == 6) &&
-        p[26] == 0 && p[27] == 0 && p[28] == 0;
+    uint16_t width, height;
+    if (!nativePng_Inspect(p, size, PORTRAIT_MAX_BYTES, &width, &height) ||
+        width < 16 || width > 512 || height < 16 || height > 512 ||
+        p[24] != 8 || (p[25] != 2 && p[25] != 6) || p[28] != 0) return false;
+
+    // Each noninterlaced row starts with one filter byte. One spare output
+    // byte lets inflate finish reading the trailer at the exact size limit.
+    size_t stride = 1 + width * (p[25] == 2 ? 3u : 4u);
+    size_t expected = stride * height;
+    uint8_t* rows = malloc(expected + 1);
+    if (!rows) return false;
+    z_stream stream = {0};
+    bool valid = false;
+    if (inflateInit(&stream) == Z_OK) {
+        stream.next_out = rows;
+        stream.avail_out = (uInt)expected + 1;
+        int status = Z_OK;
+        for (size_t at = 8; at < size; ) {
+            uInt n = read_be_u32(p + at);
+            if (n && !memcmp(p + at + 4, "IDAT", 4)) {
+                if (status == Z_STREAM_END) { status = Z_DATA_ERROR; break; }
+                stream.next_in = (Bytef*)(p + at + 8);
+                stream.avail_in = n;
+                status = inflate(&stream, Z_NO_FLUSH);
+                if ((status != Z_OK && status != Z_STREAM_END) ||
+                    stream.avail_in || !stream.avail_out) { status = Z_DATA_ERROR; break; }
+            }
+            at += 12u + n;
+        }
+        valid = status == Z_STREAM_END && stream.total_out == expected;
+        for (size_t row = 0; valid && row < expected; row += stride)
+            valid = rows[row] <= 4;
+        inflateEnd(&stream);
+    }
+    free(rows);
+    return valid;
 }
 
 static void chunks(const NativeFighterMemberData* member,
@@ -95,30 +124,37 @@ static bool valid_sizes(const size_t sizes[MEMBER_CHUNKS])
 static bool read_family_title(const uint8_t* bytes, size_t size, char* title)
 {
     if (!bytes || size < FAMILY_HEADER || memcmp(bytes, "FMSC", 4) != 0 ||
-        bytes[4] != 0 || bytes[7] != 0 || !valid_mode(bytes[5], bytes[6])) return false;
+        bytes[4] > FAMILY_DEFLATE || bytes[7] != 0 || !valid_mode(bytes[5], bytes[6])) return false;
     size_t length = strnlen((const char*)bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
     if (!length || length == NATIVE_CONTENT_TITLE_BYTES ||
         !zeros(bytes + 16 + length, NATIVE_CONTENT_TITLE_BYTES - length)) return false;
+    for (size_t i = 0; i < length; ++i)
+        if (bytes[16+i] < 32 || bytes[16+i] == 127) return false;
     memcpy(title, bytes + 16, NATIVE_CONTENT_TITLE_BYTES);
     return true;
 }
 
-bool nativeContentStore_ReadPreview(const void* prefix, size_t received,
-                                    NativeContentPreview* preview)
+void nativeContentStore_UpdatePreview(const void* prefix, size_t received,
+                                      NativeContentPreview* preview)
 {
-    if (!preview) return false;
-    *preview = (NativeContentPreview){0};
+    if (!preview || !prefix || preview->next_prefix == SIZE_MAX ||
+        received < FAMILY_HEADER || received < preview->next_prefix) return;
     const uint8_t* bytes = prefix;
-    if (read_family_title(bytes, received, preview->title)) {
-        const size_t portrait_size = read_u32(bytes + 8);
-        if (received >= FAMILY_PAYLOAD && portrait_size <= received - FAMILY_PAYLOAD &&
-            nativeContent_ValidFighterPortrait(bytes + FAMILY_PAYLOAD, portrait_size)) {
-            preview->portrait_png = bytes + FAMILY_PAYLOAD;
-            preview->portrait_size = portrait_size;
+    if (!preview->next_prefix) {
+        if (!read_family_title(bytes, received, preview->title)) {
+            preview->next_prefix = SIZE_MAX;
+            return;
         }
-        return true;
+        size_t size = read_u32(bytes + 8);
+        preview->next_prefix = size && size <= PORTRAIT_MAX_BYTES ? FAMILY_PAYLOAD + size : SIZE_MAX;
+        if (received < preview->next_prefix) return;
     }
-    return false;
+    size_t size = preview->next_prefix - FAMILY_PAYLOAD;
+    preview->next_prefix = SIZE_MAX;
+    if (nativeContent_ValidFighterPortrait(bytes + FAMILY_PAYLOAD, size)) {
+        preview->portrait_png = bytes + FAMILY_PAYLOAD;
+        preview->portrait_size = size;
+    }
 }
 
 bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
@@ -132,6 +168,8 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
         !nativeContent_ValidFighterPortrait(data->portrait_png, data->portrait_size)) return false;
     size_t title_size = strnlen(fighter->title, NATIVE_CONTENT_TITLE_BYTES);
     if (title_size == 0 || title_size == NATIVE_CONTENT_TITLE_BYTES) return false;
+    for (size_t i = 0; i < title_size; ++i)
+        if ((uint8_t)fighter->title[i] < 32 || fighter->title[i] == 127) return false;
     size_t tile_size = strnlen(fighter->tile_name, NATIVE_CONTENT_TITLE_BYTES);
     if (tile_size == NATIVE_CONTENT_TITLE_BYTES) return false;
     for (size_t i = 0; i < tile_size; ++i)
@@ -139,11 +177,8 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
     const uint8_t* pointers[NATIVE_FIGHTER_FAMILY_MEMBERS][MEMBER_CHUNKS];
     size_t sizes[NATIVE_FIGHTER_FAMILY_MEMBERS][MEMBER_CHUNKS];
     size_t key_sizes[NATIVE_FIGHTER_FAMILY_MEMBERS] = {0};
-    size_t remaining = NATIVE_CONTENT_MAX_PACKAGE_BYTES - FAMILY_PAYLOAD;
-    if (data->portrait_size > remaining) return false;
-    remaining -= data->portrait_size;
-    if (tile_size > remaining) return false;
-    remaining -= tile_size;
+    const size_t prefix = FAMILY_PAYLOAD + data->portrait_size + tile_size;
+    size_t payload_size = 0;
     for (unsigned m = 0; m < NATIVE_FIGHTER_FAMILY_MEMBERS; ++m) {
         chunks(&data->members[m], pointers[m], sizes[m]);
         const NativeFighterPackageMember* member = &fighter->members[m];
@@ -159,9 +194,12 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
             (m == 1 && strcmp(member->key, fighter->members[0].key) == 0))
             return false;
         for (unsigned c = 0; c < MEMBER_CHUNKS; ++c) {
-            if (sizes[m][c] > remaining ||
-                (sizes[m][c] != 0 && pointers[m][c] == NULL)) return false;
-            remaining -= sizes[m][c];
+            if (sizes[m][c] > NATIVE_FIGHTER_MAX_EXPANDED_BYTES - prefix - payload_size) {
+                fprintf(stderr, "Fighter package exceeds the 32 MiB uncompressed limit.\n");
+                return false;
+            }
+            if (sizes[m][c] != 0 && pointers[m][c] == NULL) return false;
+            payload_size += sizes[m][c];
         }
         NativeSourceAssetFacts facts;NativeScriptDiagnostic diagnostic;
         NativeSourceResources resources;
@@ -169,11 +207,18 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
            !nativeSourceAssets_Read(pointers[m][3],sizes[m][3],&facts,&diagnostic)||
            memchr(pointers[m][4],0,sizes[m][4])||(sizes[m][5]&&memchr(pointers[m][5],0,sizes[m][5])))return false;
     }
-    size_t total = NATIVE_CONTENT_MAX_PACKAGE_BYTES - remaining;
-    uint8_t* built = malloc(total);
-    if (built == NULL) return false;
+    size_t total = prefix + payload_size;
+    const bool compressed = total > NATIVE_CONTENT_MAX_PACKAGE_BYTES;
+    uint8_t* built = malloc(compressed ? NATIVE_CONTENT_MAX_PACKAGE_BYTES : total);
+    uint8_t* payload = compressed ? malloc(payload_size) : NULL;
+    if (!built || (compressed && !payload)) {
+        free(payload);
+        free(built);
+        return false;
+    }
     memset(built, 0, FAMILY_PAYLOAD);
     memcpy(built, "FMSC", 4);
+    built[4] = compressed ? FAMILY_DEFLATE : FAMILY_STORED;
     built[5] = (uint8_t)fighter->mode;
     built[6] = fighter->member_count;
     write_u32(built + 8, (uint32_t)data->portrait_size);
@@ -183,7 +228,7 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
     memcpy(output, data->portrait_png, data->portrait_size);
     output += data->portrait_size;
     memcpy(output, fighter->tile_name, tile_size);
-    output += tile_size;
+    output = compressed ? payload : built + prefix;
     for (unsigned m = 0; m < fighter->member_count; ++m) {
         uint8_t* directory = built + FAMILY_HEADER + m * MEMBER_DIRECTORY;
         memcpy(directory, fighter->members[m].key, key_sizes[m]);
@@ -192,6 +237,19 @@ bool nativeContentStore_BuildFighter(const NativeFighterPackage* fighter,
             if (sizes[m][c] != 0) memcpy(output, pointers[m][c], sizes[m][c]);
             output += sizes[m][c];
         }
+    }
+    if (compressed) {
+        uLongf capacity = NATIVE_CONTENT_MAX_PACKAGE_BYTES - prefix;
+        const int status = compress2(built + prefix, &capacity, payload, (uLong)payload_size,
+                                     Z_DEFAULT_COMPRESSION);
+        free(payload);
+        if (status != Z_OK) {
+            free(built);
+            if (status == Z_BUF_ERROR)
+                fprintf(stderr, "Fighter package exceeds the 12 MiB limit after lossless compression.\n");
+            return false;
+        }
+        total = prefix + capacity;
     }
     if (!nativeContent_Hash(built, total, id)) { free(built); return false; }
     *package = built;
@@ -203,7 +261,7 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
                                     NativeFighterPackage* fighter,
                                     NativeFighterPackageData* data)
 {
-    if (fighter == NULL || data == NULL) return false;
+    if (fighter == NULL) return false;
     if (package == NULL || package_size < FAMILY_PAYLOAD ||
         package_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES) return false;
     const uint8_t* bytes = package;
@@ -225,6 +283,9 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
         if (cursor[i] < 32 || cursor[i] == 127) return false;
     memcpy(parsed.tile_name, cursor, tile_size);
     cursor += tile_size; remaining -= tile_size;
+    const size_t prefix = package_size - remaining;
+    size_t sizes[NATIVE_FIGHTER_FAMILY_MEMBERS][MEMBER_CHUNKS];
+    size_t payload_size = 0;
     for (unsigned m = 0; m < NATIVE_FIGHTER_FAMILY_MEMBERS; ++m) {
         const uint8_t* directory = bytes + FAMILY_HEADER + m * MEMBER_DIRECTORY;
         if (m >= parsed.member_count) {
@@ -237,37 +298,65 @@ bool nativeContentStore_ParseFighter(const void* package, size_t package_size,
         memcpy(parsed.members[m].key, directory, key_size);
         if (m == 1 && strcmp(parsed.members[0].key, parsed.members[1].key) == 0)
             return false;
-        size_t sizes[MEMBER_CHUNKS];
-        const uint8_t* pointers[MEMBER_CHUNKS];
         for (unsigned c = 0; c < MEMBER_CHUNKS; ++c)
-            sizes[c] = read_u32(directory + 32 + c * 4);
-        if (!valid_sizes(sizes)) return false;
+            sizes[m][c] = read_u32(directory + 32 + c * 4);
+        if (!valid_sizes(sizes[m])) return false;
         for (unsigned c = 0; c < MEMBER_CHUNKS; ++c) {
-            if (sizes[c] > remaining) return false;
-            pointers[c] = sizes[c] != 0 ? cursor : NULL;
-            cursor += sizes[c];
-            remaining -= sizes[c];
+            if (sizes[m][c] > NATIVE_FIGHTER_MAX_EXPANDED_BYTES - prefix - payload_size) return false;
+            payload_size += sizes[m][c];
+        }
+    }
+    if (bytes[4] == FAMILY_DEFLATE) {
+        // Both bounds come from the validated directory and file size. Check
+        // exact consumption so an otherwise valid stream cannot hide a suffix.
+        uLongf expanded = (uLongf)payload_size;
+        uLong encoded = (uLong)remaining;
+        spans.expanded_payload = malloc(payload_size);
+        if (!spans.expanded_payload) return false;
+        if (uncompress2(spans.expanded_payload, &expanded, cursor, &encoded) != Z_OK ||
+            expanded != payload_size || encoded != remaining) goto invalid;
+        cursor = spans.expanded_payload;
+    } else if (remaining != payload_size) {
+        return false;
+    }
+    for (unsigned m = 0; m < parsed.member_count; ++m) {
+        const size_t* size = sizes[m];
+        const uint8_t* pointers[MEMBER_CHUNKS];
+        for (unsigned c = 0; c < MEMBER_CHUNKS; ++c) {
+            pointers[c] = size[c] ? cursor : NULL;
+            cursor += size[c];
         }
         spans.members[m] = (NativeFighterMemberData){
-            .fighter_dat = pointers[0], .fighter_size = sizes[0],
-            .animation_dat = pointers[1], .animation_size = sizes[1],
-            .costume_dat = pointers[2], .costume_size = sizes[2],
-            .asset_record = pointers[3], .asset_record_size = sizes[3],
-            .script_text = pointers[4], .script_size = sizes[4],
-            .parameter_text = pointers[5], .parameter_size = sizes[5],
-            .cpu_text = pointers[6], .cpu_size = sizes[6],
-            .resources = pointers[7], .resource_size = sizes[7],
+            .fighter_dat = pointers[0], .fighter_size = size[0],
+            .animation_dat = pointers[1], .animation_size = size[1],
+            .costume_dat = pointers[2], .costume_size = size[2],
+            .asset_record = pointers[3], .asset_record_size = size[3],
+            .script_text = pointers[4], .script_size = size[4],
+            .parameter_text = pointers[5], .parameter_size = size[5],
+            .cpu_text = pointers[6], .cpu_size = size[6],
+            .resources = pointers[7], .resource_size = size[7],
         };
         NativeSourceAssetFacts facts;NativeScriptDiagnostic diagnostic;
         NativeSourceResources resources;
-        if(!nativeSourceResources_Read(pointers[7],sizes[7],&resources,diagnostic.message,sizeof(diagnostic.message))||
-           !nativeSourceAssets_Read(pointers[3],sizes[3],&facts,&diagnostic)||
-           memchr(pointers[4],0,sizes[4])||(sizes[5]&&memchr(pointers[5],0,sizes[5])))return false;
+        if(!nativeSourceResources_Read(pointers[7],size[7],&resources,diagnostic.message,sizeof(diagnostic.message))||
+           !nativeSourceAssets_Read(pointers[3],size[3],&facts,&diagnostic)||
+           memchr(pointers[4],0,size[4])||(size[5]&&memchr(pointers[5],0,size[5])))goto invalid;
     }
-    if (remaining != 0) return false;
     *fighter = parsed;
-    *data = spans;
+    if (data) *data = spans;
+    else free(spans.expanded_payload);
     return true;
+
+invalid:
+    free(spans.expanded_payload);
+    return false;
+}
+
+void nativeContentStore_ReleaseFighterData(NativeFighterPackageData* data)
+{
+    if (!data) return;
+    free(data->expanded_payload);
+    *data = (NativeFighterPackageData){0};
 }
 
 #endif

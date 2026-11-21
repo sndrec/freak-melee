@@ -12,6 +12,7 @@ static struct {uint64_t epoch;NativeParticleControlState definitions;bool active
 static void capture(NativeParticleControlState* s)
 {
     memset(s,0,sizeof(*s));s->float_bits=particle_float_bits;s->appsrt_peak=hsd_804D78D8;
+    s->work=particle_work_this_tick;
     s->display_frame=particle_display_frame;
     memcpy(s->sort_frames,particle_sort_frames,sizeof(s->sort_frames));
     memcpy(s->non_edge_heads,particle_non_edge_heads,sizeof(s->non_edge_heads));
@@ -40,6 +41,7 @@ static bool independent(const void* data,size_t bytes)
     if(!data || !bytes || bytes>UINTPTR_MAX-(uintptr_t)data || overlap(data,bytes,&scene,sizeof(scene)))return false;
 #define EXCLUDE(v) if(overlap(data,bytes,&(v),sizeof(v)))return false
     EXCLUDE(particle_display_frame);EXCLUDE(particle_sort_frames);EXCLUDE(particle_non_edge_heads);
+    EXCLUDE(particle_work_this_tick);
     EXCLUDE(particle_float_bits);EXCLUDE(particle_callbacks);EXCLUDE(particle_peak_count);EXCLUDE(particle_count);
     EXCLUDE(hsd_804D78D8);EXCLUDE(hsd_804D78DA);EXCLUDE(hsd_804D78DE);EXCLUDE(hsd_804D78E0);
     EXCLUDE(hsd_804D78E8);EXCLUDE(hsd_804D78EC);EXCLUDE(hsd_804D7900);EXCLUDE(psCamera);EXCLUDE(hsd_804D78F4);
@@ -76,6 +78,9 @@ bool nativeParticleControl_Validate(const void* data,size_t bytes)
     if(!boundary() || bytes!=sizeof(NativeParticleControlSnapshot) || !independent(data,bytes))return false;
     NativeParticleControlSnapshot s;memcpy(&s,data,sizeof(s));
     if(s.epoch!=scene.epoch || !definitions(&s.state) || s.state.id_cursor<256)return false;
+    if(s.state.work.generators>HSD_GENERATORS_PER_TICK || s.state.work.emissions>HSD_PARTICLES_PER_TICK ||
+       s.state.work.particles>HSD_PARTICLES_PER_TICK || s.state.generator_count>HSD_GENERATORS_LIVE ||
+       s.state.particle_count>HSD_PARTICLES_LIVE)return false;
     for(unsigned i=0;i<16;++i)if(!slot(s.state.particles[i],s.particles[i],&hsd_804D0F60.alloc_data,sizeof(HSD_Particle)))return false;
     for(unsigned i=0;i<17;++i)if(!slot(s.state.non_edge_heads[i],s.non_edge_heads[i],&hsd_804D0F60.alloc_data,sizeof(HSD_Particle)))return false;
     if(!slot(s.state.pending,s.generators[0],&hsd_804D0F90.alloc_data,sizeof(HSD_Generator)) ||
@@ -119,6 +124,7 @@ bool nativeParticleControl_Load(const void* data,size_t bytes)
     // Payload/list/allocator candidates must agree before aggregate writes.
     // This control owner restores no allocation records and invokes no callbacks.
     particle_float_bits=s.state.float_bits;hsd_804D78D8=s.state.appsrt_peak;hsd_804D78DA=s.state.generator_peak;
+    particle_work_this_tick=s.state.work;
     particle_peak_count=s.state.particle_peak;hsd_804D78DE=s.state.appsrt_count;hsd_804D78E0=s.state.generator_count;
     particle_count=s.state.particle_count;generator_id_cursor=s.state.id_cursor;
     particle_display_frame=s.state.display_frame;
@@ -135,6 +141,7 @@ bool nativeParticleControl_AdmitHistory(NativeMatchArena* arena)
     if(!arena || !arena->lifetime)return false;
 #define ROOT(v) do { if(!nativeMatchArena_AddRoot(arena,&(v),sizeof(v)))return false; } while(0)
     ROOT(particle_float_bits);
+    ROOT(particle_work_this_tick);
     ROOT(hsd_804D78D8);
     ROOT(hsd_804D78DA);
     ROOT(particle_peak_count);

@@ -127,7 +127,6 @@ bool nativeHome_LocalRosterMatchesRoom(void);
 bool nativeHome_RoomRosterReady(bool* owner_requested,
                                 NativeContentId costume_packages[4],
                                 NativeContentId fighter_packages[4]);
-bool nativeHome_PublishRoomMatch(uint8_t stage);
 void nativeHome_RequestStartMatch(void);
 void nativeHome_CancelStartMatch(void);
 bool nativeHome_ReturnToSelection(void);

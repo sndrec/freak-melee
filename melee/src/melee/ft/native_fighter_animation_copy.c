@@ -34,6 +34,12 @@ static uint32_t read32(const uint8_t* p)
 static void write32(uint8_t* p, uint32_t x)
 { p[0]=(uint8_t)(x>>24); p[1]=(uint8_t)(x>>16); p[2]=(uint8_t)(x>>8); p[3]=(uint8_t)x; }
 
+static int compare_slots(const void* a, const void* b)
+{
+    // Unsigned big-endian words sort in byte order.
+    return memcmp(a, b, 4);
+}
+
 static bool open_table(const NativeFighterAnimationCopyInput* input, CopyTable* table)
 {
     if (!input || !input->fighter_root || !input->action_count ||
@@ -56,19 +62,19 @@ static bool open_table(const NativeFighterAnimationCopyInput* input, CopyTable* 
         roots += strcmp(name,input->fighter_root)==0;
     }
     if (roots!=1) return false;
-    u32 previous=0;
+    // Remember one bit per aligned slot while rebuilding the table.
+    u8* used = calloc(table->dat.data_size / 32 + 1, 1);
+    if (!used) return false;
     for (uint32_t i=0;i<table->dat.relocation_count;++i) {
         u32 a; HSD_DatRelocation(&table->dat,i,&a);
-        if (table->dat.relocations_sorted) {
-            if (i && a==previous) return false;
-        } else {
-            for (uint32_t j=0;j<i;++j) {
-                u32 b; HSD_DatRelocation(&table->dat,j,&b);
-                if (a==b) return false;
-            }
+        u8 mask = (u8)(1u << ((a / 4) % 8));
+        if (used[a / 32] & mask) {
+            free(used);
+            return false;
         }
-        previous=a;
+        used[a / 32] |= mask;
     }
+    free(used);
     for (uint32_t i=0;i<input->action_count;++i) {
         uint32_t at=table->offset+i*24;
         HSD_DatReferenceKind kind=HSD_DatResolve(&table->dat,at,&target,&external);
@@ -234,7 +240,14 @@ bool nativeFighterAnimationCopy_Materialize(
         if (patch->add_relocation) write32(relocation_table+(size_t)added++*4,at);
     }
     HSD_Dat checked;
-    if (HSD_DatOpen(&checked,dat,total)!=HSD_DAT_OK) goto done;
+    HSD_DatResult status = HSD_DatOpen(&checked, dat, total);
+    if (status != HSD_DAT_OK && added_relocations) {
+        // An unordered input can cross the lookup budget as new slots are
+        // appended. Only the newly owned output table needs reordering.
+        qsort(relocation_table, relocation_count, 4, compare_slots);
+        status = HSD_DatOpen(&checked, dat, total);
+    }
+    if (status != HSD_DAT_OK) goto done;
     valid=true;
     *output=result; result=(NativeFighterAnimationCopyOutput){0};
 done:

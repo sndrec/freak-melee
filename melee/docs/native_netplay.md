@@ -7,6 +7,12 @@ transport-independent exchange layer, so both paths apply exactly the same
 rollback data-plane rules. Distributed-PC and forced-relay acceptance remain
 outside the current locally validated scope.
 
+In player-created lobbies, the host requests a start for the current stage-selection
+round. The signaling service constructs the roster, rules and stage from the room
+state and assigns a fresh session ID. The host and guests wait for that same
+proposal. Quick Play builds its proposal when the countdown completes. The
+diagnostic direct-room protocol lets its owner supply a proposal.
+
 Production keeps one snapshot at the contiguous fully confirmed input boundary.
 Corrections restore it, reconstruct a newer confirmed checkpoint once, then
 replay the predicted suffix without intermediate saves. Admission and ownership
@@ -20,10 +26,12 @@ Each PC owns an arbitrary non-overlapping mask of the four controller ports.
 This represents one player per PC, multiple local players sharing a PC, or any
 other partition of the four active slots. Every active room peer must own at
 least one human fighter; its mask may also cover CPU or empty ports so all four
-input histories still have one deterministic sender. Every datagram carries
-one through eight consecutive frames for all ports owned by its sender. Repeating recent
-frames recovers ordinary loss without a reliable ordered stream. A maximum
-four-port batch is 560 bytes.
+input histories still have one deterministic sender. Each input datagram
+carries one through eight consecutive frames for all ports owned by its
+sender. Every peer reports its contiguous received boundary and selectively
+acknowledges later frames. The sender sends the recent inputs first and can
+send a second datagram with older missing inputs from its retained history.
+A maximum four-port batch is 576 bytes.
 
 Input packets also carry the sender's latest sample and the most recent sample
 it had seen from each peer when it took that sample. The receiver compares the
@@ -97,11 +105,10 @@ Allocator free-list and other object-pool topology remains outside the digest.
 The first game frame acts as a short readiness barrier. Each client sends frame
 zero and waits up to five seconds for confirmations from every remote-owned
 port before simulation begins. Later missing inputs use rollback prediction,
-but a client may advance at most six frames beyond the slowest remote-owned
-port. At that boundary it repeatedly polls and resends its redundant batch for
-up to five seconds. This keeps every unconfirmed frame inside both the rollback
-history and the next eight-frame redundant packet; sustained loss therefore
-becomes a bounded stall and then a match failure instead of expired state.
+with up to fifteen frames ahead of the confirmed checkpoint. At that boundary
+the client polls for input and resends at most once every four milliseconds
+until the checkpoint can advance or the five-second timeout expires.
+An input can still be recovered after it leaves the recent eight-frame batch.
 Windows UDP ICMP resets are disabled so a single unreachable response does not
 bypass this timeout policy.
 
@@ -688,3 +695,72 @@ Evidence is in `build/native/fault-run/{proxy,host,guest}-correction.log` and
 This establishes one local correction-through-loss path, not general reliability
 under loss bursts, larger latency, or cross-network routes. The diagnostic
 proxy is separate from room ICE/TURN and cannot validate those transports.
+
+## Input repair, package transfers, and cursors (2026-11-20)
+
+Match datagrams send the newest input window first. Each peer reports the
+contiguous input boundary and which later frames arrived. The sender can send a
+second bounded window for the oldest missing inputs, including inputs that have
+fallen out of the newest window. During ordinary frame pacing, the client can
+retry outstanding input once before the next sample. At the prediction limit,
+it retries at most once every 4 ms. A full socket send buffer defers the
+datagram to normal input repair. Game input delay defaults to two frames.
+
+Fighter packages go directly between peers in 1 KiB chunks. The receiver reports
+gaps in a window of up to 128 chunks. The sender resends the missing chunks and
+adjusts the number in flight based on loss. The room services gameplay inputs
+before package uploads. Active matches cap background package sends across all
+recipients, and receivers verify the complete package against its content ID.
+
+| Package transfer | Shipped build | New transfer |
+| --- | ---: | ---: |
+| 6 MiB, simulated 80 ms RTT | 0.155 MiB/s | 1.168 MiB/s |
+| 6 MiB, simulated 80 ms RTT with jitter and 2.4% loss | 0.040 MiB/s | 0.136 MiB/s |
+| 18.2 MiB fighter, CSS selection to verified cache over loopback ICE | 25.8 s | 12.8 s |
+
+The simulated runs exercised the C transfer protocol and compared every byte.
+The CSS run used two game clients with a local room service and compared the
+downloaded fighter's SHA-256 with the source.
+
+In a separate three-client run, a late spectator received the same fighter
+during an active match. It took 116 seconds at the background send limit.
+The fighting clients advanced about 6,800 frames and compared more than 6,800
+additional checksums each during the transfer, with zero additional input
+stalls and zero additional reads from the sender's fighter store. The spectator
+cached the exact package without adding it to the local roster.
+
+The CSS and stage-select screens send moving cursors up to once per frame. The
+room relays them using the established connection lease, with a bounded burst
+allowance for updates that arrive together. The client timestamps motion upon
+receipt and gives it a dedicated queue. Remote displays blend toward the latest
+position for up to 33 ms. Visibility, held tokens and stage ownership follow
+the latest received state. In a steady-motion model with 40 ms one-way delay
+and jitter, median display lag dropped from 66 ms to 59 ms and 95th-percentile
+movement per displayed frame dropped from 4.00 to 2.55 model units. Two local
+game clients also agreed on the final cursor position and stage hover.
+
+`[netplay-quality]` includes rollback depth, late input samples, retries during
+pacing, and socket backpressure. `[netplay-route]` includes the selected route,
+input echo round trip, and the timing of newly observed remote samples. Input
+echo includes game sampling and receive polling. It is a different measurement
+from a transport ping.
+
+With `FREAK_MELEE_PROFILE_NETPLAY=1`, the presentation trace also includes
+send, receive and room-transfer work, sample deadline lateness and clock lead.
+Local 80 ms RTT runs used two frames of input delay. The new build compared
+hundreds of matching checksums each run with zero stalls after startup.
+
+| Loopback UDP scenario | Shipped build | New build p99 presentation interval |
+| --- | --- | ---: |
+| Clean | 19.8–20.5 ms p99 | 18.0–18.4 ms |
+| Jitter, 2% random loss and a 12-frame one-way outage | Timed out | 17.6–18.7 ms |
+| 12-frame two-way outage | Both clients timed out | 19.2–19.8 ms |
+
+An earlier two-way-outage run on the new pacing path had a 34 ms maximum
+submission interval. The final run peaked at 23.5 ms. These intervals include
+simulation and presentation work on the test PC.
+
+A forced local TURN fixture dropped direct peer datagrams and transferred an
+exact 2 MiB payload alongside small datagrams over the selected relay. A WAN
+playtest between separate PCs can compare direct and hosted TURN routes,
+controller feel, presentation gaps and package transfer time on the same link.

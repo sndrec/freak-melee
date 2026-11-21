@@ -14,8 +14,11 @@ void HSD_DatDecodeMaterialRecord(HSD_DatImport* import,
                                 const HSD_DatImportRecord* record);
 void HSD_DatDecodeAnimationRecord(HSD_DatImport* import,
                                  const HSD_DatImportRecord* record);
+bool HSD_DatBindTextureAnimation(HSD_DatImport* import, HSD_TexAnim* animation);
 void HSD_DatDecodeModelRecord(HSD_DatImport* import,
                              const HSD_DatImportRecord* record);
+bool HSD_DatValidateConstraintBindings(const HSD_DatImport* import,
+                                       const HSD_Joint* root);
 bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon);
 bool HSD_DatNormalizeVertexArrays(HSD_DatImport* import);
 u32 HSD_DatVertexElementBytes(const HSD_VtxDescList*);

@@ -52,6 +52,14 @@ int main(void)
     CHECK(dynamics_state.free_nodes==&dynamics_state.nodes[4]);CHECK(desc.data->next==&dynamics_state.nodes[1]);roundtrip();
     DynamicsDesc companion=desc;lb_8000FD18(&desc);CHECK(!desc.data);CHECK(dynamics_state.free_nodes==&dynamics_state.nodes[3]);
     CHECK(dynamics_state.nodes[3].desc.lb_unk0.jobj==&joints[3]);roundtrip();
+    // An alternate costume may end the branch before the requested length.
+    DynamicsDesc shorter = {0};
+    DynamicsDesc requested = {.count = 2};
+    lb_8000FD48(&joints[3], &shorter, requested.count);
+    CHECK(!shorter.count && !shorter.data && dynamics_state.free_nodes == &dynamics_state.nodes[3]);
+    lb_80011710(&requested, &shorter);
+    lb_8000FD48(joints, &shorter, 0);
+    CHECK(!shorter.count && !shorter.data);
     // Retained free payload is preserved, not a live joint ownership claim.
     dynamics_state.nodes[3].desc.lb_unk0.jobj=(void*)42;roundtrip();
     lbDynamics_Reset();lb_8000FD48(joints,&desc,4);companion=desc;
@@ -102,6 +110,8 @@ int main(void)
     CHECK(!dynamics_state.free_nodes);roundtrip();
     DynamicsDesc overflow={0};lb_8000FD48(joints,&overflow,1);CHECK(!overflow.data && overflow.count==0);
     lb_8000FD18(&many[99]);CHECK(dynamics_state.free_nodes==&dynamics_state.nodes[99]);roundtrip();
+    lb_8000FD48(joints, &overflow, 2);
+    CHECK(!overflow.count && !overflow.data && dynamics_state.free_nodes == &dynamics_state.nodes[99]);
     lb_8000FD48(joints,&overflow,1);CHECK(overflow.data==&dynamics_state.nodes[99]);
     CHECK(nativeDynamics_Load(&saved,sizeof(saved)));overflow=(DynamicsDesc){0};lb_8000FD48(joints,&overflow,1);CHECK(overflow.data==&dynamics_state.nodes[99]);
     // Malformed live topology must leave output and its length untouched.

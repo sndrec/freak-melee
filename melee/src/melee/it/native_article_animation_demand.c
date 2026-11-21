@@ -2,13 +2,13 @@
 #include "native_article_animation_texture.h"
 
 #include <sysdolphin/baselib/dobj.h>
+#include <sysdolphin/baselib/native_fobj_stream.h>
 #include <sysdolphin/baselib/robj.h>
 #include <math.h>
 #include <limits.h>
 #include <string.h>
 
-enum { TREE_LIMIT = 512, CHAIN_LIMIT = 16384, WORK_LIMIT = 131072,
-       KEY_LIMIT = 65536 };
+enum { TREE_LIMIT = 512, CHAIN_LIMIT = 16384, WORK_LIMIT = 131072 };
 typedef enum TreeKind { JointTree, AnimTree, MaterialTree, ShapeTree } TreeKind;
 typedef enum ChainKind { Drawables, Polygons, Textures, Materials, TextureAnims,
     ShapeDrawables, ShapeAnims, References, ReferenceAnims, Tracks } ChainKind;
@@ -101,135 +101,8 @@ static bool chain_valid(Census* c, ChainKind kind, const void* node)
     return true;
 }
 
-// The native operand parser consumes four bytes ONLY for frac == 0. Float
-// class values with nonzero fraction bits are not equivalent to that format.
-static unsigned scalar_width(uint8_t frac)
-{
-    if (frac == HSD_A_FRAC_FLOAT) return 4;
-    switch (frac & 0xe0) {
-    case HSD_A_FRAC_S16: case HSD_A_FRAC_U16: return 2;
-    case HSD_A_FRAC_S8: case HSD_A_FRAC_U8: return 1;
-    default: return 0;
-    }
-}
-static bool packed_wait(const uint8_t* bytes, uint32_t length, uint32_t* at)
-{
-    unsigned shift = 0;
-    for (unsigned count = 0; count < 5 && *at < length; ++count, shift += 7) {
-        unsigned byte = bytes[(*at)++];
-        // parseWait shifts signed int operands. Do not admit signed overflow
-        // or shifts beyond its actual word; the stored u16 truncation is native.
-        if (shift == 28 && (byte & 0x7f) > 7) return false;
-        if (!(byte & 0x80)) return true;
-    }
-    return false;
-}
-static bool stream(Census* c, const HSD_FObjDesc* track)
-{
-    if (!track->length) {
-        if (!track->ad) c->demand.uncovered |= NativeArticleAnimation_Stream;
-        return true;
-    }
-    if (!track->ad || (uintptr_t)track->ad > UINTPTR_MAX - track->length)
-        return false;
-    uint32_t at = 0, keys = 0;
-    while (at < track->length) {
-        if (!work(c)) return false;
-        unsigned header = track->ad[at++], op = header & 15;
-        uint32_t count = ((header >> 4) & 7) + 1;
-        if (header & 0x80) {
-            unsigned shift = 3, byte;
-            do {
-                if (at == track->length || shift >= 32) return false;
-                byte = track->ad[at++];
-                if ((byte & 0x7f) > (UINT32_MAX - count) >> shift) return false;
-                count += (byte & 0x7f) << shift;
-                shift += 7;
-            } while (byte & 0x80);
-        }
-        // Native nb_pack is u16. Unknown op semantics stay unadmitted rather
-        // than pretending the remaining opaque bytes are validated operands.
-        if (count > UINT16_MAX || count > KEY_LIMIT - keys) return false;
-        if (op < HSD_A_OP_CON || op > HSD_A_OP_KEY) {
-            c->demand.uncovered |= NativeArticleAnimation_Stream;
-            return true;
-        }
-        for (uint32_t i = 0; i < count; ++i) {
-            if (!work(c)) return false;
-            uint8_t formats[2] = { track->frac_value, track->frac_slope };
-            unsigned first = op == HSD_A_OP_SLP ? 1 : 0;
-            unsigned last = op == HSD_A_OP_SPL || op == HSD_A_OP_SLP ? 2 : 1;
-            for (unsigned operand = first; operand < last; ++operand) {
-                unsigned width = scalar_width(formats[operand]);
-                if (!width) {
-                    c->demand.uncovered |= NativeArticleAnimation_Stream;
-                    return true;
-                }
-                if (width > track->length - at) return false;
-                // Integer fraction 31 shifts native signed 1 into its sign bit.
-                if (formats[operand] && (formats[operand] & 31) == 31)
-                    c->demand.uncovered |= NativeArticleAnimation_Stream;
-                at += width;
-            }
-            ++keys;
-            // Actual FObjAnimKey uses LOAD_WAIT too. The workshop key editor's
-            // KEY shortcut is not the native grammar. A final value can end
-            // without wait because FObjLoadWait first checks the stream extent.
-            if (op != HSD_A_OP_SLP && at < track->length &&
-                !packed_wait(track->ad, track->length, &at)) return false;
-        }
-    }
-    return true;
-}
-
-// Native image and palette channels truncate scalar values to table indexes.
-// Only whole CON streams are covered: no interpolation or slope overshoot.
-static bool table_indices(const HSD_FObjDesc* track, uint32_t entries)
-{
-    if (!entries || entries > 512 || !track->ad || !track->length) return false;
-    unsigned width = scalar_width(track->frac_value);
-    if (!width || (track->frac_value && (track->frac_value & 31) == 31)) return false;
-    uint32_t at = 0, keys = 0;
-    while (at < track->length) {
-        unsigned header = track->ad[at++];
-        if ((header & 15) != HSD_A_OP_CON) return false;
-        uint32_t count = ((header >> 4) & 7) + 1;
-        if (header & 0x80) {
-            unsigned shift = 3, byte;
-            do {
-                if (at == track->length || shift >= 32) return false;
-                byte = track->ad[at++];
-                if ((byte & 0x7f) > (UINT32_MAX - count) >> shift) return false;
-                count += (byte & 0x7f) << shift; shift += 7;
-            } while (byte & 0x80);
-        }
-        if (count > UINT16_MAX || count > KEY_LIMIT - keys) return false;
-        for (uint32_t i = 0; i < count; ++i) {
-            if (width > track->length - at) return false;
-            const uint8_t* bytes = track->ad + at;
-            float value;
-            if (!track->frac_value) {
-                uint32_t bits = bytes[0] | (uint32_t)bytes[1] << 8 |
-                    (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
-                memcpy(&value, &bits, sizeof(value));
-            } else {
-                int numerator = width == 2 ? bytes[0] | (unsigned)bytes[1] << 8 : bytes[0];
-                if ((track->frac_value & 0xe0) == HSD_A_FRAC_S16) numerator = (int16_t)numerator;
-                if ((track->frac_value & 0xe0) == HSD_A_FRAC_S8) numerator = (int8_t)numerator;
-                value = (float)numerator / (float)(1u << (track->frac_value & 31));
-            }
-            // Native truncation admits (-1,0), which selects zero. Count <=512
-            // also guarantees the converted positive index fits native int.
-            if (!isfinite(value) || value <= -1.0f || value >= entries) return false;
-            at += width; ++keys;
-            if (at < track->length && !packed_wait(track->ad, track->length, &at)) return false;
-        }
-    }
-    return true;
-}
-
 static void channel(Census* c, TargetKind kind, unsigned type,
-                    const void* target, const HSD_FObjDesc* track,
+                    const void* target, const HSD_TrackFacts* facts,
                     const HSD_TexAnim* texture_anim)
 {
     uint32_t* flags = &c->demand.uncovered;
@@ -251,18 +124,18 @@ static void channel(Census* c, TargetKind kind, unsigned type,
         if (type != HSD_A_M_ALPHA || !material->mat)
             *flags |= NativeArticleAnimation_Channel;
     } else if (kind == TextureTarget) {
-        const HSD_TObjDesc* texture = target;
         // Translation/scale/rotation/blending are F32 writes. Table indexes
         // require bounded constant streams; color conversions remain excluded.
         bool scalar = (type >= HSD_A_T_TRAU && type <= HSD_A_T_BLEND) ||
                       type == HSD_A_T_TS_BLEND ||
-                      (type == HSD_A_T_LOD_BIAS && texture->lod);
+                      type == HSD_A_T_LOD_BIAS;
         bool image = type == HSD_A_T_TIMG && texture_anim && texture_anim->imagetbl &&
-            table_indices(track, texture_anim->n_imagetbl);
+            texture_anim->n_imagetbl <= 512 &&
+            HSD_TrackFitsTable(facts, texture_anim->n_imagetbl, false);
         // 255 is the native default-palette sentinel, not an array index.
         // Cover ordinary palette entries 0..254; sentinel authoring is separate.
         bool palette = type == HSD_A_T_TCLT && texture_anim && texture_anim->tluttbl &&
-            texture_anim->n_tluttbl <= 255 && table_indices(track, texture_anim->n_tluttbl);
+            texture_anim->n_tluttbl <= 255 && HSD_TrackFitsTable(facts, texture_anim->n_tluttbl, false);
         if (!scalar && !image && !palette)
             *flags |= NativeArticleAnimation_Channel;
     } else if (kind == ShapeTarget) *flags |= NativeArticleAnimation_Shape;
@@ -281,10 +154,18 @@ static bool controller(Census* c, const HSD_AObjDesc* aobj,
         // values are legal if their truncation is representable; no rounding.
         double first = (double)track->startframe;
         if (!work(c) || c->demand.tracks == CHAIN_LIMIT || !isfinite(first) ||
-            first <= (double)INT16_MIN - 1 || first >= (double)INT16_MAX + 1 ||
-            !stream(c, track)) return false;
+            first <= (double)INT16_MIN - 1 || first >= (double)INT16_MAX + 1) return false;
+        HSD_TrackFacts facts;
+        HSD_TrackStatus status = HSD_TrackInspect(track->ad, track->length, track->frac_value,
+            track->frac_slope, WORK_LIMIT - c->work, &facts);
+        if (status == HSD_TRACK_INVALID) return false;
+        if (status == HSD_TRACK_UNSUPPORTED) {
+            c->demand.uncovered |= NativeArticleAnimation_Stream;
+            facts.constant = false;
+        }
+        c->work += facts.work;
         ++c->demand.tracks;
-        channel(c, kind, track->type, target, track, texture);
+        channel(c, kind, track->type, target, &facts, texture);
     }
     return true;
 }

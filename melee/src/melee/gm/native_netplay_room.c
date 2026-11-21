@@ -77,11 +77,14 @@ static bool configure_exchange(NativeNetplayRoom* room,
 {
     const NativeLobbyMatchPeer* local =
         find_match_peer(match, room->connection.local_peer_id);
+    NativeNetplayExchange next;
     if (local == NULL || match->peer_count != room->peer_count + 1 ||
-        !nativeNetplayExchange_Init(&room->exchange, match->session_id,
+        local->numeric_peer != room->exchange.local_peer ||
+        local->port_mask != room->exchange.local_port_mask ||
+        !nativeNetplayExchange_Init(&next, match->session_id,
                                     local->numeric_peer, local->port_mask) ||
         !nativeNetplayExchange_SetArtificialDelay(
-            &room->exchange, room->artificial_delay_frames))
+            &next, room->artificial_delay_frames))
     {
         return false;
     }
@@ -91,12 +94,13 @@ static bool configure_exchange(NativeNetplayRoom* room,
             find_match_peer(match, configured->peer_id);
         if (peer == NULL || peer->numeric_peer != configured->peer ||
             peer->port_mask != configured->port_mask ||
-            !nativeNetplayExchange_AddPeer(&room->exchange, peer->numeric_peer,
+            !nativeNetplayExchange_AddPeer(&next, peer->numeric_peer,
                                            peer->port_mask))
         {
             return false;
         }
     }
+    room->exchange = next;
     return true;
 }
 
@@ -118,7 +122,7 @@ static bool adopt_owner_match(NativeNetplayRoom* room,
     {
         return false;
     }
-    nativeNetplayRoom_ClearContent(room);
+    nativeNetplayRoom_ClearContent(room, false);
     room->match = match;
     memcpy(room->match_bytes, canonical, size);
     room->match_size = (uint16_t) size;
@@ -140,6 +144,10 @@ static MatchAgreementProgress pump_match_agreement(NativeNetplayRoom* room,
     bool local_is_owner =
         strcmp(presence->owner_peer_id, connection->local_peer_id) == 0;
     if (!proposal_matches) {
+        if ((connection->has_lobby && connection->lobby.has_rules) ||
+            connection->quick.state == NativeQuickState_Assigned) {
+            return MatchAgreement_Failed;
+        }
         if (local_is_owner &&
             room->publish_request_epoch != presence->match_epoch)
         {
@@ -322,7 +330,7 @@ bool nativeNetplayRoom_Connect(NativeNetplayRoom* room,
     return true;
 }
 
-static bool pump_auxiliary(NativeNetplayRoom* room)
+bool nativeNetplayRoom_PumpAuxiliary(NativeNetplayRoom* room)
 {
 #ifndef MELEE_CONNECTION_PROBE
     for (unsigned i = 0; i < MAX_RECEIVE_PACKETS_PER_POLL; ++i) {
@@ -337,9 +345,11 @@ static bool pump_auxiliary(NativeNetplayRoom* room)
     for (unsigned i = 0; i < MAX_RECEIVE_PACKETS_PER_POLL; ++i) {
         NativeContentDatagram data;
         if (!nativeNetplayConnection_PollContent(&room->connection, &data)) break;
-        nativeNetplayRoom_WatchPacket(room, &data);
-        nativeNetplayRoom_CachePacket(room, &data);
-        if (!room->match_configured) {
+        if (data.purpose == NativeContentPurpose_Watch) {
+            nativeNetplayRoom_WatchPacket(room, &data);
+        } else if (data.purpose == NativeContentPurpose_Cache) {
+            nativeNetplayRoom_CachePacket(room, &data);
+        } else if (data.purpose == NativeContentPurpose_Gift && !room->match_configured) {
             nativeNetplayRoom_GiftPacket(room, &data);
         }
     }
@@ -375,7 +385,7 @@ bool nativeNetplayRoom_PumpLobby(NativeNetplayRoom* room)
         }
     }
     if (room->match_configured) return false;
-    return pump_auxiliary(room);
+    return nativeNetplayRoom_PumpAuxiliary(room);
 #endif
 }
 
@@ -451,7 +461,7 @@ bool nativeNetplayRoom_ConfigureMatch(NativeNetplayRoom* room,
     nativeNetplayRoom_ClearCacheTransfers(room);
     nativeNetplayRoom_ClearRetainedPackages(room);
 #endif
-    nativeNetplayRoom_ClearContent(room);
+    nativeNetplayRoom_ClearContent(room, false);
     room->match = *match;
     room->exchange = exchange;
     memcpy(room->peers, peers, sizeof(peers));
@@ -479,7 +489,7 @@ void nativeNetplayRoom_Shutdown(NativeNetplayRoom* room)
     nativeNetplayRoom_ClearCacheTransfers(room);
     nativeNetplayRoom_ClearRetainedPackages(room);
 #endif
-    nativeNetplayRoom_ClearContent(room);
+    nativeNetplayRoom_ClearContent(room, false);
     if (room->active) {
         nativeNetplayConnection_Stop(&room->connection);
     }
@@ -495,7 +505,7 @@ bool nativeNetplayRoom_FinishMatch(NativeNetplayRoom* room)
     {
         return false;
     }
-    nativeNetplayRoom_ClearContent(room);
+    nativeNetplayRoom_ClearContent(room, false);
     room->exchange = (NativeNetplayExchange){ 0 };
     room->match = (NativeLobbyMatch){ 0 };
     memset(room->peers, 0, sizeof(room->peers));
@@ -593,15 +603,14 @@ bool nativeNetplayRoom_PumpSetup(NativeNetplayRoom* room)
     write_u64(setup + 4, room->exchange.session_id);
     setup[12] = room->exchange.local_peer;
     setup[13] = room->exchange.local_port_mask;
+    bool all_sent = true;
     for (uint32_t i = 0; i < room->peer_count; ++i) {
-        if (!nativeNetplayConnection_Send(&room->connection,
-                                          room->peers[i].peer_id, setup,
-                                          sizeof(setup)))
-        {
-            return false;
-        }
+        NativeNetplayIceSend sent = nativeNetplayConnection_Send(
+            &room->connection, room->peers[i].peer_id, setup, sizeof(setup));
+        if (sent == NativeNetplayIceSend_Failed) return false;
+        all_sent &= sent == NativeNetplayIceSend_Sent;
     }
-    room->ready = true;
+    room->ready = all_sent;
     for (uint32_t i = 0; i < room->peer_count; ++i) {
         room->ready = room->ready && room->peers[i].setup_ready;
     }
@@ -609,7 +618,7 @@ bool nativeNetplayRoom_PumpSetup(NativeNetplayRoom* room)
         nativeNetplayConnection_CloseSignaling(&room->connection);
     }
     if (room->ready) {
-        nativeNetplayRoom_ClearContent(room);
+        nativeNetplayRoom_ClearContent(room, true);
     }
     return true;
 }
@@ -620,21 +629,17 @@ bool nativeNetplayRoom_Send(NativeNetplayRoom* room)
         return false;
     }
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
-    size_t packet_size;
-    if (!nativeNetplayExchange_PreparePacket(&room->exchange, packet,
-                                             sizeof(packet), &packet_size))
-    {
-        return false;
-    }
-    if (packet_size == 0) {
-        return true;
-    }
-    for (uint32_t i = 0; i < room->peer_count; ++i) {
-        if (!nativeNetplayConnection_Send(&room->connection,
-                                          room->peers[i].peer_id, packet,
-                                          packet_size))
-        {
-            return false;
+    for (unsigned repair = 0; repair < 2; ++repair) {
+        for (uint32_t i = 0; i < room->peer_count; ++i) {
+            const NativeNetplayRoomPeer* peer = &room->peers[i];
+            size_t packet_size;
+            if (!nativeNetplayExchange_PreparePacket(&room->exchange, peer->peer,
+                    repair != 0, packet, sizeof(packet), &packet_size)) return false;
+            if (packet_size == 0) continue;
+            NativeNetplayIceSend sent = nativeNetplayConnection_Send(
+                &room->connection, peer->peer_id, packet, packet_size);
+            if (sent == NativeNetplayIceSend_Failed) return false;
+            if (sent == NativeNetplayIceSend_Retry) ++room->exchange.send_backpressure;
         }
     }
     return true;
@@ -677,7 +682,7 @@ bool nativeNetplayRoom_Receive(NativeNetplayRoom* room,
                                            peer->peer, datagram.datagram.bytes,
                                            datagram.datagram.size);
     }
-    return pump_auxiliary(room);
+    return true;
 }
 
 #endif

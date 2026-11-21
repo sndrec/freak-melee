@@ -78,6 +78,17 @@ void HSD_SfxBankRelocate(HSD_SfxBank* bank, u32 aram_base,
     bank->aram_base = aram_base;
 }
 
+typedef struct SampleRange {
+    u32 first_block, last_block;
+} SampleRange;
+
+static int compare_sample_range(const void* left, const void* right)
+{
+    const SampleRange* a = left;
+    const SampleRange* b = right;
+    return (a->first_block > b->first_block) - (a->first_block < b->first_block);
+}
+
 HSD_SfxBank* HSD_SfxBankReadPackage(const void* bytes, size_t size, u32 owner)
 {
     if (!bytes || size < 16 || size > 4 * 1024 * 1024 ||
@@ -109,6 +120,8 @@ HSD_SfxBank* HSD_SfxBankReadPackage(const void* bytes, size_t size, u32 owner)
     }
     bank->sample_data = data + sample_offset;
     bank->sample_bytes = samples;
+    SampleRange ranges[2 * HSD_PACKAGE_SOUND_CLIPS];
+    size_t range_count = 0;
     for (u32 i = 0; i < count; ++i) {
         HSD_SfxEntry* entry = &bank->entries[i];
         if (entry->sample_rate < 8000 || entry->sample_rate > 48000) {
@@ -128,6 +141,18 @@ HSD_SfxBank* HSD_SfxBankReadPackage(const void* bytes, size_t size, u32 owner)
             {
                 goto invalid;
             }
+            ranges[range_count++] = (SampleRange){start / 16, end / 16};
+        }
+    }
+    // A DSP block holds 14 samples and a predictor/scale byte. Banks can
+    // share samples across clips. Inspect each referenced block only once.
+    qsort(ranges, range_count, sizeof(ranges[0]), compare_sample_range);
+    u32 next = 0;
+    for (size_t i = 0; i < range_count; ++i) {
+        if (next < ranges[i].first_block) next = ranges[i].first_block;
+        while (next <= ranges[i].last_block) {
+            if (bank->sample_data[next * 8] > 127) goto invalid;
+            ++next;
         }
     }
     return bank;

@@ -1,6 +1,7 @@
 import { storeNetplayReport } from "./diagnostics";
 
 const archiveName = /^freak-melee-(?:setup-)?[a-zA-Z0-9._-]{1,64}\.zip$/;
+const signatureName = /^manifest-[a-f0-9]{64}\.sig$/;
 const reportPath = /^diagnostics\/([a-f0-9]{16})\/([0-3])$/;
 
 export default {
@@ -14,7 +15,8 @@ export default {
     const report = reportPath.exec(key);
     if (report !== null) return storeNetplayReport(request, env, report[1], report[2]);
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
-    if (key !== "latest.json" && !archiveName.test(key)) {
+    const signature = signatureName.test(key);
+    if (key !== "latest.json" && !archiveName.test(key) && !signature) {
       return new Response("Not found", { status: 404 });
     }
 
@@ -27,7 +29,8 @@ export default {
       headers: {
         "Content-Type": key === "latest.json"
           ? "application/json; charset=utf-8"
-          : "application/zip",
+          : signature ? "application/octet-stream" : "application/zip",
+        "X-Content-Type-Options": "nosniff",
         "Content-Length": String(object.size),
         "Cache-Control": key === "latest.json"
           ? "no-store"

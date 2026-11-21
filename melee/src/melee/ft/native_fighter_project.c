@@ -67,7 +67,7 @@ static bool read_asset(const char* root, const char* name, uint8_t** bytes,
     long length = 0;
     bool valid = fseek(file, 0, SEEK_END) == 0 &&
                  (length = ftell(file)) >= 0 &&
-                 (size_t) length <= NATIVE_CONTENT_MAX_PACKAGE_BYTES &&
+                 (size_t) length <= NATIVE_CONTENT_MAX_ASSET_BYTES &&
                  fseek(file, 0, SEEK_SET) == 0;
     uint8_t* data = valid ? malloc((size_t) length + 1) : NULL;
     bool ok = data != NULL &&
@@ -172,9 +172,9 @@ bool nativeFighterProject_CreateStock(const char* path, const char* title,
         definition == NULL || base_name == NULL || !fact_ok ||
         fighter == NULL || animation == NULL || costume == NULL ||
         fighter_size < 32 || animation_size < 32 || costume_size < 32 ||
-        fighter_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
-        animation_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - fighter_size ||
-        costume_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES - fighter_size -
+        fighter_size > NATIVE_CONTENT_MAX_ASSET_BYTES ||
+        animation_size > NATIVE_CONTENT_MAX_ASSET_BYTES - fighter_size ||
+        costume_size > NATIVE_CONTENT_MAX_ASSET_BYTES - fighter_size -
                            animation_size ||
         !CreateDirectoryA(path, NULL)) {
         free(record);return false;
@@ -412,7 +412,7 @@ static bool asset_size(const char* root, const char* name, size_t* size)
     }
     uint64_t length = ((uint64_t) data.nFileSizeHigh << 32) |
                       data.nFileSizeLow;
-    if (length < 32 || length > NATIVE_CONTENT_MAX_PACKAGE_BYTES) {
+    if (length < 32 || length > NATIVE_CONTENT_MAX_ASSET_BYTES) {
         return false;
     }
     *size = (size_t) length;
@@ -444,7 +444,7 @@ bool nativeFighterProject_ReadInfo(const char* path,NativeFighterProjectInfo* in
     if(!title_valid(manifest+6)||!template_key_valid(hint))return false;
     size_t fighter_size,animation_size,costume_size;
     if(!asset_size(path,"fighter.dat",&fighter_size)||!asset_size(path,"animation.dat",&animation_size)||!asset_size(path,"costume.dat",&costume_size)||
-       fighter_size+animation_size+costume_size>NATIVE_CONTENT_MAX_PACKAGE_BYTES)return false;
+       fighter_size+animation_size+costume_size>NATIVE_CONTENT_MAX_ASSET_BYTES)return false;
     candidate.base_kind=(FighterKind)candidate.facts.animation_tag; // Authoring hint, never a profile lookup.
     strcpy(candidate.fighter_root,candidate.facts.fighter_root);candidate.action_count=candidate.facts.actions;candidate.demo_count=candidate.facts.demo_count;
     strcpy(candidate.title,manifest+6);strcpy(candidate.template_key,hint);*info=candidate;return true;
@@ -672,7 +672,7 @@ bool nativeFighterProject_SaveAnimation(const char* path,
     if (path == NULL || project == NULL ||
         project->action_count == 0 ||
         project->animation_dat == NULL || project->animation_size < 32 ||
-        project->animation_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES) return false;
+        project->animation_size > NATIVE_CONTENT_MAX_ASSET_BYTES) return false;
     NativeFighterProject disk;
     if (!nativeFighterProject_Open(path, &disk)) return false;
     bool same_project = disk.asset_record_size==project->asset_record_size&&project->asset_record&&
@@ -757,7 +757,7 @@ bool nativeFighterProject_SaveCostume(const char* path,
 {
     if (path == NULL || project == NULL || project->costume_dat == NULL ||
         project->costume_size < 32 ||
-        project->costume_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+        project->costume_size > NATIVE_CONTENT_MAX_ASSET_BYTES)
         return false;
     HSD_Dat dat;
     if (HSD_DatOpen(&dat, project->costume_dat,

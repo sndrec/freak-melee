@@ -921,7 +921,7 @@ static void* import_words(HSD_DatImport* import, u32 offset,
         void* pointer = NULL;
         switch (options->yakumono_pointers[field].kind) {
         case GrStageParamPointer_ColorScript: {
-            u32 end = HSD_DatNextTarget(import->dat, target);
+            u32 end = HSD_DatImportNextTarget(import, target);
             if (end <= target || ((end - target) & 3) != 0) {
                 return fail(import, HSD_DAT_DESCRIPTOR, target), NULL;
             }
@@ -1052,7 +1052,7 @@ static GrIceMtYakumonoParam* import_icicle_mountain_param(
         if (HSD_DatResolve(dat, slot, &source, &external) !=
                 HSD_DAT_REF_LOCAL ||
             HSD_DatBytes(dat, source, lengths[i] * sizeof(s16)) == NULL ||
-            (i < 2 && HSD_DatNextTarget(dat, source) !=
+            (i < 2 && HSD_DatImportNextTarget(import, source) !=
                            source + lengths[i] * sizeof(s16)) ||
             (i == 2 && source + lengths[i] * sizeof(s16) != offset))
         {

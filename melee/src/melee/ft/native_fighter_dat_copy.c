@@ -63,11 +63,11 @@ static External* find_external(CopyInput* input, const char* name)
 static NativeFighterDatCopyResult read_input(CopyInput* input,
                                              const void* bytes, size_t size)
 {
-    if (size > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
+    if (size > NATIVE_CONTENT_MAX_ASSET_BYTES ||
         HSD_DatOpen(&input->dat, bytes, size) != HSD_DAT_OK)
         return NativeFighterDatCopy_Input;
     HSD_Dat* dat = &input->dat;
-    if (dat->extern_count > NATIVE_CONTENT_MAX_PACKAGE_BYTES / sizeof(External))
+    if (dat->extern_count > NATIVE_CONTENT_MAX_ASSET_BYTES / sizeof(External))
         return NativeFighterDatCopy_Capacity;
     unsigned char* used = calloc(dat->data_size / 4 + 1, 1);
     input->external = calloc(dat->extern_count ? dat->extern_count : 1,
@@ -152,7 +152,7 @@ bool nativeFighterDatCopy_PointerField(
     }
     size_t total = 32 + data_size + relocation_count * 4 +
                    (size_t)dst.dat.root_count * 8 + external_count * 8 + strings_size;
-    if (total > NATIVE_CONTENT_MAX_PACKAGE_BYTES || total > UINT32_MAX) {
+    if (total > NATIVE_CONTENT_MAX_ASSET_BYTES || total > UINT32_MAX) {
         info.result = NativeFighterDatCopy_Capacity;
         goto done;
     }

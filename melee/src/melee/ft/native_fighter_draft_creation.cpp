@@ -31,7 +31,7 @@ bool read(const std::string& path, std::string& bytes)
     if (!file) return false;
     long length;
     bool ok = !std::fseek(file, 0, SEEK_END) && (length = std::ftell(file)) > 0 &&
-        (size_t)length <= NATIVE_CONTENT_MAX_PACKAGE_BYTES && !std::fseek(file, 0, SEEK_SET);
+        (size_t)length <= NATIVE_CONTENT_MAX_ASSET_BYTES && !std::fseek(file, 0, SEEK_SET);
     if (ok) { bytes.resize((size_t)length); ok = std::fread(bytes.data(), 1, bytes.size(), file) == bytes.size(); }
     return std::fclose(file) == 0 && ok;
 }

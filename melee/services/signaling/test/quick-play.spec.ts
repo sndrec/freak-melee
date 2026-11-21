@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { quickJoin, quickConnect } from "./quick-client";
+import { ownsPartySeat } from "../src/room-ownership";
 import { allocateQuickMatch, chooseQuickTickets, quickBucket, QUICK_RULES, QUICK_STAGES,
   type QuickOffer, type QuickTicket, type QuickAllocation } from "../src/quick-play";
 import { ServerMessageType, encodeSetMatch, encodeQueueQuick } from "../src/wire";
@@ -21,6 +22,17 @@ async function offer(name: string): Promise<QuickOffer> {
 }
 
 describe("Quick Play assembly", () => {
+  it("recognizes the returning seat by its installation, bound account or private connection ID", () => {
+    const roster = { ...ticket(1, 1), owners: ["guest:installation"] };
+    const member = roster.members[0];
+    const owns = (identity: string, reconnect = "", bound?: string) =>
+      ownsPartySeat(roster, member.peerId, member.localPlayers, roster.build, identity, reconnect, bound);
+    expect(owns("guest:installation")).toBe(true);
+    expect(owns("account:owner", "", "owner")).toBe(true);
+    expect(owns("guest:new", member.connectionId)).toBe(true);
+    expect(owns("guest:new")).toBe(false);
+  });
+
   it("preserves pairs for every doubles combination and includes all six stages", () => {
     expect(QUICK_STAGES).toEqual(["battlefield", "final_destination", "fountain_of_dreams", "dream_land", "pokemon_stadium", "yoshis_story"]);
     for (const sizes of [[2,2], [2,1,1], [1,2,1], [1,1,1,1]]) {
@@ -43,6 +55,8 @@ describe("Quick Play assembly", () => {
     const b = await quickJoin("QSINGLEB", "single_b");
     try {
       await a.configure(1); await b.configure(1);
+      a.socket.send(encodeSetMatch(new Uint8Array([1,2,3]), 16384));
+      await a.next(ServerMessageType.QuickRejected);
       await a.search(); await a.state(1);
       await a.search(); await a.state(1);
       await b.search();
@@ -190,6 +204,7 @@ describe("Quick Play assembly", () => {
       await a.search(); await a.state(1); await b.search();
       const first = await a.state(2); await b.state(2);
       await a.close();
+      await evictDurableObject(room("QRETURNA"));
       returned = await quickJoin("QRETURNA", "return_a");
       await returned.state(2); await returned.cancel();
       await b.cancel();

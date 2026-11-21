@@ -153,6 +153,15 @@ def main():
         (journal / 'manifest').write_bytes(b'FMWORKTX' + struct.pack('<III', 1, len(relative), 1) + relative)
         (journal / 'prepared').write_text('ready')
         (draft / names[0]).write_text('# interrupted partial write\n')
+        # An incomplete backup set must leave the current draft available
+        # exactly as it stood when recovery started.
+        second = names[1].encode()
+        complete_manifest = (journal / 'manifest').read_bytes()
+        (journal / 'manifest').write_bytes(b'FMWORKTX' + struct.pack('<I', 2) +
+            complete_manifest[12:] + struct.pack('<II', len(second), 1) + second)
+        assert call('scripts.update', dict(args, revision=recovered['revision'], files=edits), expected=1)['code'] == 'draft_busy'
+        assert (draft / names[0]).read_text() == '# interrupted partial write\n'
+        (journal / 'manifest').write_bytes(complete_manifest)
         call('scripts.update', dict(args, revision=recovered['revision'], files=edits))
         assert snapshot(draft) == before and not journal.exists()
         # A corrupt journal remains available for inspection and blocks writes.

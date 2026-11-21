@@ -89,7 +89,16 @@ def main():
                 assert packet[offset:offset+size] == (members/(key+'.dat')).read_bytes()
                 offset += size
             assert offset == len(packet)
-            result = run(label+'-runtime', [args.runtime_test.resolve(), args.iso.resolve(), store, parent, outfit])
+            receiver = output/label/'receiver'
+            downloads = receiver/'downloads'
+            downloads.mkdir(parents=True)
+            for package_id in (parent, outfit):
+                shutil.copyfile(store/'cache'/(package_id+'.fmc'), downloads/(package_id+'.fmc'))
+            run(label+'-accept-outfit', [args.tool.resolve(), '--root', receiver, 'accept', outfit])
+            for package_id in (parent, outfit):
+                assert (receiver/'installed'/(package_id+'.fmi')).is_file()
+                assert hashlib.sha256((receiver/'cache'/(package_id+'.fmc')).read_bytes()).hexdigest() == package_id
+            result = run(label+'-runtime', [args.runtime_test.resolve(), args.iso.resolve(), receiver, parent, outfit])
             assert f'PASS {count} coordinated outfit members' in result
             receipt['cases'].append({'label': label, 'parent': parent, 'outfit': outfit,
                                      'members': keys, 'runtime': 'PASS'})

@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 tool, iso = map(lambda value: str(Path(value).resolve()), sys.argv[1:])
 windows = Path(os.environ['SystemRoot'])
@@ -19,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix='Agent build with spaces ') as temporary
     (root / 'userdata').mkdir()
     env = dict(os.environ, LOCALAPPDATA=str(root / 'userdata'), PATH=str(windows / 'System32') + ';' + str(windows))
     def run(*arguments):
-        return subprocess.run([tool, *map(str, arguments)], capture_output=True, text=True, env=env,
+        return subprocess.run([tool, *map(str, arguments)], capture_output=True, encoding='utf-8', env=env,
                               timeout=90, creationflags=subprocess.CREATE_NO_WINDOW)
     def call(name, args, expected=True):
         result = run('agent', 'call', name, json.dumps(args))
@@ -64,6 +65,20 @@ with tempfile.TemporaryDirectory(prefix='Agent build with spaces ') as temporary
         refused = root / 'not-a-package.txt'
         assert call('packages.export', {'package_id': built['package_id'], 'output': str(refused)}, False)['code'] == 'invalid_output'
         assert not refused.exists()
+        if fighter == 'Mario':
+            folder = root / 'concurrent exports'
+            folder.mkdir()
+            destination = folder / '星.fmc'
+            args_json = json.dumps(dict(package_id=built['package_id'], output=str(destination)))
+            with ThreadPoolExecutor(max_workers=2) as workers:
+                attempts = [workers.submit(run, 'agent', 'call', 'packages.export', args_json) for _ in range(2)]
+                replies = [json.loads(attempt.result().stdout) for attempt in attempts]
+            assert sum(reply['ok'] for reply in replies) == 1, replies
+            assert next(reply for reply in replies if not reply['ok'])['error']['code'] == 'export_unavailable', replies
+            assert list(folder.iterdir()) == [destination] and destination.read_bytes() == original
+            imported = root / 'Imported Mario'
+            call('project.import', dict(package=str(destination), output=str(imported)))
+            assert call('project.inspect', dict(project=str(imported)))['members'][0]['key'] == members[0]
         # Both members' independent errors are returned in one completed build.
         for member in members:
             file, source = originals[member]

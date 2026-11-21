@@ -5,7 +5,7 @@
 
 #include "native_netplay_room.h"
 
-void nativeNetplayRoom_ClearContent(NativeNetplayRoom* room);
+void nativeNetplayRoom_ClearContent(NativeNetplayRoom* room, bool keep_match_files);
 bool nativeNetplayRoom_PrepareContent(NativeNetplayRoom* room);
 bool nativeNetplayRoom_ContentPacket(
     NativeNetplayRoom* room,

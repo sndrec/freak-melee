@@ -68,11 +68,14 @@ Each account has a SQLite-backed Durable Object. Up to eight keys and sixteen
 sessions are supported. Sessions expire after thirty days. Challenges last two
 minutes, work once and are bound to the service origin, account handle, permanent
 ID, purpose, proposed public key, random attempt ID and random challenge.
-Pending attempts are capped at sixteen. Account requests have a per-network
+Each account has sixteen slots for public sign-in or registration challenges,
+four for authenticated key changes and two for recovery. After two minutes,
+an unfinished registration releases its provisional storage. Account requests have a per-network
 rate limit, bounded 64 KiB JSON bodies and `Cache-Control: no-store` responses.
 Transactions and account epochs protect creation, recovery and concurrent
-changes. Sensitive operations require recent key verification, performed
-automatically by the client using its local key.
+changes. Ending a device session, removing a key or replacing the recovery code
+requires key verification within the past five minutes. The client signs that
+request automatically. Removing a key also cancels its pending challenges.
 
 The Windows client stores its seed, session token and pending recovery code in
 `content/account-session.bin`, protected for the Windows user with DPAPI.

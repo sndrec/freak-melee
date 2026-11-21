@@ -23,10 +23,12 @@ report records the displayed frame ID, presentation time, capture time and
 simulation tick. The image stays available across later rendering and window
 resizing. Pin positions use normalized coordinates in the original image.
 
-The first send saves the notes beside the captured attachments. **Retry** sends
-those same files with the same report ID. A successful receipt removes the
-local files. Returning after an upload failure keeps them under the content
-store's `feedback` directory, named with the report UUID:
+The first send saves the notes beside the screenshot and diagnostics. The game
+keeps the original image, diagnostics and confirmed notes in memory for the
+upload. **Retry** sends those same bytes with the same report ID. A successful
+receipt removes the game’s working copies. You can move a copy to keep it.
+Returning after an upload failure keeps the files under the content store’s
+`feedback` directory, named with the report UUID:
 
 - `<id>.png`: original full-window screenshot.
 - `<id>.context.json`: diagnostic capture from activation.
@@ -34,14 +36,25 @@ store's `feedback` directory, named with the report UUID:
 
 Cancelling an unsubmitted report removes its local attachments.
 
-Diagnostics include build and scene details, fighter/item state, script
-variables and callback IDs, recent resolved controller inputs, and a filtered
-warning log. The collector reads an explicit set of gameplay fields and keeps
-its history outside rollback state. Account storage and authentication buffers
-are excluded from the collector.
+Pressing F2 records the build, scene, fighters, items, script variables,
+callback IDs and recent controller inputs. Each engine warning includes its
+module and the original message template. Values filled in by the engine,
+such as a local filename or a graphics driver message, stay in the console.
+The screenshot includes whatever is visible in the game window when you press F2.
 
-The existing render worker reads and encodes the reserved image. The community
-worker streams the report to `/v1/feedback` and publishes upload progress at
+Each report can record up to 512 named script values per fighter or item and
+8,192 across the scene. A flag on the affected actor identifies an incomplete
+list. The diagnostic JSON has an 8 MiB limit. If it cannot fit, the report
+includes a smaller capture with the original frame information and marks the
+diagnostics as partial.
+
+The render worker encodes the reserved image. When you confirm a report, the
+game keeps its screenshot, notes and diagnostics together in memory until you
+close it. A retry sends the same bytes under the same report ID. For a saved
+Workshop agent report, the game checks the files against their original hashes
+and uploads the bytes it checked.
+
+The community worker streams the report to `/v1/feedback` and publishes progress at
 half-second intervals. The service stores report metadata in D1 and attachments
 in its private R2 bucket. Administration requires Cloudflare Access.
 
@@ -62,6 +75,8 @@ directory. Each report contains `notes.md`, complete metadata in `report.json`,
 `screen.png` and `context.json`. Pin positions use normalized screenshot coordinates.
 The tool checks each attachment's stored size and SHA-256 hash. Repeating a download
 reuses matching local attachments and refreshes the report's status and notes.
+Submitted text appears literally in the notes. The screenshot links to the local
+image saved with the report.
 
 Run `npm ci` and `npx wrangler login` in `melee/services/community` when setting
 up another developer PC. Downloads use that Cloudflare administrator login to read

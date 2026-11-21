@@ -2,7 +2,7 @@ import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { CHAT_HISTORY, encodeChatPost, encodeChatIdentity } from "../src/chat";
+import { CHAT_HISTORY, CHAT_PLAYERS, encodeChatPost, encodeChatIdentity } from "../src/chat";
 import { CONNECTION_TIMEOUT_MS, CONNECTION_LIFETIME_MS } from "../src/connection-lease";
 
 const worker = exports.default as unknown as Fetcher;
@@ -98,6 +98,41 @@ describe("global chat", () => {
     } finally { a.socket.close(); b.socket.close(); }
   });
 
+  it("reserves occupied seats during heartbeat recovery and admits the returning owner", async () => {
+    const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
+    const original = await connect(stub, firstPeer);
+    try {
+      await original.next(0x82);
+      await runInDurableObject(stub, (_instance, state) => {
+        for (let i = 1; i < CHAT_PLAYERS; ++i) {
+          const pair = new WebSocketPair();
+          const peer = i.toString(16).padStart(32, "0");
+          pair[1].serializeAttachment({ peer, playerIdentity: `guest:${peer}`, name: "Player",
+            uncertain: true, lastMessageAt: Date.now() - CONNECTION_TIMEOUT_MS });
+          state.acceptWebSocket(pair[1], [peer]);
+        }
+      });
+      const full = await stub.fetch(`https://chat.test/chat/connect?peer=${secondPeer}`, {
+        headers: { Upgrade: "websocket", ...guestHeaders(secondPeer) },
+      });
+      expect(full.status).toBe(503);
+      original.socket.send(new Uint8Array([2]));
+      await original.next(0x84);
+      const returning = await connect(stub, firstPeer);
+      try {
+        await returning.next(0x82);
+        returning.socket.send(new Uint8Array([2]));
+        await returning.next(0x84);
+        expect(await stub.connectedPlayers()).toHaveLength(1);
+      } finally { returning.socket.close(); }
+    } finally {
+      original.socket.close();
+      await runInDurableObject(stub, (_instance, state) => {
+        for (const socket of state.getWebSockets()) socket.close();
+      });
+    }
+  });
+
   it("removes a ghost peer without removing a player who sent a newer heartbeat", async () => {
     const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
     const a = await connect(stub, firstPeer), b = await connect(stub, secondPeer);
@@ -148,16 +183,38 @@ describe("global chat", () => {
     const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
     const a = await connect(stub, firstPeer);
     await a.next(0x82);
-    for (let n = 1; n <= 70; ++n) {
+    const total = CHAT_HISTORY + 8;
+    for (let n = 1; n <= total; ++n) {
       a.socket.send(encodeChatPost(n, "Player", String(n)));
       expect(entry(await a.next(0x81)).nonce).toBe(n);
     }
     const b = await connect(stub, secondPeer);
-    for (let n = 71 - CHAT_HISTORY; n <= 70; ++n) {
+    for (let n = total - CHAT_HISTORY + 1; n <= total; ++n) {
       expect(entry(await b.next(0x81)).nonce).toBe(n);
     }
     await b.next(0x82);
+    expect(await runInDurableObject(stub, (_instance, state) =>
+      state.storage.sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM chat_messages").one().n
+    )).toBe(CHAT_HISTORY);
     a.socket.close(); b.socket.close();
+  });
+
+  it("carries the sender's message budget across hibernation", async () => {
+    const stub = env.GLOBAL_CHAT.getByName(crypto.randomUUID());
+    const a = await connect(stub, firstPeer), b = await connect(stub, secondPeer);
+    try {
+      await a.next(0x82); await b.next(0x82);
+      await runInDurableObject(stub, (_instance, state) => {
+        const socket = state.getWebSockets(firstPeer)[0];
+        socket.serializeAttachment({ ...socket.deserializeAttachment(), messageBudgetMs: Date.now() + 10000 });
+      });
+      await evictDurableObject(stub);
+      const closed = new Promise<number>(resolve => a.socket.addEventListener("close", e => resolve(e.code), { once: true }));
+      a.socket.send(new Uint8Array([2]));
+      expect(await closed).toBe(1008);
+      b.socket.send(new Uint8Array([2]));
+      expect(await b.next(0x84)).toEqual(new Uint8Array([0x84]));
+    } finally { a.socket.close(); b.socket.close(); }
   });
 
   it("reports presence and responds to the liveness probe", async () => {

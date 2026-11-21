@@ -402,7 +402,24 @@ int main(int argc,char** argv)
     CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,function_id("BranchThenReturn"),&mode,1,&result)==NativeScriptVM_Ok);CHECK(result.as.i64==2);
     CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,function_id("Reentrant"),NULL,0,&result)==NativeScriptVM_Ok);
     CHECK(result.as.f32==5.25f);CHECK(vm.depth==0 && vm.register_top==0);
+    CHECK(NATIVE_SCRIPT_CALLBACK_INSTRUCTIONS - vm.remaining_instructions ==
+          program.functions[function_id("Reentrant")].instruction_count +
+          program.functions[boost_function].instruction_count);
     CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,function_id("ReturnNested"),NULL,0,&result)==NativeScriptVM_Ok);CHECK(result.as.i64==6);
+    const uint32_t loop_function = function_id("ReturnNested");
+    const uint32_t loop_work = NATIVE_SCRIPT_CALLBACK_INSTRUCTIONS - vm.remaining_instructions;
+    CHECK(loop_work > program.functions[loop_function].instruction_count);
+    // Run the same finite loop as a nested callback with a nearly spent caller.
+    vm.depth = 1;
+    vm.remaining_instructions = loop_work - 1;
+    result = f32(-999);
+    CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,loop_function,NULL,0,&result)==NativeScriptVM_Error);
+    CHECK(strstr(vm.diagnostic.message,"budget exhausted") && vm.depth==1 &&
+          vm.register_top==0 && result.as.f32==-999 && !vm.remaining_instructions);
+    vm.remaining_instructions = loop_work;
+    CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,loop_function,NULL,0,&result)==NativeScriptVM_Ok);
+    CHECK(result.as.i64==6 && !vm.remaining_instructions);
+    vm.depth = 0;
     host.wrong_output_type=true;host.writes=0;
     CHECK(nativeScriptVM_Run(&vm,&program,&host_interface,&context,function_id("Evaluate"),NULL,0,&result)==NativeScriptVM_Error);
     CHECK(strstr(vm.diagnostic.message,"output type")!=NULL);CHECK(host.writes==0);host.wrong_output_type=false;

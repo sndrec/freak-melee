@@ -10,6 +10,14 @@ extern "C" {
 // Immutable on-disc view for native conversion. None of these bytes are a
 // native HSD descriptor: pointer fields remain big-endian 32-bit offsets.
 // The caller owns the byte buffer and keeps it alive while using this view.
+enum {
+    HSD_DAT_MAX_RELOCATION_RUNS = 16,
+    HSD_DAT_LINEAR_RELOCATIONS = 128,
+    HSD_DAT_EXTERNAL_BUDGET = 512, // symbol entries plus linked slots
+    HSD_DAT_MAX_ROOTS = 1024,
+    HSD_DAT_MAX_SYMBOL_BYTES = 255, // excluding the terminator
+    HSD_DAT_MAX_RELOCATIONS = 131072,
+};
 typedef struct HSD_Dat {
     const u8* data;
     const u8* relocations;
@@ -21,7 +29,10 @@ typedef struct HSD_Dat {
     u32 relocation_count;
     u32 root_count;
     u32 extern_count;
-    bool relocations_sorted;
+    u32 first_external_slot, last_external_slot;
+    u32 relocation_run_ends[HSD_DAT_MAX_RELOCATION_RUNS];
+    u16 descending_runs;
+    u8 relocation_run_count;
 } HSD_Dat;
 
 typedef enum HSD_DatResult {
@@ -33,6 +44,7 @@ typedef enum HSD_DatResult {
     HSD_DAT_EXTERNAL,
     HSD_DAT_DESCRIPTOR,
     HSD_DAT_CAPACITY,
+    HSD_DAT_RESOURCE_LIMIT,
 } HSD_DatResult;
 
 typedef enum HSD_DatReferenceKind {
@@ -49,6 +61,8 @@ bool HSD_DatReadU32(const HSD_Dat* dat, u32 offset, u32* value);
 bool HSD_DatReadU16(const HSD_Dat* dat, u32 offset, u16* value);
 bool HSD_DatReadF32(const HSD_Dat* dat, u32 offset, f32* value);
 bool HSD_DatRelocation(const HSD_Dat* dat, u32 index, u32* offset);
+// True if [begin, end) contains a complete local or external pointer slot.
+bool HSD_DatContainsReference(const HSD_Dat* dat, u32 begin, u32 end);
 u32 HSD_DatNextTarget(const HSD_Dat* dat, u32 offset);
 bool HSD_DatSymbol(const HSD_Dat* dat, bool external, u32 index,
                    u32* offset, const char** name);

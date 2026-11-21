@@ -8,6 +8,8 @@
 #include <stdint.h>
 
 #include "native_netplay_ice.h"
+#include "native_netplay_game_route.h"
+#include "native_netplay_cursor.h"
 #include "native_signaling_client.h"
 #include "native_room_chat.h"
 #include "native_netplay_content_channel.h"
@@ -24,15 +26,6 @@ typedef struct NativeNetplayConnectionConfig {
     NativeNetplayIceConfig ice;
 } NativeNetplayConnectionConfig;
 
-typedef struct NativeNetplayConnectionPeer {
-    NativeNetplayIcePeer ice;
-    char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
-    uint64_t join_order;
-    bool active;
-    bool local_description_sent;
-    bool remote_description_applied;
-} NativeNetplayConnectionPeer;
-
 typedef struct NativeNetplayConnectionDatagram {
     NativeNetplayIceDatagram datagram;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
@@ -40,6 +33,7 @@ typedef struct NativeNetplayConnectionDatagram {
 
 typedef struct NativeRemoteCssPointers {
     NativeCssPointers pointers;
+    NativeCursorMotion motion[4];
     uint64_t received_ms;
 } NativeRemoteCssPointers;
 
@@ -51,6 +45,7 @@ typedef struct NativeNetplayConnection {
     NativeLobbyListing listing;
     NativeRoomLobbyState lobby;
     NativeStageCursor stage_cursor;
+    NativeCursorMotion stage_motion;
     NativeRemoteCssPointers css_pointers[NATIVE_SIGNALING_MAX_PARTICIPANTS];
     uint32_t lobby_revision;
     bool has_lobby;
@@ -71,6 +66,7 @@ typedef struct NativeNetplayConnection {
     char local_build[NATIVE_SIGNALING_MAX_BUILD_BYTES + 1];
     char failure[NATIVE_NETPLAY_CONNECTION_FAILURE_BYTES];
     uint64_t presence_revision;
+    uint64_t route_creation_budget_ms;
     uint8_t remote_count;
     uint8_t connected_count;
     uint8_t poll_cursor;
@@ -91,9 +87,9 @@ bool nativeNetplayConnection_LockTopology(NativeNetplayConnection* connection);
 bool nativeNetplayConnection_UnlockTopology(NativeNetplayConnection* connection);
 void nativeNetplayConnection_CloseSignaling(
     NativeNetplayConnection* connection);
-bool nativeNetplayConnection_Send(NativeNetplayConnection* connection,
-                                  const char* peer_id, const uint8_t* bytes,
-                                  size_t size);
+NativeNetplayIceSend nativeNetplayConnection_Send(NativeNetplayConnection* connection,
+                                                 const char* peer_id, const uint8_t* bytes,
+                                                 size_t size);
 bool nativeNetplayConnection_PollDatagram(
     NativeNetplayConnection* connection,
     NativeNetplayConnectionDatagram* datagram);

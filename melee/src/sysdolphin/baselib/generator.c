@@ -70,6 +70,10 @@ void hsd_8039D354(u32 unused)
     HSD_ObjAllocInit(&hsd_804D0F90.alloc_data, sizeof(HSD_Generator), 4);
     hsd_804D78FC = NULL;
     hsd_804D78E0 = 0;
+#ifdef MELEE_NATIVE
+    particle_work_this_tick.generators = 0;
+    particle_work_this_tick.emissions = 0;
+#endif
     hsd_804D78DA = 0;
     hsd_804D78F4 = 0;
     psCamera = NULL;
@@ -103,6 +107,14 @@ HSD_Generator* hsd_8039D3AC(HSD_Generator* gen, HSD_Generator* prev)
                     }
                 }
             }
+        }
+    }
+    // A first-draw generator may be removed before its joint is sampled.
+    // Retire its pending transform before this pool slot becomes reusable.
+    for (HSD_SList** entry = &hsd_804D78F4; *entry; entry = &(*entry)->next) {
+        if ((*entry)->data == gen) {
+            *entry = HSD_SListRemove(*entry);
+            break;
         }
     }
     if (prev == NULL) {
@@ -307,6 +319,11 @@ HSD_Generator* hsd_8039D9C8(void)
     HSD_Generator* gen;
     PAD_STACK(8);
 
+#ifdef MELEE_NATIVE
+    if (hsd_804D78E0 >= HSD_GENERATORS_LIVE ||
+        particle_work_this_tick.generators >= HSD_GENERATORS_PER_TICK) return NULL;
+    ++particle_work_this_tick.generators;
+#endif
     gen = HSD_ObjAlloc(&hsd_804D0F90.alloc_data);
     if (gen != NULL) {
         memset(gen, 0, sizeof(*gen));
@@ -377,9 +394,24 @@ f32 hsd_8039DAD4(HSD_Generator* gen)
     f32 radius;
     f32 angle3;
     angle3 = angle1 = 0.0F;
+#ifdef MELEE_NATIVE
+    if (!isfinite(gen->count)) return 0.0f;
+#endif
     if (gen->count < 1.0F) {
         return gen->count;
     }
+#ifdef MELEE_NATIVE
+    // Reserve the shape work before invoking child or emitter callbacks.
+    // Discard excess whole particles; retain the ordinary fractional carry.
+    u32 remaining = HSD_PARTICLES_PER_TICK - particle_work_this_tick.emissions;
+    f32 carry = 0.0f;
+    if (gen->count >= (f32)remaining + 1.0f) {
+        carry = gen->count - floorf(gen->count);
+        gen->count = (f32)remaining;
+        if (!remaining) return carry;
+    }
+    particle_work_this_tick.emissions += (u32)gen->count;
+#endif
 
     /* Copy velocity */
     vel_copy.x = gen->vel.x;
@@ -954,7 +986,11 @@ f32 hsd_8039DAD4(HSD_Generator* gen)
         gen->count -= 1.0F;
     }
 
+#ifdef MELEE_NATIVE
+    return gen->count + carry;
+#else
     return gen->count;
+#endif
 }
 
 void hsd_8039EE24(u32 mask)
@@ -1050,13 +1086,13 @@ HSD_Generator* hsd_8039F05C(s32 linkNo, s32 bank, s32 idx)
 {
     HSD_Generator* gen;
 
-    if (bank >= 0x41) {
+    if ((u32)bank >= 0x41) {
         return NULL;
     }
-    if (linkNo >= 8) {
+    if ((u32)linkNo >= 8) {
         return NULL;
     }
-    if (idx >= psCmdListArray[bank]) {
+    if (idx < 0 || idx >= psCmdListArray[bank]) {
         return NULL;
     }
 

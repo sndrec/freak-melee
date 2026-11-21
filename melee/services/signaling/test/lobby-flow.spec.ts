@@ -5,7 +5,7 @@ import { quickJoin, QuickClient } from "./quick-client";
 import { choices, select } from "./quick-fixture";
 import { automaticLobbyStage, emptyLobbyStageHistory, lobbyStageChooser, lobbyReadySignature, LOBBY_STAGES } from "../src/lobby-stage";
 import { decodeLobbyRules, encodeLobbyRules, type LobbyRules } from "../src/lobby-rules";
-import { encodeRequestLobbyState, encodeSetLobbyRules, encodePickLobbyStage, encodeSetMatch,
+import { encodeRequestLobbyState, encodeSetLobbyRules, encodePickLobbyStage, encodeSetMatch, encodeStartLobbyMatch,
   encodeReportMatch, encodeUpdate, encodeStageCursor, decodeClientMessage,
   decodeServerMessage, encodeStageCursorUpdate, ClientMessageType, ServerMessageType } from "../src/wire";
 import type { Participant, RoomSnapshot } from "../src/protocol";
@@ -26,7 +26,7 @@ async function setup(policy = 4) {
   }
   clients[0].socket.send(encodeSetLobbyRules({ ...rules,stagePolicy:policy },16384));
   expect((await state(clients[1],0)).rules?.stagePolicy).toBe(policy);
-  return { room:env.ROOMS.getByName(code), clients, async close() { await Promise.all(clients.map(c=>c.close())); } };
+  return { code, room:env.ROOMS.getByName(code), clients, async close() { await Promise.all(clients.map(c=>c.close())); } };
 }
 async function stored(game: Awaited<ReturnType<typeof setup>>) {
   return runInDurableObject(game.room, (_instance,ctx) => ctx.storage.sql.exec<{ phase:number; deadline:number; signature:string; revision:number }>(
@@ -135,6 +135,14 @@ describe("shared lobby rules and stage flow",()=>{
       game.clients[0].socket.send(encodePickLobbyStage(room.matchEpoch,0,32,16384));
       await expect.poll(async()=>(await presence(game)).stage).toBe(32);
       await select(game.clients[1],1,false);await state(game.clients[0],0);expect((await presence(game)).stage).toBe(255);
+      await select(game.clients[1],1);await state(game.clients[0],1);await expire(game);
+      const reopened=await presence(game);
+      expect(reopened.matchEpoch).toBeGreaterThan(room.matchEpoch);
+      game.clients[0].socket.send(encodePickLobbyStage(room.matchEpoch,0,32,16384));
+      expect((await game.clients[0].next(ServerMessageType.Error)).message).toMatch(/selected/);
+      expect((await presence(game)).stage).toBe(255);
+      game.clients[0].socket.send(encodePickLobbyStage(reopened.matchEpoch,0,31,16384));
+      await expect.poll(async()=>(await presence(game)).stage).toBe(31);
     } finally {await game.close();}
   });
 
@@ -163,7 +171,32 @@ describe("shared lobby rules and stage flow",()=>{
     }finally{await game.close();}
   });
 
-  it("checks the agreed stage/rules before commit and clears readiness after a result",async()=>{
+  it("starts the two fighters' match when the owner is spectating", async () => {
+    const game = await setup(1);
+    try {
+      const [host, first] = game.clients;
+      host.socket.send(encodeUpdate({ activeMask: 0, waitingMask: 0 }, 16384));
+      await expect.poll(async () => (await presence(game)).participants[0].activeMask).toBe(0);
+      const second = await quickJoin(game.code, `second_${game.code}`);
+      game.clients.push(second);
+      second.socket.send(encodeRequestLobbyState(16384));
+      await state(second, 0);
+      await select(first, 1);
+      await select(second, 1);
+      await state(host, 1);
+      await expire(game);
+      const ready = await presence(game);
+      host.socket.send(encodeStartLobbyMatch(ready.matchEpoch, new Uint8Array(32).fill(0x42)));
+      await expect.poll(async () => (await presence(game)).match?.[60]).toBe(2);
+      const match = (await presence(game)).match!;
+      const peerNames = new TextDecoder().decode(match.subarray(69 + 4 * 85));
+      expect(peerNames).toContain(first.peerId);
+      expect(peerNames).toContain(second.peerId);
+      expect(peerNames).not.toContain(host.peerId);
+    } finally { await game.close(); }
+  });
+
+  it.each([true,false])("checks the locked roster and waits for both results (agreement %s)",async(agree)=>{
     const game=await setup();
     try {
       for(const client of game.clients)await select(client,1);await state(game.clients[0],1);
@@ -172,19 +205,66 @@ describe("shared lobby rules and stage flow",()=>{
       await expire(game);let room=await presence(game);
       game.clients[0].socket.send(encodePickLobbyStage(room.matchEpoch,0,31,16384));
       await expect.poll(async()=>(await presence(game)).stage).toBe(31);room=await presence(game);
-      const allocation={mode:1,stage:0,build:"quick-test",players:room.participants.map(p=>({peerId:p.peerId,localPlayers:1}))} as QuickAllocation;
+      const allocation={mode:1,stage:0,build:"quick-test",players:room.participants.map(p=>({peerId:p.peerId,localPlayers:1,team:0}))} as QuickAllocation;
       const proposal=buildQuickMatch(allocation,room.participants,new Uint8Array(32).fill(0x42));
       proposal[68]=rules.pause<<2|rules.sdPenalty<<4;
       const wrong=proposal.slice();wrong[64]=9;
       game.clients[0].socket.send(encodeSetMatch(wrong,16384));
       expect((await game.clients[0].next(ServerMessageType.Error)).message).toMatch(/proposal/);
-      game.clients[0].socket.send(encodeSetMatch(proposal,16384));
+      // A valid proposal from the previous roster cannot override the
+      // fighters and input ports that are locked for this round.
+      const previousRoster=room.participants.map(p=>({...p, selection:p.selection.slice()}));
+      previousRoster[0].selection[25]=8;
+      const previous=buildQuickMatch(allocation,previousRoster,new Uint8Array(32).fill(0x42));
+      previous[68]=proposal[68];
+      game.clients[0].socket.send(encodeSetMatch(previous,16384));
+      expect((await game.clients[0].next(ServerMessageType.Error)).message).toMatch(/proposal/);
+      expect((await presence(game)).match).toBeNull();
+      const digest = new Uint8Array(32).fill(0x42);
+      const start = encodeStartLobbyMatch(room.matchEpoch, digest);
+      for (const [index, request] of [[1, start], [0, encodeStartLobbyMatch(room.matchEpoch - 1, digest)]] as const) {
+        game.clients[index].socket.send(request);
+        await game.clients[index].next(ServerMessageType.RoomActionRejected);
+        expect((await presence(game)).match).toBeNull();
+      }
+      game.clients[0].socket.send(start);
       await expect.poll(async()=>(await presence(game)).match?.length).toBe(proposal.length);
       room=await presence(game);
+      const accepted = room.match!;
+      expect(accepted.slice(0, 4)).toEqual(proposal.slice(0, 4));
+      expect(accepted.slice(12)).toEqual(proposal.slice(12));
+      expect(accepted.slice(4, 12).some(byte => byte !== 0)).toBe(true);
+      game.clients[0].socket.send(start);
+      await game.clients[0].next(ServerMessageType.RoomActionRejected);
+      expect((await presence(game)).matchEpoch).toBe(room.matchEpoch);
       game.clients[0].socket.send(encodeReportMatch(room.matchEpoch,1,1,16384));
+      game.clients[0].socket.send(encodeSetMatch(new Uint8Array(),16384));
+      await expect.poll(()=>runInDurableObject(game.room,(_room,ctx)=>
+        ctx.getWebSockets().find(s=>s.deserializeAttachment().peerId===game.clients[0].peerId)
+          ?.deserializeAttachment().lobbyResult?.epoch)).toBe(room.matchEpoch);
+      await evictDurableObject(game.room);
+      expect((await presence(game)).match).toEqual(accepted);
+      // The first report for a PC remains final, including after hibernation.
+      game.clients[0].socket.send(encodeReportMatch(room.matchEpoch,2,0,16384));
+      game.clients[1].socket.send(encodeReportMatch(room.matchEpoch,agree?1:2,agree?1:0,16384));
       await expect.poll(async()=>(await presence(game)).match).toBeNull();
+      expect((await presence(game)).stagePeerId).toBe(game.clients[agree?1:0].peerId);
       expect((await presence(game)).participants.every(p=>!(p.selection[6]&1))).toBe(true);
       expect((await stored(game)).phase).toBe(0);
+      for (const client of game.clients) await select(client, 1);
+      await state(game.clients[0], 1);
+      await expire(game);
+      const next = await presence(game);
+      game.clients[agree ? 1 : 0].socket.send(encodePickLobbyStage(next.matchEpoch, 0, 31, 16384));
+      await expect.poll(async () => (await presence(game)).stage).toBe(31);
+      game.clients[0].socket.send(start);
+      await game.clients[0].next(ServerMessageType.RoomActionRejected);
+      expect((await presence(game)).match).toBeNull();
+      game.clients[0].socket.send(encodeStartLobbyMatch(next.matchEpoch, digest));
+      await expect.poll(async () => (await presence(game)).match?.length).toBe(accepted.length);
+      const rematch = (await presence(game)).match!;
+      expect(rematch.slice(4, 12)).not.toEqual(accepted.slice(4, 12));
+      expect(rematch.slice(12)).toEqual(accepted.slice(12));
     }finally{await game.close();}
   });
 

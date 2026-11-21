@@ -28,6 +28,9 @@ The outcome is:
    notes and publish it later. Do not create a game-wide announcement.
 3. Verified R2 downloads and the new manifest live on the updater channel.
 
+Use `--sign-only` on the prepared release before staging. Verify the signed
+manifest and include its detached signature in the GitHub release. Stage and
+check both ZIPs and the signature through the release Worker.
 Use the publisher's `--stage-only` and `--activate-only` stages. Activation is
 last, after the GitHub release and News draft are verified. Keep a local receipt
 of completed stages so a retry can resume without duplicate articles or releases.

@@ -6,6 +6,7 @@
 #include "native_class_snapshot.h"
 
 typedef struct NativeParticleControlState {
+    HSD_ParticleWork work;
     u32 float_bits;
     u8 display_frame,sort_frames[16];
     HSD_Particle* non_edge_heads[17];

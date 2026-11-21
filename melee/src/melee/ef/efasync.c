@@ -2372,7 +2372,7 @@ void efAsync_Spawn(HSD_GObj* gobj, void* queue_head, u32 spawn_kind,
     PAD_STACK(0x4);
 
     va_start(vlist, jobj);
-    queued = HSD_ObjAlloc(&efAsync_AllocData);
+    queued = efAsync_AllocateRequest();
     if (queued == NULL) { va_end(vlist); return; }
 #ifdef MELEE_NATIVE
     queued->native_policy = NULL;
@@ -2436,4 +2436,8 @@ void efAsync_QueueInit(void)
 {
     HSD_ObjAllocInit(&efAsync_AllocData, sizeof(EF_QueuedEffect),
                      sizeof(EF_QueuedEffect*));
+#ifdef MELEE_NATIVE
+    HSD_ObjAllocSetNumLimit(&efAsync_AllocData, EF_MAX_QUEUED_EFFECTS);
+    HSD_ObjAllocEnableNumLimit(&efAsync_AllocData);
+#endif
 }

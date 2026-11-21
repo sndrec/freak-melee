@@ -30,4 +30,8 @@ bool ftAnimationBank_Import(const void* bytes, size_t size,
                             void* arena, size_t arena_size,
                             FtAnimationBankStats* stats);
 
+// A masked insertion contributes one node to this clip's source skeleton.
+bool ftAnimationBank_FitsRig(const struct Fighter_WaitAnimData* clip,
+                             unsigned parts, unsigned insertions);
+
 #endif

@@ -15,6 +15,7 @@
 #include <melee/gm/native_content_store.h>
 #include "native_fighter_trail.h"
 #include "ftcharacter_asset_layout.h"
+#include "ftcostume_bindings.h"
 #include "native_fighter_sound_policy.h"
 
 #ifdef __cplusplus
@@ -190,7 +191,7 @@ typedef struct NativeFighterCostumeInfo {
     char key[NATIVE_FIGHTER_CODE_KEY_BYTES];
     char joint_name[128];
     char matanim_name[128];
-    uint16_t joint_count;
+    FtCostumeBindings bindings;
 } NativeFighterCostumeInfo;
 
 typedef struct NativeFighterCostumeFamilyInfo {
@@ -552,7 +553,7 @@ bool nativeFighterRuntime_ValidateCached(
 // Read a cached fighter's costume graph contract without changing the active
 // match registration. The returned names are copied out of the owned facts.
 bool nativeFighterRuntime_CostumeInfoCached(
-    const NativeContentId* id, const char* root,
+    const NativeContentId* id, const char* root, unsigned model_variant,
     NativeFighterCostumeFamilyInfo* info);
 
 // Synchronous borrowed views of the currently registered package and selected

@@ -107,6 +107,9 @@ typedef struct {
   uint32_t iconWidth;
   uint32_t iconHeight;
   AuroraLogCallback logCallback;
+  /* Receives the source format string of warnings and errors for reports.
+   * Arguments such as paths, driver output and device names stay in the local log. */
+  AuroraLogCallback diagnosticWarningCallback;
   AuroraLogLevel logLevel;
   AuroraImGuiInitCallback imGuiInitCallback;
   AuroraEventFilter eventFilter;
@@ -166,15 +169,17 @@ typedef struct AuroraPresentedCapture {
 // Reserve the last successfully presented full-window image immediately.
 // Readback/PNG writing complete asynchronously. retain_image keeps this same
 // GPU image available as a frozen backdrop until explicitly released.
-bool aurora_capture_presented(const char* png_path, bool retain_image, AuroraPresentedCapture* info);
+bool aurora_capture_presented(bool retain_image, AuroraPresentedCapture* info);
 // Capture the frame currently being prepared. The request follows that frame
 // through submission, so earlier queued frames cannot satisfy it.
-bool aurora_capture_next_frame(const char* png_path, bool viewport_only, AuroraPresentedCapture* info);
-// Retry or export the already reserved image, preserving its capture/frame IDs.
-bool aurora_write_presented_capture(const char* png_path);
+bool aurora_capture_next_frame(bool viewport_only, AuroraPresentedCapture* info);
+// Retry encoding a retained image. The capture ID and displayed frame stay the same.
+bool aurora_retry_presented_capture(uint64_t capture_id);
+// Game-thread view of a completed PNG. Valid until this capture is released or retried.
+const void* aurora_presented_png(uint64_t capture_id, size_t* size);
 void aurora_presented_capture_status(AuroraPresentedCapture* info);
 void aurora_set_capture_backdrop(bool enabled);
-void aurora_release_presented_capture();
+void aurora_release_presented_capture(uint64_t capture_id);
 // Record presented frames as a binary PPM stream. A named pipe can feed a video
 // encoder directly. NULL stops and flushes at the next presented frame.
 bool aurora_request_video_capture(const char* path);

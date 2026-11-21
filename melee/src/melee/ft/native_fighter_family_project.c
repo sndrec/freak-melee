@@ -355,18 +355,18 @@ bool nativeFighterFamilyProject_CreateFromPackage(
     if (!nativeContentStore_ParseFighter(package, package_size, &metadata, &data))
         return false;
     char destination[PATH_BYTES], staging[PATH_BYTES], member_path[PATH_BYTES];
-    if (!begin_creation(path, destination, staging)) return false;
+    bool ok = begin_creation(path, destination, staging);
     // Each direct writer creates its directory, so primary is constructed in
     // a temporary main child before publishing its actual payload at root.
-    for (unsigned i = 0; i < metadata.member_count; ++i) {
+    for (unsigned i = 0; ok && i < metadata.member_count; ++i) {
         if (!join_path(member_path, staging, i == 0 ? "main" : "partner") ||
             !nativeFighterProject_CreateFromMember(member_path, title,
                 &metadata.members[i], &data.members[i], data.portrait_png,
                 data.portrait_size) ||
-            (i == 0 && !nativeFighterProject_SetTileName(member_path, metadata.tile_name))) return false;
+            (i == 0 && !nativeFighterProject_SetTileName(member_path, metadata.tile_name))) ok = false;
     }
-    if (!publish_primary_files(staging)) return false;
-    return publish(destination, staging, metadata.mode, metadata.member_count,
+    nativeContentStore_ReleaseFighterData(&data);
+    return ok && publish_primary_files(staging) && publish(destination, staging, metadata.mode, metadata.member_count,
                     metadata.members[0].key, metadata.members[1].key);
 }
 

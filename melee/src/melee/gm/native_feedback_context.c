@@ -1,5 +1,6 @@
 #include "native_feedback_context.h"
 #include "native_feedback_input.h"
+#include "native_feedback_json.h"
 #include "native_home.h"
 #include "native_match_launch.h"
 #include "native_replay.h"
@@ -26,7 +27,15 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-enum { HISTORY_COUNT = 256, LOG_COUNT = 128, MAX_CONTEXT_BYTES = 8 * 1024 * 1024 };
+enum {
+    HISTORY_COUNT = 256, LOG_COUNT = 128,
+    MAX_CONTEXT_BYTES = 8 * 1024 * 1024,
+    MAX_CONTEXT_WORK_BYTES = 48 * 1024 * 1024,
+};
+
+typedef struct ScriptCaptureBudget {
+    unsigned values, declarations, state_bytes;
+} ScriptCaptureBudget;
 static struct Boundary { int scene; int64_t scene_tick; uint64_t rollback_tick; bool resimulating, online; } boundary;
 static struct Input { uint64_t tick, sample; int scene; PADStatus pads[4]; } inputs[HISTORY_COUNT];
 static unsigned input_count;
@@ -49,21 +58,11 @@ void nativeFeedbackContext_RecordPads(const PADStatus pads[4])
     sample->scene = boundary.scene;
     memcpy(sample->pads, pads, sizeof(sample->pads));
 }
-void nativeFeedbackContext_Log(AuroraLogLevel level, const char* module, const char* message, unsigned length)
+void nativeFeedbackContext_RecordWarning(AuroraLogLevel level, const char* module, const char* message, unsigned length)
 {
-    static const char* names[] = { "debug", "info", "warning", "error", "fatal" };
-    fprintf(stderr, "[%s] [%s] %.*s\n", names[level <= LOG_FATAL ? level : LOG_ERROR], module ? module : "",
-        (int)length, message ? message : "");
     if (level < LOG_WARNING || !module || !message) return;
-    // The diagnostic ring contains graphics/runtime warnings. Account and
-    // authentication text, URLs and credential-shaped messages are excluded.
-    if (!strstr(module, "aurora") && !strstr(module, "script") && !strstr(module, "screenshot")) return;
-    char lower[512]; unsigned count = length < sizeof(lower)-1 ? length : sizeof(lower)-1;
+    unsigned count = length < sizeof(logs[0].message) ? length : sizeof(logs[0].message)-1;
     while (count && count < length && ((unsigned char)message[count] & 0xC0) == 0x80) --count;
-    for (unsigned i=0;i<count;++i) lower[i] = message[i] >= 'A' && message[i] <= 'Z' ? message[i]+('a'-'A') : message[i];
-    lower[count]=0;
-    static const char* excluded[] = { "token", "secret", "password", "account", "authorization", "bearer", "recovery", "key", "http://", "https://" };
-    for (unsigned i=0;i<sizeof(excluded)/sizeof(*excluded);++i) if (strstr(lower, excluded[i])) return;
     AcquireSRWLockExclusive(&log_lock);
     struct Log* entry = &logs[log_count++ % LOG_COUNT];
     entry->at_ns = SDL_GetTicksNS(); entry->level = level;
@@ -98,7 +97,8 @@ static yyjson_mut_val* value_json(yyjson_mut_doc* doc, NativeScriptValue value)
     default:return yyjson_mut_null(doc);
     }
 }
-static yyjson_mut_val* script(yyjson_mut_doc* doc, const NativeScriptReceiverView* view, uint64_t program_identity)
+static yyjson_mut_val* script(yyjson_mut_doc* doc, const NativeScriptReceiverView* view,
+                              uint64_t program_identity, ScriptCaptureBudget* budget)
 {
     yyjson_mut_val* result=yyjson_mut_obj(doc);
     identity(doc,result,"program",program_identity);
@@ -108,32 +108,53 @@ static yyjson_mut_val* script(yyjson_mut_doc* doc, const NativeScriptReceiverVie
     yyjson_mut_obj_add_uint(doc,result,"owner",storage->owner);
     yyjson_mut_obj_add_uint(doc,result,"generation",storage->generation);
     const NativeScriptStorageOwner* owner=nativeScriptStorage_Owner(storage->layout,storage->owner);
-    if (owner && owner->state_bytes<=storage->capacity && owner->state_bytes<=8192) {
+    if (owner && owner->state_bytes<=storage->capacity && owner->state_bytes<=8192 &&
+        owner->state_bytes<=budget->state_bytes) {
+        budget->state_bytes -= owner->state_bytes;
         char bytes[16385];static const char hex[]="0123456789abcdef";
         for (unsigned i=0;i<owner->state_bytes;++i) {bytes[i*2]=hex[storage->state[i]>>4];bytes[i*2+1]=hex[storage->state[i]&15];}
         bytes[owner->state_bytes*2]=0;
         yyjson_mut_obj_add_strcpy(doc,result,"state_hex",bytes);
+    } else if (owner && owner->state_bytes) {
+        yyjson_mut_obj_add_bool(doc,result,"state_hex_omitted",true);
     }
     yyjson_mut_val* fields=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,result,"fields",fields);
     yyjson_mut_obj_add_uint(doc,result,"named_values_limit",512);
     unsigned captured=0;
     for (unsigned i=0;i<storage->layout->field_count;++i) {
+        if (!budget->declarations || !budget->values || captured >= 512) {
+            yyjson_mut_obj_add_bool(doc,result,"named_values_truncated",true);
+            break;
+        }
+        --budget->declarations;
         const NativeScriptStorageField* field=&storage->layout->fields[i];
         const bool shared=field->parameter && field->owner==0 && storage->owner!=0;
         if (field->owner!=storage->owner && !shared) continue;
-        if (captured>=512) { yyjson_mut_obj_add_bool(doc,result,"named_values_truncated",true);break; }
         const NativeScriptValueDeclaration* declaration=&view->program->values[i];
         const NativeScriptSourceTree* tree=view->program->tree;
         if (declaration->name.offset>tree->source_bytes || declaration->name.length>tree->source_bytes-declaration->name.offset) continue;
         yyjson_mut_val* row=yyjson_mut_obj(doc);yyjson_mut_arr_append(fields,row);
-        yyjson_mut_obj_add_val(doc,row,"name",yyjson_mut_strncpy(doc,tree->source+declaration->name.offset,declaration->name.length));
+        const char* name = tree->source + declaration->name.offset;
+        unsigned length = declaration->name.length;
+        if (length > 192) {
+            length = 192;
+            while (length && ((unsigned char)name[length] & 0xc0) == 0x80) --length;
+        }
+        yyjson_mut_obj_add_val(doc,row,"name",yyjson_mut_strncpy(doc,name,length));
+        if (length < declaration->name.length) yyjson_mut_obj_add_bool(doc,row,"name_truncated",true);
         yyjson_mut_obj_add_uint(doc,row,"declaration",i);
         yyjson_mut_obj_add_uint(doc,row,"offset",field->offset);
         yyjson_mut_obj_add_uint(doc,row,"type",field->type);
         yyjson_mut_obj_add_uint(doc,row,"count",field->count);
         yyjson_mut_obj_add_bool(doc,row,"parameter",field->parameter);
         yyjson_mut_val* values=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,row,"values",values);
-        for (unsigned j=0;j<field->count && captured<512;++j,++captured) {
+        for (unsigned j=0;j<field->count;++j) {
+            if (!budget->values || captured >= 512) {
+                yyjson_mut_obj_add_bool(doc,result,"named_values_truncated",true);
+                return result;
+            }
+            --budget->values;
+            ++captured;
             NativeScriptValue value, selector={.type=NativeScriptType_U32,.as.u64=j}; NativeScriptDiagnostic error;
             const uint32_t domain=shared?NATIVE_SCRIPT_PROGRAM_PARAMETER_SEMANTIC:
                 field->parameter?NATIVE_SCRIPT_PARAMETER_SEMANTIC:NATIVE_SCRIPT_STATE_SEMANTIC;
@@ -156,7 +177,7 @@ static yyjson_mut_val* hitbox(yyjson_mut_doc* doc, const HitCapsule* hit)
     yyjson_mut_obj_add_uint(doc,row,"hit_victims",hit->x44);
     return row;
 }
-static void fighters(yyjson_mut_doc* doc, yyjson_mut_val* root)
+static void fighters(yyjson_mut_doc* doc, yyjson_mut_val* root, ScriptCaptureBudget* budget)
 {
     yyjson_mut_val* rows=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,root,"fighters",rows);
     for (unsigned slot=0;slot<nativeFighterPool.initialized_count;++slot) {
@@ -183,7 +204,7 @@ static void fighters(yyjson_mut_doc* doc, yyjson_mut_val* root)
         if (nativeCallbackSource_Snapshot(fighter->gobj,NativeCallbackSource_Fighter,&generation) &&
             nativeScriptFighter_View(fighter->gobj,generation,&view)) {
             const NativeScriptFighterProgram* program=nativeScriptFighter_Program(fighter->kind);
-            yyjson_mut_obj_add_val(doc,row,"script",script(doc,&view,program?program->identity:0));
+            yyjson_mut_obj_add_val(doc,row,"script",script(doc,&view,program?program->identity:0,budget));
             yyjson_mut_val* callbacks=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,row,"callbacks",callbacks);
             for (unsigned c=0;c<NativeScriptFighterCallback_Count;++c)
                 yyjson_mut_arr_append(callbacks,yyjson_mut_uint(doc,nativeScriptFighter_CallbackFunction(fighter->gobj,c)));
@@ -191,7 +212,7 @@ static void fighters(yyjson_mut_doc* doc, yyjson_mut_val* root)
         }
     }
 }
-static void items(yyjson_mut_doc* doc, yyjson_mut_val* root)
+static void items(yyjson_mut_doc* doc, yyjson_mut_val* root, ScriptCaptureBudget* budget)
 {
     yyjson_mut_val* rows=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,root,"items",rows);
     for (unsigned slot=0;slot<nativeItemPool.initialized_count;++slot) {
@@ -206,16 +227,18 @@ static void items(yyjson_mut_doc* doc, yyjson_mut_val* root)
         uint32_t generation;NativeScriptReceiverView view;
         if (nativeCallbackSource_Snapshot(item->entity,NativeCallbackSource_Item,&generation) && nativeScriptItem_View(item->entity,generation,&view)) {
             const NativeScriptItemProgram* program=nativeScriptItem_Spec(item->entity);
-            yyjson_mut_obj_add_val(doc,row,"script",script(doc,&view,program?program->identity:0));
+            yyjson_mut_obj_add_val(doc,row,"script",script(doc,&view,program?program->identity:0,budget));
             yyjson_mut_obj_add_uint(doc,row,"script_status",nativeScriptItem_Status(item->entity));
         }
     }
 }
 
-bool nativeFeedbackContext_Write(const char* path, const char* id, const char* captured_at,
-                                 const AuroraPresentedCapture* image, const NativeFeedbackInterface* interface_state)
+char* nativeFeedbackContext_Collect(const char* id, const char* captured_at,
+                                 const AuroraPresentedCapture* image, const NativeFeedbackInterface* interface_state, size_t* length)
 {
-    yyjson_mut_doc* doc=yyjson_mut_doc_new(NULL);if (!doc) return false;
+    NativeFeedbackJsonBudget memory = {.remaining = MAX_CONTEXT_WORK_BYTES};
+    yyjson_alc allocator = nativeFeedbackJson_Allocator(&memory);
+    yyjson_mut_doc* doc=yyjson_mut_doc_new(&allocator);if (!doc) return NULL;
     yyjson_mut_val* root=yyjson_mut_obj(doc);yyjson_mut_doc_set_root(doc,root);
     yyjson_mut_obj_add_strcpy(doc,root,"id",id);yyjson_mut_obj_add_strcpy(doc,root,"captured_at",captured_at);
 #ifdef NATIVE_NETPLAY_DIAGNOSTICS_BUILD
@@ -285,7 +308,8 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
                 yyjson_mut_obj_add_uint(doc,peer,"checksum_frame",observation.peers[i].checksum_frame);}
         }
     }
-    fighters(doc,root);items(doc,root);
+    ScriptCaptureBudget budget = {.values = 8192, .declarations = 65536, .state_bytes = 512 * 1024};
+    fighters(doc,root,&budget);items(doc,root,&budget);
     yyjson_mut_val* packages=yyjson_mut_arr(doc);yyjson_mut_obj_add_val(doc,root,"selected_packages",packages);
     for (unsigned port=0;port<4;++port) {char hex[65];const NativeContentId* package=nativeHome_FighterPackage(port);
         if (package) {nativeContentStore_IdHex(package,hex);yyjson_mut_arr_append(packages,yyjson_mut_strcpy(doc,hex));}
@@ -314,11 +338,12 @@ bool nativeFeedbackContext_Write(const char* path, const char* id, const char* c
     const unsigned first_log=log_count>LOG_COUNT?log_count-LOG_COUNT:0;
     for (unsigned i=first_log;i<log_count;++i) {const struct Log* entry=&logs[i%LOG_COUNT];yyjson_mut_val* row=yyjson_mut_obj(doc);yyjson_mut_arr_append(log,row);
         yyjson_mut_obj_add_uint(doc,row,"at_ns",entry->at_ns);yyjson_mut_obj_add_uint(doc,row,"level",entry->level);
-        yyjson_mut_obj_add_strcpy(doc,row,"module",entry->module);yyjson_mut_obj_add_strcpy(doc,row,"message",entry->message);}
+        yyjson_mut_obj_add_strcpy(doc,row,"module",entry->module);yyjson_mut_obj_add_strcpy(doc,row,"message_template",entry->message);}
     ReleaseSRWLockShared(&log_lock);
-    size_t size=0;char* bytes=yyjson_mut_write(doc,0,&size);
-    bool ok=bytes && size<=MAX_CONTEXT_BYTES;FILE* file=ok?fopen(path,"wb"):NULL;
-    ok=file && fwrite(bytes,1,size,file)==size;
-    if (file) ok=fclose(file)==0 && ok;
-    free(bytes);yyjson_mut_doc_free(doc);return ok;
+    size_t size=0;char* bytes=memory.exhausted ? NULL : yyjson_mut_write_opts(doc,0,&allocator,&size,NULL);
+    bool ok=bytes && size<=MAX_CONTEXT_BYTES;
+    yyjson_mut_doc_free(doc);
+    if (!ok) { free(bytes); return NULL; }
+    *length = size;
+    return bytes;
 }

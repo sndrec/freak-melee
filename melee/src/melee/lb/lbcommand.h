@@ -5,6 +5,12 @@
 
 #include <melee/lb/forward.h>
 
+#ifdef MELEE_NATIVE
+// Seeking and animation speed can make several timed groups due at once.
+// Leave the next command in place when an update has used its allowance.
+enum { LB_COMMAND_UPDATE_LIMIT = 4096 };
+#endif
+
 void Command_00(CommandInfo* info);
 void Command_01(CommandInfo* info);
 void Command_02(CommandInfo* info);

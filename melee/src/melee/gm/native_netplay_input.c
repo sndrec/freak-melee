@@ -6,11 +6,11 @@
 #include <string.h>
 
 enum {
-    INPUT_PACKET_HEADER_SIZE = 80,
+    INPUT_PACKET_HEADER_SIZE = 96,
     GAMEPLAY_PORT_MASK = (1U << NATIVE_ROLLBACK_INPUT_PORTS) - 1,
 };
 
-static const uint8_t input_packet_magic[4] = { 'F', 'M', 'I', 'N' };
+static const uint8_t input_packet_magic[4] = { 'F', 'M', 'I', '2' };
 
 static void write_u64(uint8_t* output, uint64_t value)
 {
@@ -49,11 +49,17 @@ static bool valid_batch_shape(const NativeNetplayInputBatch* batch)
         (batch->port_mask & ~GAMEPLAY_PORT_MASK) != 0 ||
         batch->frame_count == 0 ||
         batch->frame_count > NATIVE_NETPLAY_INPUT_MAX_FRAMES ||
+        (batch->ack_selective & 1) ||
         batch->sample_frame == UINT64_MAX ||
-        batch->start_frame > UINT64_MAX - (batch->frame_count - 1U)) {
+        (batch->has_checksum && batch->checksum_frame > batch->sample_frame) ||
+        batch->start_frame > UINT64_MAX - batch->frame_count) {
         return false;
     }
     uint64_t last = batch->start_frame + batch->frame_count - 1U;
+    if (batch->repair) {
+        return last <= batch->sample_frame &&
+               batch->sample_frame - batch->start_frame < NATIVE_ROLLBACK_INPUT_CAPACITY;
+    }
     return batch->sample_frame >= last
                ? batch->sample_frame - last < NativeConfirmedCheckpoint_MaxPrediction
                : last - batch->sample_frame <= NATIVE_NETPLAY_MAX_INPUT_DELAY;
@@ -78,11 +84,13 @@ size_t nativeNetplayInput_Encode(const NativeNetplayInputBatch* batch,
     packet[36] = batch->sender_peer;
     packet[37] = batch->port_mask;
     packet[38] = batch->frame_count;
-    packet[39] = batch->has_checksum ? 1 : 0;
+    packet[39] = (batch->has_checksum ? 1 : 0) | (batch->repair ? 2 : 0);
     write_u64(packet + 40, batch->sample_frame);
     for (unsigned peer = 0; peer < 4; ++peer) {
         write_u64(packet + 48 + 8 * peer, batch->observed_frames[peer]);
     }
+    write_u64(packet + 80, batch->ack_boundary);
+    write_u64(packet + 88, batch->ack_selective);
 
     uint8_t* output = packet + INPUT_PACKET_HEADER_SIZE;
     for (uint32_t frame = 0; frame < batch->frame_count; ++frame) {
@@ -114,13 +122,16 @@ bool nativeNetplayInput_Decode(NativeNetplayInputBatch* batch,
         .sender_peer = packet[36],
         .port_mask = packet[37],
         .frame_count = packet[38],
-        .has_checksum = packet[39] == 1,
+        .has_checksum = (packet[39] & 1) != 0,
+        .repair = (packet[39] & 2) != 0,
         .sample_frame = read_u64(packet + 40),
+        .ack_boundary = read_u64(packet + 80),
+        .ack_selective = read_u64(packet + 88),
     };
     for (unsigned peer = 0; peer < 4; ++peer) {
         decoded.observed_frames[peer] = read_u64(packet + 48 + 8 * peer);
     }
-    if (packet[39] > 1 || !valid_batch_shape(&decoded) ||
+    if (packet[39] > 3 || !valid_batch_shape(&decoded) ||
         packet_size(decoded.port_mask, decoded.frame_count) !=
             packet_size_value)
     {

@@ -219,7 +219,7 @@ void nativeModelEffect_Spawn(Fighter_GObj* object,
     if (sample == NULL) return;
     if (deferred) {
         if (position != NULL || recipe->family != EF_MODEL_POSITION) return;
-        EF_QueuedEffect* queued = HSD_ObjAlloc(&efAsync_AllocData);
+        EF_QueuedEffect* queued = efAsync_AllocateRequest();
         if (queued == NULL) return;
         *queued = (EF_QueuedEffect){ .spawn_kind = EF_SPAWN_POS,
             .gfx_id = policy->gfx_id, .jobj = sample, .native_policy = policy,

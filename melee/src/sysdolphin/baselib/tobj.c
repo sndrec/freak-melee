@@ -3,6 +3,7 @@
 #include <placeholder.h>
 #include <string.h>
 
+#include "animation_color.h"
 #include "aobj.h"
 #include "cobj.h"
 #include "debug.h"
@@ -64,6 +65,18 @@ void HSD_TObjAddAnim(HSD_TObj* tobj, HSD_TexAnim* texanim)
 
     if (tobj != NULL) {
         if ((ta = lookupTextureAnim(tobj->id, texanim)) != NULL) {
+#if defined(MELEE_NATIVE)
+            if (!HSD_TextureAnimationFits(ta, tobj->tev != NULL, tobj->tlut != NULL)) {
+                return;
+            }
+            // A previous animation may have left an indexed frame selected.
+            // Its palette table expires when this animation replaces it.
+            if (!tobj->tlut && tobj->tluttbl && !ta->n_tluttbl && tobj->imagedesc &&
+                (tobj->imagedesc->format == GX_TF_C4 || tobj->imagedesc->format == GX_TF_C8 ||
+                 tobj->imagedesc->format == GX_TF_C14X2)) {
+                tobj->imagedesc = tobj->native_base_image;
+            }
+#endif
             if (tobj->aobj != NULL) {
                 HSD_AObjRemove(tobj->aobj);
             }
@@ -184,43 +197,47 @@ static void TObjUpdateFunc(void* obj, enum_t type, HSD_ObjData* val)
         tobj->flags |= TEX_MTX_DIRTY;
         break;
     case HSD_A_T_LOD_BIAS:
+#if defined(MELEE_NATIVE)
+        tobj->native_lod_bias = val->fv;
+#else
         tobj->lod->LODBias = val->fv;
+#endif
         break;
     case HSD_A_T_KONST_R:
-        tobj->tev->konst.r = (u8) (255.0 * val->fv);
+        tobj->tev->konst.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_KONST_G:
-        tobj->tev->konst.g = (u8) (255.0 * val->fv);
+        tobj->tev->konst.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_KONST_B:
-        tobj->tev->konst.b = (u8) (255.0 * val->fv);
+        tobj->tev->konst.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_KONST_A:
-        tobj->tev->konst.a = (u8) (255.0 * val->fv);
+        tobj->tev->konst.a = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV0_R:
-        tobj->tev->tev0.r = (u8) (255.0 * val->fv);
+        tobj->tev->tev0.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV0_G:
-        tobj->tev->tev0.g = (u8) (255.0 * val->fv);
+        tobj->tev->tev0.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV0_B:
-        tobj->tev->tev0.b = (u8) (255.0 * val->fv);
+        tobj->tev->tev0.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV0_A:
-        tobj->tev->tev0.a = (u8) (255.0 * val->fv);
+        tobj->tev->tev0.a = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV1_R:
-        tobj->tev->tev1.r = (u8) (255.0 * val->fv);
+        tobj->tev->tev1.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV1_G:
-        tobj->tev->tev1.g = (u8) (255.0 * val->fv);
+        tobj->tev->tev1.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV1_B:
-        tobj->tev->tev1.b = (u8) (255.0 * val->fv);
+        tobj->tev->tev1.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TEV1_A:
-        tobj->tev->tev1.a = (u8) (255.0 * val->fv);
+        tobj->tev->tev1.a = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_T_TS_BLEND:
         tobj->blending = val->fv;
@@ -271,6 +288,10 @@ static int TObjLoad(HSD_TObj* tobj, HSD_TObjDesc* td)
     tobj->imagedesc = td->imagedesc;
     tobj->tlut = HSD_TlutLoadDesc(td->tlutdesc);
     tobj->lod = td->lod;
+#if defined(MELEE_NATIVE)
+    tobj->native_lod_bias = td->lod ? td->lod->LODBias : 0.0f;
+    tobj->native_base_image = td->imagedesc;
+#endif
     tobj->aobj = NULL;
     tobj->flags |= TEX_MTX_DIRTY;
     tobj->tlut_no = (u8) -1;
@@ -285,7 +306,8 @@ HSD_TObj* HSD_TObjLoadDesc(HSD_TObjDesc* td)
         HSD_TObj* tobj;
         HSD_ClassInfo* info;
 
-        if (!td->class_name || !(info = hsdSearchClassInfo(td->class_name))) {
+        if (!td->class_name || !(info = hsdSearchClassInfo(td->class_name)) ||
+            !hsdIsDescendantOf(info, &hsdTObj)) {
             tobj = HSD_TObjAlloc();
         } else {
             tobj = hsdNew(info);
@@ -1152,7 +1174,9 @@ s32 HSD_TObjAssignResources(HSD_TObj* tobj_top)
 static int DifferentTluts(HSD_Tlut* t0, HSD_Tlut* t1)
 {
     return
-#ifdef MUST_MATCH
+#if defined(MELEE_NATIVE)
+        t0->lut != t1->lut || t0->fmt != t1->fmt ||
+#elif defined(MUST_MATCH)
         (t0->lut != t0->lut) ||
 #endif
         (t0->n_entries != t1->n_entries);
@@ -1167,8 +1191,10 @@ void HSD_TObjSetup(HSD_TObj* tobj)
     int num;
     HSD_Tlut* tluts[8];
     int nb_tluts = 0;
+#if !defined(MELEE_NATIVE)
     u32 tlut_name = GX_TLUT0;
     u32 big_tlut_name = GX_BIGTLUT0;
+#endif
     int i;
 
     tobj_head = tobj;
@@ -1187,6 +1213,7 @@ void HSD_TObjSetup(HSD_TObj* tobj)
             GX_LIN_MIP_LIN, 0.0F, GX_FALSE, GX_FALSE, GX_ANISO_1,
         };
         HSD_TexLODDesc* lod;
+        f32 bias;
         HSD_ImageDesc* imagedesc = tobj->imagedesc;
         GXTexFilter min_filter;
 
@@ -1217,6 +1244,11 @@ void HSD_TObjSetup(HSD_TObj* tobj)
 #endif
         lod = tobj->lod != NULL ? tobj->lod : &default_lod;
         min_filter = lod->minFilt;
+#if defined(MELEE_NATIVE)
+        bias = tobj->native_lod_bias;
+#else
+        bias = lod->LODBias;
+#endif
 
         switch (imagedesc->format) {
         case GX_TF_C4:
@@ -1228,6 +1260,9 @@ void HSD_TObjSetup(HSD_TObj* tobj)
                 tlut = tobj->tluttbl[tobj->tlut_no];
             } else {
                 tlut = tobj->tlut;
+#if defined(MELEE_NATIVE)
+                if (!tlut && tobj->tluttbl) tlut = tobj->tluttbl[0];
+#endif
             }
 
             HSD_ASSERT(1595, tlut);
@@ -1240,11 +1275,16 @@ void HSD_TObjSetup(HSD_TObj* tobj)
             if (i < nb_tluts) {
                 tlut->tlut_name = tluts[i]->tlut_name;
             } else if (nb_tluts < 8) {
+#if defined(MELEE_NATIVE)
+                // Aurora can bind a palette of any size on each texture unit.
+                tlut->tlut_name = GX_TLUT0 + nb_tluts;
+#else
                 if (tlut->n_entries >= 256) {
                     tlut->tlut_name = big_tlut_name++;
                 } else {
                     tlut->tlut_name = tlut_name++;
                 }
+#endif
 #if defined(MELEE_NATIVE)
                 if (!tobj->native_palette_ready || tobj->native_palette_format != tlut->fmt ||
                     tobj->native_palette_entries != tlut->n_entries) {
@@ -1314,7 +1354,7 @@ void HSD_TObjSetup(HSD_TObj* tobj)
             min_filter &= 0x01;
         }
         GXInitTexObjLOD(texobj, min_filter, tobj->magFilt, imagedesc->minLOD,
-                        imagedesc->maxLOD, lod->LODBias, lod->bias_clamp,
+                        imagedesc->maxLOD, bias, lod->bias_clamp,
                         lod->edgeLODEnable, lod->max_anisotropy);
 
         GXLoadTexObj(texobj, tobj->id);

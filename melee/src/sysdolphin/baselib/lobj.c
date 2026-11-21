@@ -4,6 +4,7 @@
 
 #include <placeholder.h>
 
+#include "animation_color.h"
 #include "aobj.h"
 #include "class.h"
 #include "cobj.h"
@@ -175,16 +176,16 @@ void LObjUpdateFunc(void* obj, enum_t type, HSD_ObjData* val)
         }
         break;
     case HSD_A_L_LITC_R:
-        lobj->color.r = 255.0 * val->fv;
+        lobj->color.r = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_L_LITC_G:
-        lobj->color.g = 255.0 * val->fv;
+        lobj->color.g = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_L_LITC_B:
-        lobj->color.b = 255.0 * val->fv;
+        lobj->color.b = HSD_AnimationColorByte(val->fv);
         break;
     case HSD_A_L_LITC_A:
-        lobj->color.a = 255.0 * val->fv;
+        lobj->color.a = HSD_AnimationColorByte(val->fv);
         break;
     }
 }
@@ -1002,7 +1003,8 @@ HSD_LObj* HSD_LObjLoadDesc(HSD_LightDesc* ldesc)
         HSD_ClassInfo* info;
 
         if (!ldesc->class_name ||
-            !(info = hsdSearchClassInfo(ldesc->class_name)))
+            !(info = hsdSearchClassInfo(ldesc->class_name)) ||
+            !hsdIsDescendantOf(info, &hsdLObj))
         {
             *p = HSD_LObjAlloc();
         } else {

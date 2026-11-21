@@ -12,7 +12,6 @@
 #include <sysdolphin/baselib/gobjproc.h>
 #include <string.h>
 
-#include "ftanimation_bank.h"
 #include "ftcharacter_assets.h"
 #include "ftcostume_assets.h"
 #include "ftcpu_data.h"
@@ -21,6 +20,7 @@
 #include "ftdata.h"
 #include "ftdat.h"
 #include "ftparts.h"
+#include "ftanimation_bank.h"
 #include "native_source_package.h"
 #include "native_fighter_pose.h"
 #include "native_costume_runtime.h"
@@ -164,6 +164,7 @@ static bool release_family(NativeFighterFamily* family)
     if (family->members)
         for(unsigned m=0;m<NATIVE_FIGHTER_FAMILY_MEMBERS;++m)
             if(!release_slot(&family->members[m]))return false;
+    nativeContentStore_ReleaseFighterData(&family->data);
     free(family->package);
     memset(family,0,sizeof(*family));
     return true;
@@ -670,13 +671,14 @@ failure:
 bool nativeFighterRuntime_ValidateCached(const NativeContentId* id,const char* root)
 {
     NativeFighterFamily candidate={0};NativeFighterSlot members[NATIVE_FIGHTER_FAMILY_MEMBERS]={0};
+    if (!id || !runtime_quiescent()) return false;
     bool valid=prepare_family(&candidate,members,id,ChKind_CustomFirst,Ft_Kind_CustomFirst,root,false);
     bool released=release_family(&candidate);
     return valid && released;
 }
 
 bool nativeFighterRuntime_CostumeInfoCached(
-    const NativeContentId* id, const char* root, NativeFighterCostumeFamilyInfo* info)
+    const NativeContentId* id, const char* root, unsigned model_variant, NativeFighterCostumeFamilyInfo* info)
 {
     if (id == NULL || info == NULL) return false;
     *info = (NativeFighterCostumeFamilyInfo){0};
@@ -711,7 +713,8 @@ bool nativeFighterRuntime_CostumeInfoCached(
                 memcpy(member->key, family->metadata.members[m].key, sizeof(member->key));
                 memcpy(member->joint_name, facts->costume_joint, joint_len + 1);
                 memcpy(member->matanim_name, facts->costume_matanim, matanim_len + 1);
-                member->joint_count = facts->joints;
+                valid = ftCostumeBindings_FromCharacter(&family->members[m].source->assets.character,
+                    facts->joints, facts->layout.visibility_mask, model_variant, &member->bindings);
             }
         }
     }

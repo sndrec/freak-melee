@@ -61,6 +61,7 @@ typedef struct NativeScriptVM {
     uint32_t register_capacity, register_top;
     NativeScriptVMFrame* frames;
     uint32_t frame_capacity, depth;
+    uint32_t remaining_instructions;
     NativeScriptDiagnostic diagnostic;
     uint32_t error_function, error_frame, error_actor;
 } NativeScriptVM;

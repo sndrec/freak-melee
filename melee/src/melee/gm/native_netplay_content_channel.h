@@ -5,7 +5,8 @@
 enum {
     // Gifts/cache plus a viewing connection for every other room participant.
     NATIVE_CONTENT_CHANNELS = 6+NATIVE_SIGNALING_MAX_PARTICIPANTS-1,
-    NATIVE_CONTENT_CONTROL_QUEUE = 16
+    NATIVE_CONTENT_CONTROL_QUEUE = 16,
+    NATIVE_CONTENT_CONTROL_PER_PEER = 4
 };
 typedef enum NativeContentChannelState {
     NativeContentChannel_None,
@@ -14,23 +15,31 @@ typedef enum NativeContentChannelState {
     NativeContentChannel_Connected,
     NativeContentChannel_Failed
 } NativeContentChannelState;
+typedef enum NativeContentPurpose {
+    NativeContentPurpose_Cache,
+    NativeContentPurpose_Gift,
+    NativeContentPurpose_Watch
+} NativeContentPurpose;
 typedef struct NativeContentChannel {
     NativeNetplayIcePeer ice;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     char remote_description[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY];
     uint64_t join_order, started_ms;
     uint32_t serial;
+    NativeContentPurpose purpose;
     bool local_owner, started, local_description_sent,
         remote_description_applied;
     bool failed;
 } NativeContentChannel;
 typedef struct NativeContentControl {
     NativeNetplayIceDatagram datagram;
+    uint64_t join_order;
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
 } NativeContentControl;
 typedef struct NativeContentDatagram {
     NativeContentControl message;
     uint32_t serial;
+    NativeContentPurpose purpose;
     bool local_owner;
 } NativeContentDatagram;
 typedef struct NativeNetplayContentChannels {
@@ -42,20 +51,20 @@ typedef struct NativeNetplayContentChannels {
 struct NativeNetplayConnection;
 bool nativeNetplayConnection_ReserveContent(struct NativeNetplayConnection*,
                                             const char* peer, uint32_t serial,
-                                            bool local_owner);
+                                            bool local_owner, NativeContentPurpose purpose);
 bool nativeNetplayConnection_StartContent(struct NativeNetplayConnection*,
                                           const char* peer, uint32_t serial,
-                                          bool local_owner);
+                                          bool local_owner, NativeContentPurpose purpose);
 void nativeNetplayConnection_ReleaseContent(struct NativeNetplayConnection*,
                                             const char* peer, uint32_t serial,
-                                            bool local_owner);
+                                            bool local_owner, NativeContentPurpose purpose);
 NativeContentChannelState
 nativeNetplayConnection_ContentState(struct NativeNetplayConnection*,
                                      const char* peer, uint32_t serial,
-                                     bool local_owner);
+                                     bool local_owner, NativeContentPurpose purpose);
 bool nativeNetplayConnection_SendContent(struct NativeNetplayConnection*,
                                          const char* peer, uint32_t serial,
-                                         bool local_owner, const uint8_t*,
+                                         bool local_owner, NativeContentPurpose purpose, const uint8_t*,
                                          size_t);
 bool nativeNetplayConnection_PollContent(struct NativeNetplayConnection*,
                                          NativeContentDatagram*);

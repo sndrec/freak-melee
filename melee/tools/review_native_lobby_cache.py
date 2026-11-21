@@ -51,7 +51,7 @@ def main():
             client.wait_cards(index+1)
             client.click('lobby-ready')
         sender, receiver = clients
-        cache = receiver.data / f'content/cache/{receiver.missing}.fmc'
+        cache = receiver.data / f'content/downloads/{receiver.missing}.fmc'
         installed = receiver.data / f'content/installed/{receiver.missing}.fmi'
         roster = (receiver.data / 'css-layout.bin').read_bytes()
         choose(receiver, 0)

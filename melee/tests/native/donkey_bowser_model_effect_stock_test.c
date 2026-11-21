@@ -30,6 +30,7 @@ static const NativeFighterDefinition* active;
 HSD_GObj** HSD_GObjPLinkHead;
 HSD_GObjProc* HSD_GObj_CurrentInvokedProc;
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 static HSD_GObj* heads[32];
 static Fighter fighters[2];
 static HSD_GObj creators[2], objects[2][2];

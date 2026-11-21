@@ -44,22 +44,21 @@ static void close_route(NativeContentChannel* r)
 }
 bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c,
                                             const char* peer, uint32_t serial,
-                                            bool local_owner)
+                                            bool local_owner, NativeContentPurpose purpose)
 {
     const NativeSignalingParticipant* person = member(c, peer);
     if (!person || !serial) {
         return false;
     }
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    if (r) {
-        return !r->failed && r->join_order == person->join_order;
-    }
+    if (r) return false;
     for (unsigned i = 0; i < NATIVE_CONTENT_CHANNELS; ++i) {
         r = &c->content.routes[i];
         if (r->serial) {
             continue;
         }
         r->serial = serial;
+        r->purpose = purpose;
         r->local_owner = local_owner;
         r->join_order = person->join_order;
         memcpy(r->peer_id, person->peer_id, sizeof(r->peer_id));
@@ -69,10 +68,10 @@ bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c,
 }
 bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c,
                                           const char* peer, uint32_t serial,
-                                          bool local_owner)
+                                          bool local_owner, NativeContentPurpose purpose)
 {
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    if (!r || r->failed || !member(c, peer)) {
+    if (!r || r->purpose != purpose || r->failed || !member(c, peer)) {
         return false;
     }
     if (r->started) {
@@ -97,20 +96,20 @@ bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c,
 }
 void nativeNetplayConnection_ReleaseContent(NativeNetplayConnection* c,
                                             const char* peer, uint32_t serial,
-                                            bool local_owner)
+                                            bool local_owner, NativeContentPurpose purpose)
 {
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    if (r) {
+    if (r && r->purpose == purpose) {
         close_route(r);
     }
 }
 NativeContentChannelState
 nativeNetplayConnection_ContentState(NativeNetplayConnection* c,
                                      const char* peer, uint32_t serial,
-                                     bool local_owner)
+                                     bool local_owner, NativeContentPurpose purpose)
 {
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    if (!r) {
+    if (!r || r->purpose != purpose) {
         return NativeContentChannel_None;
     }
     if (r->failed) {
@@ -135,12 +134,12 @@ nativeNetplayConnection_ContentState(NativeNetplayConnection* c,
 }
 bool nativeNetplayConnection_SendContent(NativeNetplayConnection* c,
                                          const char* peer, uint32_t serial,
-                                         bool local_owner,
+                                         bool local_owner, NativeContentPurpose purpose,
                                          const uint8_t* bytes, size_t size)
 {
     NativeContentChannel* r = route(c, peer, serial, local_owner);
-    return r && !r->failed && r->started &&
-           nativeNetplayIce_Send(&r->ice, bytes, size);
+    return r && r->purpose == purpose && !r->failed && r->started &&
+           nativeNetplayIce_Send(&r->ice, bytes, size) == NativeNetplayIceSend_Sent;
 }
 bool nativeNetplayConnection_PollContent(NativeNetplayConnection* c,
                                          NativeContentDatagram* out)
@@ -158,7 +157,9 @@ bool nativeNetplayConnection_PollContent(NativeNetplayConnection* c,
             continue;
         }
         memcpy(out->message.peer_id, r->peer_id, sizeof(out->message.peer_id));
+        out->message.join_order = r->join_order;
         out->serial = r->serial;
+        out->purpose = r->purpose;
         out->local_owner = r->local_owner;
         c->content.poll_cursor = (index + 1) % NATIVE_CONTENT_CHANNELS;
         return true;
@@ -182,16 +183,29 @@ void nativeNetplayContentChannels_Control(NativeNetplayConnection* c,
                                           const char* peer,
                                           const uint8_t* bytes, size_t size)
 {
-    if (!member(c, peer) || !size ||
+    const NativeSignalingParticipant* person = member(c, peer);
+    if (!person || !bytes || !size ||
         size > NATIVE_NETPLAY_INPUT_PACKET_CAPACITY ||
         c->content.write - c->content.read >= NATIVE_CONTENT_CONTROL_QUEUE)
     {
         return;
     }
+    unsigned pending = 0;
+    for (unsigned i = c->content.read; i != c->content.write; ++i) {
+        const NativeContentControl* queued =
+            &c->content.controls[i % NATIVE_CONTENT_CONTROL_QUEUE];
+        if (queued->join_order == person->join_order &&
+            !strcmp(queued->peer_id, peer) &&
+            ++pending >= NATIVE_CONTENT_CONTROL_PER_PEER)
+        {
+            return;
+        }
+    }
     NativeContentControl* slot =
         &c->content
              .controls[c->content.write++ % NATIVE_CONTENT_CONTROL_QUEUE];
     memcpy(slot->peer_id, peer, strlen(peer) + 1);
+    slot->join_order = person->join_order;
     slot->datagram.size = (uint16_t) size;
     memcpy(slot->datagram.bytes, bytes, size);
 }
@@ -205,7 +219,8 @@ bool nativeNetplayConnection_PollControl(NativeNetplayConnection* c,
         NativeContentControl* slot =
             &c->content
                  .controls[c->content.read++ % NATIVE_CONTENT_CONTROL_QUEUE];
-        if (!member(c, slot->peer_id)) {
+        const NativeSignalingParticipant* person = member(c, slot->peer_id);
+        if (!person || slot->join_order != person->join_order) {
             continue;
         }
         *out = *slot;

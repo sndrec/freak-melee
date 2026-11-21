@@ -107,17 +107,9 @@ static bool installed_fighter(const NativeContentId* id)
     uint8_t* package = NULL;
     size_t package_size = 0;
     NativeFighterPackage fighter;
-    NativeFighterPackageData data;
     bool valid = nativeContentStore_IsInstalled(root, id) &&
         nativeContentStore_Read(root, id, &package, &package_size) &&
-        nativeContentStore_ParseFighter(package, package_size, &fighter,
-                                        &data);
-    NativeSourceAssetFacts facts;
-    for (unsigned member = 0; valid && member < fighter.member_count; ++member) {
-        valid = data.members[member].script_size != 0 &&
-            nativeSourceAssets_Read(data.members[member].asset_record,
-                                   data.members[member].asset_record_size, &facts, NULL);
-    }
+        nativeContentStore_ParseFighter(package, package_size, &fighter, NULL);
     free(package);
     return valid;
 }

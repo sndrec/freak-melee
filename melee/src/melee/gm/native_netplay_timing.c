@@ -14,6 +14,8 @@ typedef struct NetplayTimingRecord {
     uint64_t frame, elapsed;
     uint64_t phases[NativeNetplayTiming_Phases];
     uint64_t captures, restores;
+    uint64_t sample_late_ns;
+    int32_t lead_milliframes;
     size_t peak_bytes;
     unsigned replay_ticks;
 } NetplayTimingRecord;
@@ -51,6 +53,12 @@ void nativeNetplayTiming_Checkpoints(uint64_t captures, uint64_t restores,
     if (bytes > timing.current.peak_bytes) timing.current.peak_bytes = bytes;
 }
 
+void nativeNetplayTiming_Sample(uint64_t late_ns, int32_t lead_milliframes)
+{
+    timing.current.sample_late_ns = late_ns;
+    timing.current.lead_milliframes = lead_milliframes;
+}
+
 void nativeNetplayTiming_Submitted(uint64_t frame, bool hidden)
 {
     if (hidden) {
@@ -83,7 +91,8 @@ void nativeNetplayTiming_Report(void)
                  "captures=%llu restores=%llu peak_bytes=%zu total_us=%.3f "
                  "explicit_wait_us=%.3f input_us=%.3f simulation_us=%.3f drawing_us=%.3f "
                  "render_begin_us=%.3f hsd_draw_us=%.3f render_end_us=%.3f "
-                 "netplay_us=%.3f checkpoint_us=%.3f instrumentation=phase-clocks\n",
+                 "netplay_us=%.3f checkpoint_us=%.3f send_us=%.3f receive_us=%.3f "
+                 "room_transfer_us=%.3f sample_late_us=%.3f lead_milliframes=%d instrumentation=phase-clocks\n",
                  (unsigned long long)record->frame, record->replay_ticks,
                  (unsigned long long)record->captures, (unsigned long long)record->restores,
                  record->peak_bytes, record->elapsed / 1000.0, wait / 1000.0,
@@ -94,7 +103,11 @@ void nativeNetplayTiming_Report(void)
                  phase[NativeNetplayTiming_HsdDraw] / 1000.0,
                  phase[NativeNetplayTiming_RenderEnd] / 1000.0,
                  phase[NativeNetplayTiming_Netplay] / 1000.0,
-                 phase[NativeNetplayTiming_Checkpoint] / 1000.0);
+                 phase[NativeNetplayTiming_Checkpoint] / 1000.0,
+                 phase[NativeNetplayTiming_Send] / 1000.0,
+                 phase[NativeNetplayTiming_Receive] / 1000.0,
+                 phase[NativeNetplayTiming_RoomTransfers] / 1000.0,
+                 record->sample_late_ns / 1000.0, record->lead_milliframes);
     }
     nativeNetplayTimingEnabled = false;
 }

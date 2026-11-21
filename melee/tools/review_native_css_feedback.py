@@ -53,7 +53,7 @@ def main():
             c.click('join-lobby')
             wait(c, 'css-cards', r'online=1 count=4')
         a, b = clients
-        for c in clients:
+        for index, c in enumerate(clients):
             for _ in range(100):
                 cards = c.inspect('css-cards')
                 if len(re.findall(r'canonical=[0-3] ', cards)) == 2:
@@ -61,7 +61,7 @@ def main():
                 time.sleep(.1)
             else:
                 raise AssertionError(cards)
-            assert re.search(r'display=0 .*local=1', cards), cards
+            assert re.search(rf'display={index} .*local=1 .* card={index}\b', cards), cards
             state, text = c.state()
             tx, ty = map(float, re.search(r'\[css-tile\] index=0 center=([\d.-]+),([\d.-]+)', text).groups())
             c.move(tx - 2.7, ty + 2)
@@ -114,7 +114,7 @@ def main():
         a.tap('a', frames=40)
         wait(a, 'lobby-listing', f'listed={expected}')
         assert 'absent' in a.inspect('play-workshop')
-        for _ in range(3): a.click('rules-close')
+        a.click('rules-close')
         a.element('play-ready')
         # Move the player's cookie off the source tile before picking up the
         # tile itself; cookies intentionally take priority over tile sharing.

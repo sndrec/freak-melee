@@ -1,4 +1,5 @@
 #include "native_lobby_session.h"
+#include "native_stock_content.h"
 
 #ifdef MELEE_NATIVE
 
@@ -29,13 +30,31 @@ static bool canonical_match(const NativeSignalingPresence* presence,
            memcmp(encoded, presence->match, size) == 0;
 }
 
+static bool can_start_match(const NativeLobbySession* session)
+{
+    const NativeNetplayConnection* connection = &session->room.connection;
+    switch (session->match_source) {
+    case NativeLobbyMatchSource_Lobby:
+        return connection->has_lobby && connection->lobby.has_rules &&
+               connection->lobby.phase == 2 && connection->presence.stage != 255;
+    case NativeLobbyMatchSource_QuickPlay:
+        return connection->quick.state == NativeQuickState_Assigned &&
+               connection->quick.phase == 2;
+    case NativeLobbyMatchSource_Direct:
+        return true;
+    }
+    return false;
+}
+
 bool nativeLobbySession_Start(NativeLobbySession* session,
-                              const NativeNetplayConnectionConfig* config)
+                              const NativeNetplayConnectionConfig* config,
+                              NativeLobbyMatchSource source)
 {
     if (session == NULL || config == NULL) {
         return false;
     }
     memset(session, 0, sizeof(*session));
+    session->match_source = source;
     if (!nativeNetplayRoom_Connect(&session->room, config)) {
         return fail(session, "could not connect to the room service");
     }
@@ -100,15 +119,12 @@ bool nativeLobbySession_Pump(NativeLobbySession* session)
     session->state = NativeLobbySessionState_Waiting;
     const NativeSignalingPresence* presence =
         &session->room.connection.presence;
-    if (presence->match_size != 0) {
-        NativeLobbyMatch match;
-        if (!canonical_match(presence, &match)) {
-            return fail(session, "room published an invalid match proposal");
-        }
+    if (presence->match_size != 0 && presence->match_epoch != session->observed_match_epoch &&
+        can_start_match(session)) {
+        session->observed_match_epoch = presence->match_epoch;
         const char* local_peer_id =
             session->room.connection.local_peer_id;
         bool active_local = false;
-        bool included = false;
         for (uint32_t index = 0; index < presence->participant_count;
              ++index) {
             const NativeSignalingParticipant* participant =
@@ -118,14 +134,20 @@ bool nativeLobbySession_Pump(NativeLobbySession* session)
                 break;
             }
         }
-        for (uint32_t index = 0; index < match.peer_count; ++index) {
-            if (strcmp(match.peers[index].peer_id, local_peer_id) == 0) {
-                included = true;
-                break;
-            }
-        }
-        if (!active_local || !included) {
+        if (!active_local) {
             return true;
+        }
+        NativeLobbyMatch match;
+        if (!canonical_match(presence, &match)) {
+            return fail(session, "room published an invalid match proposal");
+        }
+        if (session->match_source == NativeLobbyMatchSource_Direct) {
+            uint32_t index = 0;
+            while (index < match.peer_count &&
+                   strcmp(match.peers[index].peer_id, local_peer_id) != 0) ++index;
+            if (index == match.peer_count) return true;
+        } else if (memcmp(match.content_digest, nativeStockContent_Digest(), sizeof(match.content_digest))) {
+            return fail(session, "room uses incompatible game content");
         }
         if (!nativeNetplayRoom_ConfigureMatch(
                 &session->room, &match,
@@ -149,7 +171,7 @@ bool nativeLobbySession_FinishMatch(NativeLobbySession* session)
     session->state = NativeLobbySessionState_Returning;
     const NativeSignalingPresence* presence =
         &session->room.connection.presence;
-    if (!session->room.connection.quick.mode &&
+    if (session->match_source == NativeLobbyMatchSource_Direct &&
         strcmp(presence->owner_peer_id,
                session->room.connection.local_peer_id) == 0 &&
         presence->match_epoch == session->finished_match_epoch &&
@@ -159,55 +181,6 @@ bool nativeLobbySession_FinishMatch(NativeLobbySession* session)
     {
         return fail(session, "could not clear the completed match");
     }
-    return true;
-}
-
-bool nativeLobbySession_BeginMatch(NativeLobbySession* session,
-                                   const NativeLobbyMatch* selection,
-                                   uint8_t artificial_delay_frames)
-{
-    if (session == NULL || selection == NULL ||
-        session->state != NativeLobbySessionState_Waiting ||
-        session->room.match_configured ||
-        !session->room.connection.has_presence)
-    {
-        return false;
-    }
-    const NativeSignalingPresence* presence =
-        &session->room.connection.presence;
-    if (strcmp(presence->owner_peer_id,
-               session->room.connection.local_peer_id) != 0 ||
-        presence->match_size != 0)
-    {
-        return false;
-    }
-    NativeLobbyMatch match = *selection;
-    if (!nativeLobbyTopology_AssignMatchPeers(
-            &match, presence, session->room.connection.local_build))
-    {
-        return false;
-    }
-    bool local_in_match = false;
-    for (uint32_t peer = 0; peer < match.peer_count; ++peer) {
-        local_in_match |= strcmp(match.peers[peer].peer_id,
-                                 session->room.connection.local_peer_id) == 0;
-    }
-    if (!local_in_match) {
-        // The lobby owner can organize a match while continuing local practice.
-        // Active peers adopt this proposal through the ordinary lobby pump.
-        uint8_t bytes[NATIVE_LOBBY_MATCH_MAX_WIRE_BYTES];
-        size_t size = nativeLobbyMatch_Encode(&match, bytes, sizeof(bytes));
-        if (session->room.publish_request_epoch == presence->match_epoch || !size ||
-            !nativeSignalingClient_SetMatch(&session->room.connection.signaling,
-                                             bytes, size)) return false;
-        session->room.publish_request_epoch = presence->match_epoch;
-        return true;
-    }
-    if (!nativeNetplayRoom_ConfigureMatch(&session->room, &match,
-                                          artificial_delay_frames)) {
-        return false;
-    }
-    session->state = NativeLobbySessionState_Starting;
     return true;
 }
 

@@ -366,6 +366,14 @@ void ftAction_8007121C(Fighter_GObj* gobj, CommandInfo* cmd)
             hitbox->jobj = fp->parts[idx].joint;
         }
 #ifdef MELEE_NATIVE
+        // A scripted item can bind and release its reserved joint during play.
+        if (hitbox->jobj == NULL) {
+            hitbox->state = HitCapsule_Disabled;
+            nativeHitboxLifetime_Clear(fp, slot);
+            ftAction_800715EC(gobj, cmd);
+            ftCommon_80080484(fp);
+            return;
+        }
         if (nativeHitbox_IsExtended(cmd->u->create_hitbox_0.opcode)) {
             u32 extension;
             memcpy(&extension, cmd->u + NATIVE_HITBOX_EXTENSION_WORD, sizeof(extension));
@@ -1420,6 +1428,9 @@ void ftAction_80073240(Fighter_GObj* fighter_gobj)
     Fighter* fp = fighter_gobj->user_data;
     CommandInfo* ftCommand = &fp->x3E4_fighterCmdScript;
     u32 eventCode;
+#ifdef MELEE_NATIVE
+    unsigned remaining = LB_COMMAND_UPDATE_LIMIT;
+#endif
     fp->x3E4_fighterCmdScript.frame_count = fp->cur_anim_frame + fp->x898_unk;
     if (fp->x3E4_fighterCmdScript.u != NULL) {
         if (ftCommand->timer != F32_MAX) {
@@ -1437,6 +1448,9 @@ void ftAction_80073240(Fighter_GObj* fighter_gobj)
             } else if (ftCommand->timer > 0.0f) {
                 break;
             }
+#ifdef MELEE_NATIVE
+            if (remaining-- == 0) break;
+#endif
             eventCode =
                 gmScriptEventCast(ftCommand->u, gmScriptEventDefault)->opcode;
             if (Command_Execute(ftCommand, eventCode) == false) {
@@ -1452,6 +1466,9 @@ void ftAction_80073354(Fighter_GObj* gobj)
     Fighter* fp = gobj->user_data;
     CommandInfo* cmd = (&fp->x3E4_fighterCmdScript);
     u32 eventCode;
+#ifdef MELEE_NATIVE
+    unsigned remaining = LB_COMMAND_UPDATE_LIMIT;
+#endif
 
     fp->x3E4_fighterCmdScript.frame_count = fp->cur_anim_frame + fp->x898_unk;
     fp->throw_flags = 0;
@@ -1471,6 +1488,9 @@ void ftAction_80073354(Fighter_GObj* gobj)
             } else if (cmd->timer > 0.0f) {
                 break;
             }
+#ifdef MELEE_NATIVE
+            if (remaining-- == 0) break;
+#endif
             {
                 float timer = cmd->timer;
                 eventCode =
@@ -1492,6 +1512,9 @@ void ftAction_8007349C(Fighter_GObj* gobj)
     Fighter* fp = GET_FIGHTER(gobj);
     CommandInfo* cmd = (&fp->x3E4_fighterCmdScript);
     PAD_STACK(8);
+#ifdef MELEE_NATIVE
+    unsigned remaining = LB_COMMAND_UPDATE_LIMIT;
+#endif
     fp->x3E4_fighterCmdScript.frame_count = fp->cur_anim_frame + fp->x898_unk;
     if (fp->x3E4_fighterCmdScript.u == NULL) {
         return;
@@ -1511,6 +1534,9 @@ void ftAction_8007349C(Fighter_GObj* gobj)
         } else if (cmd->timer > 0.0f) {
             break;
         }
+#ifdef MELEE_NATIVE
+        if (remaining-- == 0) break;
+#endif
         {
             u32 id = cmd->u->Command_09.id;
             if (!Command_Execute(cmd, id)) {

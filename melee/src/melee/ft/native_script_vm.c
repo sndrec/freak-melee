@@ -31,6 +31,13 @@ static NativeScriptVMStatus push(NativeScriptVM* vm,const NativeScriptBytecodePr
     if (vm->depth==vm->frame_capacity || vm->register_top>vm->register_capacity ||
         code->register_count>vm->register_capacity-vm->register_top)
         return fail(vm,context,function,code->source,"VM frame or register pool exhausted");
+    // Reserve the whole straight-line body once. Only a call or a taken
+    // backward branch can execute more instructions than this reservation.
+    if (code->instruction_count > vm->remaining_instructions) {
+        vm->remaining_instructions = 0;
+        return fail(vm,context,function,code->source,"Callback instruction budget exhausted");
+    }
+    vm->remaining_instructions -= code->instruction_count;
     NativeScriptValue parameters[32];
     for (unsigned i=0;i<argument_count;++i)
         if (!nativeScriptValue_Convert(&arguments[i],(NativeScriptIRType)code->parameter_types[i],
@@ -81,6 +88,7 @@ NativeScriptVMStatus nativeScriptVM_Run(NativeScriptVM* vm,const NativeScriptByt
     if(!program->prepared)return fail(vm,context,function,(NativeScriptSourceSpan){0},"Bytecode program has not been prepared");
     NativeScriptVMStatus status;
     if (!host->source_alive(context)) return retired(vm,context,function,(NativeScriptSourceSpan){0});
+    if (!original_depth) vm->remaining_instructions = NATIVE_SCRIPT_CALLBACK_INSTRUCTIONS;
     status=push(vm,program,context,function,arguments,argument_count,UINT16_MAX);
     if (status!=NativeScriptVM_Ok) return status;
     while (vm->depth>original_depth) {
@@ -152,6 +160,16 @@ NativeScriptVMStatus nativeScriptVM_Run(NativeScriptVM* vm,const NativeScriptByt
                 jump=instruction->opcode==NativeScriptBC_JumpTrue ? truth : !truth;
             }
             if (jump) {
+                if (instruction->target < frame->instruction) {
+                    uint32_t repeated = frame->instruction - instruction->target;
+                    if (repeated > vm->remaining_instructions) {
+                        vm->remaining_instructions = 0;
+                        status = fail(vm,context,frame->function,instruction->source,
+                                      "Callback instruction budget exhausted");
+                        goto finished;
+                    }
+                    vm->remaining_instructions -= repeated;
+                }
                 frame->instruction=instruction->target;
             }
             break;

@@ -1,4 +1,5 @@
 #include <sysdolphin/baselib/dat_texture.h>
+#include <sysdolphin/baselib/dat_import.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,8 +50,8 @@ void test_dat_textures(void)
     memset(data + 192, 0x6A, 32);
     memcpy(original, file, sizeof(file));
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK, "Texture fixture rejected");
-    size_t image_bytes = 99;
-    require(HSD_DatDecodeImage(&dat, 0, &image, &image_bytes) == HSD_DAT_OK && image_bytes == 128 &&
+    HSD_DatImageSize size;
+    require(HSD_DatDecodeImage(&dat, 0, &image, &size) == HSD_DAT_OK && size.source_bytes == 128 && size.texels == 20 &&
                 image.image_ptr == data + 64 && image.width == 4 && image.height == 4 &&
                 image.format == GX_TF_RGBA8 && image.mipmap == 1 && image.maxLOD == 1,
             "Native image descriptor conversion failed");
@@ -64,10 +65,32 @@ void test_dat_textures(void)
                 lod.max_anisotropy == GX_ANISO_4,
             "Native LOD descriptor conversion failed");
     require(memcmp(file, original, sizeof(file)) == 0, "Texture bytes were modified");
+    HSD_DatImport graph;
+    void* arena[128];
+    require(HSD_DatImportInit(&graph, &dat, arena, sizeof(arena), 4) == HSD_DAT_OK, "Texture graph setup");
+    graph.texture_byte_limit = 80 + 64;
+    require(HSD_DatImportGraph(&graph, 0, DAT_IMAGE) &&
+            HSD_DatImportGraph(&graph, 0, DAT_IMAGE) &&
+            HSD_DatImportGraph(&graph, 32, DAT_PALETTE) &&
+            graph.decoded_texture_bytes == graph.texture_byte_limit,
+            "Repeated image references share one charge and the palette fits at the limit");
+    require(HSD_DatImportInit(&graph, &dat, arena, sizeof(arena), 4) == HSD_DAT_OK, "Reset texture graph");
+    graph.texture_byte_limit = 143;
+    require(HSD_DatImportGraph(&graph, 0, DAT_IMAGE) &&
+            HSD_DatImportGraph(&graph, 32, DAT_PALETTE) == NULL &&
+            graph.status == HSD_DAT_RESOURCE_LIMIT && graph.error_offset == 32,
+            "The next texture allocation must fit the remaining budget");
+    put32(data + 4, (2 << 16) | 1);
+    put32(data + 16, 0x40000000); // minLOD = 2
+    put32(data + 20, 0x41000000); // maxLOD = 8
+    require(HSD_DatDecodeImage(&dat, 0, &image, &size) == HSD_DAT_OK &&
+            image.minLOD == 1 && image.maxLOD == 1 && size.texels == 3 && size.source_bytes == 128,
+            "Renderer LODs end at the last physical mip of a rectangular texture");
+    memcpy(file, original, sizeof(file));
     put32(data, 240);
     require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
-                HSD_DatDecodeImage(&dat, 0, &image, &image_bytes) == HSD_DAT_DESCRIPTOR &&
-                image.image_ptr == NULL && image_bytes == 0,
+                HSD_DatDecodeImage(&dat, 0, &image, &size) == HSD_DAT_DESCRIPTOR &&
+                image.image_ptr == NULL && size.source_bytes == 0 && size.texels == 0,
             "Truncated mip chain accepted or partial native output retained");
     memcpy(file, original, sizeof(file));
     put32(data, 96);

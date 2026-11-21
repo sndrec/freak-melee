@@ -14,6 +14,7 @@
 namespace {
 uint64_t s_textureAllocations = 0;
 uint64_t s_paletteConversions = 0;
+uint32_t s_copyPaletteWidth = 0;
 aurora::gfx::TextureHandle s_replacement;
 std::optional<aurora::texture::TextureSourceKey> s_sourceKey;
 aurora::gfx::TextureHandle s_sourceReplacement;
@@ -47,6 +48,7 @@ gfx::TextureHandle make_texture_handle(uint32_t width, uint32_t height, u32 form
 void reset_texture_stubs() {
   s_textureAllocations = 0;
   s_paletteConversions = 0;
+  s_copyPaletteWidth = 0;
   s_replacement.reset();
   s_sourceKey.reset();
   s_sourceReplacement.reset();
@@ -56,6 +58,7 @@ void reset_texture_stubs() {
 
 uint64_t texture_allocations() { return s_textureAllocations; }
 uint64_t palette_conversions() { return s_paletteConversions; }
+uint32_t copy_palette_width() { return s_copyPaletteWidth; }
 void set_replacement(gfx::TextureHandle handle, uint64_t id) {
   s_replacement = std::move(handle);
   s_replacementId = id;
@@ -108,7 +111,10 @@ ConvertedTexture convert_texture_palette(u32 textureFormat, uint32_t width, uint
 
 GXTexFmt tlut_texture_format(GXTlutFmt format) noexcept { return GX_TF_RGBA8_PC; }
 
-void queue_palette_conv(tex_palette_conv::ConvRequest req) { ++s_paletteConversions; }
+void queue_palette_conv(tex_palette_conv::ConvRequest req) {
+  ++s_paletteConversions;
+  s_copyPaletteWidth = req.tlut->size.width;
+}
 } // namespace aurora::gfx
 
 namespace aurora::gfx::texture_replacement {

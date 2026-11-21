@@ -63,15 +63,14 @@ static bool add_peer(NativeNetplayConnection* connection,
         }
         size_t id_length =
             strnlen(participant->peer_id, sizeof(peer->peer_id));
-        if (id_length == 0 || id_length >= sizeof(peer->peer_id) ||
-            !nativeNetplayIce_Init(&peer->ice, &connection->ice_config) ||
-            !nativeNetplayIce_StartGathering(&peer->ice))
+        if (id_length == 0 || id_length >= sizeof(peer->peer_id) || !connection->presence_revision)
         {
             nativeNetplayIce_Shutdown(&peer->ice);
             return false;
         }
         memcpy(peer->peer_id, participant->peer_id, id_length + 1);
         peer->join_order = participant->join_order;
+        peer->local = (NativeRouteGeneration){connection->presence_revision, 1};
         peer->active = true;
         return true;
     }
@@ -105,6 +104,19 @@ static bool presence_has_peer(const NativeNetplayConnection* connection,
     return false;
 }
 
+static bool local_seat_active(const NativeNetplayConnection* connection,
+                              const NativeSignalingPresence* presence)
+{
+    for (uint32_t i = 0; i < presence->participant_count; ++i) {
+        const NativeSignalingParticipant* participant =
+            &presence->participants[i];
+        if (strcmp(participant->peer_id, connection->local_peer_id) == 0) {
+            return participant->active_mask != 0;
+        }
+    }
+    return false;
+}
+
 static bool apply_presence(NativeNetplayConnection* connection,
                            const NativeSignalingPresence* presence)
 {
@@ -112,15 +124,7 @@ static bool apply_presence(NativeNetplayConnection* connection,
         return true;
     }
     connection->presence_revision = presence->revision;
-    bool local_active = false;
-    for (uint32_t i = 0; i < presence->participant_count; ++i) {
-        const NativeSignalingParticipant* participant =
-            &presence->participants[i];
-        if (strcmp(participant->peer_id, connection->local_peer_id) == 0) {
-            local_active = participant->active_mask != 0;
-            break;
-        }
-    }
+    const bool local_active = local_seat_active(connection, presence);
     // Gameplay routes exist between active players. When a local seat leaves
     // that set, both ends must close their old ICE session before rejoining.
     for (uint32_t i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
@@ -155,45 +159,78 @@ static bool apply_presence(NativeNetplayConnection* connection,
     return true;
 }
 
-static bool apply_signal(NativeNetplayConnection* connection,
+static void apply_signal(NativeNetplayConnection* connection,
                          const NativeSignalingSignal* signal)
 {
     NativeConnectionMessage message;
     if (!nativeNetplayConnectionWire_DecodeMessage(
             signal->payload, signal->payload_size, &message)) {
-        return false;
+        return;
     }
     if (message.type == NativeConnectionMessage_Control) {
         nativeNetplayContentChannels_Control(
             connection, signal->peer_id, message.payload, message.size);
-        return true;
+        return;
     }
     if (message.type == NativeConnectionMessage_ContentDescription) {
         nativeNetplayContentChannels_Description(
             connection, signal->peer_id, message.serial,
             message.sender_owns_transfer, message.payload, message.size);
-        return true;
+        return;
     }
     NativeNetplayConnectionPeer* peer = find_peer(connection, signal->peer_id);
     if (peer == NULL) {
         // A description already in transit can arrive after a seat becomes
         // waiting/spectating and its gameplay route has closed.
-        return true;
+        return;
     }
-    if (peer->remote_description_applied) {
-        return true;
+    if (message.sender.revision <= connection->presence.revision &&
+        local_seat_active(connection, &connection->presence) &&
+        presence_has_peer(connection, &connection->presence, peer)) {
+        nativeNetplayGameRoute_Apply(peer, &message);
     }
-    char description[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY];
-    if (!nativeNetplayConnectionWire_DecodeDescription(
-            signal->payload, signal->payload_size, description,
-            sizeof(description)) ||
-        !nativeNetplayIce_SetRemoteDescription(&peer->ice, description) ||
-        !nativeNetplayIce_SetRemoteGatheringDone(&peer->ice))
-    {
-        return false;
+}
+
+static void process_cursors(NativeNetplayConnection* connection)
+{
+    NativeSignalingMotion event;
+    for (unsigned i = 0; i < NATIVE_SIGNALING_MOTION_CAPACITY; ++i) {
+        if (!nativeSignalingClient_PollMotion(&connection->signaling, &event)) break;
+        const uint64_t received = event.received_ms;
+        if (event.is_stage) {
+            const NativeStageCursor* cursor = &event.data.stage;
+            const NativeStageCursor* previous = &connection->stage_cursor;
+            const bool continuous = previous->sequence && previous->epoch == cursor->epoch &&
+                previous->revision == cursor->revision && previous->seat == cursor->seat &&
+                !strcmp(previous->peer_id, cursor->peer_id);
+            nativeCursorMotion_Update(&connection->stage_motion, received,
+                                       cursor->x / 256.0f, cursor->y / 256.0f, continuous);
+            connection->stage_cursor = *cursor;
+            continue;
+        }
+        const NativeCssPointers* incoming = &event.data.css;
+        NativeRemoteCssPointers* entry = &connection->css_pointers[0];
+        for (unsigned peer = 0; peer < NATIVE_SIGNALING_MAX_PARTICIPANTS; ++peer) {
+            NativeRemoteCssPointers* seen = &connection->css_pointers[peer];
+            if (!strcmp(seen->pointers.peer_id, incoming->peer_id)) {
+                entry = seen;
+                break;
+            }
+            if (seen->received_ms < entry->received_ms) entry = seen;
+        }
+        const bool same_peer = !strcmp(entry->pointers.peer_id, incoming->peer_id) &&
+                               received - entry->received_ms <= NATIVE_CURSOR_IDLE_MS;
+        for (unsigned seat = 0; seat < 4; ++seat) {
+            const unsigned bit = 1u << seat;
+            if (incoming->visible & bit) {
+                nativeCursorMotion_Update(&entry->motion[seat], received,
+                    incoming->point[seat][0], incoming->point[seat][1],
+                    same_peer && (entry->pointers.visible & bit));
+            }
+        }
+        entry->pointers = *incoming;
+        entry->received_ms = received;
     }
-    peer->remote_description_applied = true;
-    return true;
 }
 
 static bool process_signaling(NativeNetplayConnection* connection)
@@ -225,25 +262,6 @@ static bool process_signaling(NativeNetplayConnection* connection)
             connection->listing = event.message.data.listing;
             continue;
         }
-        if (event.message.type == NativeSignalingServerMessage_StageCursor) {
-            connection->stage_cursor = event.message.data.stage_cursor;
-            continue;
-        }
-        if (event.message.type == NativeSignalingServerMessage_CssPointers) {
-            const NativeCssPointers* incoming = &event.message.data.css_pointers;
-            NativeRemoteCssPointers* entry = &connection->css_pointers[0];
-            for (unsigned i = 0; i < NATIVE_SIGNALING_MAX_PARTICIPANTS; ++i) {
-                NativeRemoteCssPointers* seen = &connection->css_pointers[i];
-                if (!strcmp(seen->pointers.peer_id, incoming->peer_id)) {
-                    entry = seen;
-                    break;
-                }
-                if (seen->received_ms < entry->received_ms) entry = seen;
-            }
-            entry->pointers = *incoming;
-            entry->received_ms = GetTickCount64();
-            continue;
-        }
         if (event.message.type == NativeSignalingServerMessage_LobbyState) {
             connection->lobby=event.message.data.lobby;
             connection->has_lobby=true;
@@ -253,6 +271,7 @@ static bool process_signaling(NativeNetplayConnection* connection)
         if (connection->topology_locked &&
             event.message.type == NativeSignalingServerMessage_Presence)
         {
+            if (event.message.data.presence.revision < connection->presence.revision) continue;
             connection->presence = event.message.data.presence;
             connection->has_presence = true;
             nativeNetplayContentChannels_Reconcile(connection);
@@ -289,10 +308,9 @@ static bool process_signaling(NativeNetplayConnection* connection)
             }
             break;
         case NativeSignalingServerMessage_Signal:
-            if (!apply_signal(connection, &event.message.data.signal)) {
-                fail(connection, "could not apply a peer ICE description");
-                return false;
-            }
+            // A relayed peer message can be stale or unreadable while the
+            // signaling connection and every other peer remain healthy.
+            apply_signal(connection, &event.message.data.signal);
             break;
         case NativeSignalingServerMessage_Error:
             fail(connection, event.message.data.error);
@@ -301,38 +319,7 @@ static bool process_signaling(NativeNetplayConnection* connection)
             break;
         }
     }
-    return true;
-}
-
-static bool send_local_descriptions(NativeNetplayConnection* connection)
-{
-    uint8_t message[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY + 8];
-    char description[NATIVE_NETPLAY_ICE_DESCRIPTION_CAPACITY];
-    for (uint32_t i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
-        NativeNetplayConnectionPeer* peer = &connection->peers[i];
-        if (!peer->active || peer->local_description_sent ||
-            !nativeNetplayIce_GatheringDone(&peer->ice))
-        {
-            continue;
-        }
-        if (!nativeNetplayIce_GetLocalDescription(&peer->ice, description,
-                                                  sizeof(description)))
-        {
-            return false;
-        }
-        size_t size = nativeNetplayConnectionWire_EncodeDescription(
-            description, message, sizeof(message));
-        if (size == 0) {
-            return false;
-        }
-        if (!nativeSignalingClient_QueueSignal(&connection->signaling,
-                                               peer->peer_id, message,
-                                               (uint16_t) size))
-        {
-            continue;
-        }
-        peer->local_description_sent = true;
-    }
+    process_cursors(connection);
     return true;
 }
 
@@ -346,14 +333,7 @@ static void count_peers(NativeNetplayConnection* connection)
             continue;
         }
         ++connection->remote_count;
-        NativeNetplayIceState state = nativeNetplayIce_State(&peer->ice);
-        if (state == NativeNetplayIceState_Connected ||
-            state == NativeNetplayIceState_Completed)
-        {
-            ++connection->connected_count;
-        } else if (state == NativeNetplayIceState_Failed) {
-            fail(connection, "ICE candidate selection failed");
-        }
+        if (nativeNetplayGameRoute_Ready(peer)) ++connection->connected_count;
     }
 }
 
@@ -437,10 +417,10 @@ bool nativeNetplayConnection_Pump(NativeNetplayConnection* connection)
         nativeRoomChat_Update(&connection->chat, false);
         return true;
     }
-    if (!connection->topology_locked && !send_local_descriptions(connection)) {
-        nativeRoomChat_Update(&connection->chat, false);
-        fail(connection, "connection setup failed");
-        return false;
+    uint64_t now = GetTickCount64();
+    for (unsigned i = 0; i < NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS; ++i) {
+        NativeNetplayConnectionPeer* peer = &connection->peers[i];
+        if (peer->active) nativeNetplayGameRoute_Pump(connection, peer, now);
     }
     nativeRoomChat_Update(&connection->chat, connection->signaling_connected && connection->has_presence);
     count_peers(connection);
@@ -491,15 +471,23 @@ void nativeNetplayConnection_CloseSignaling(
     nativeRoomChat_Update(&connection->chat, false);
 }
 
-bool nativeNetplayConnection_Send(NativeNetplayConnection* connection,
-                                  const char* peer_id, const uint8_t* bytes,
-                                  size_t size)
+NativeNetplayIceSend nativeNetplayConnection_Send(NativeNetplayConnection* connection,
+                                                 const char* peer_id, const uint8_t* bytes,
+                                                 size_t size)
 {
     if (connection == NULL || peer_id == NULL || connection->failed) {
-        return false;
+        return NativeNetplayIceSend_Failed;
     }
     NativeNetplayConnectionPeer* peer = find_peer(connection, peer_id);
-    return peer != NULL && nativeNetplayIce_Send(&peer->ice, bytes, size);
+    if (!peer || !bytes || !size || size > NATIVE_NETPLAY_ICE_DATAGRAM_BYTES)
+        return NativeNetplayIceSend_Failed;
+    if (nativeNetplayGameRoute_Ready(peer)) {
+        NativeNetplayIceSend sent = nativeNetplayIce_Send(&peer->ice, bytes, size);
+        if (sent != NativeNetplayIceSend_Failed) return sent;
+        peer->local_restart = true;
+    }
+    return nativeSignalingClient_IsRunning(&connection->signaling)
+               ? NativeNetplayIceSend_Retry : NativeNetplayIceSend_Failed;
 }
 
 bool nativeNetplayConnection_PollDatagram(
@@ -515,7 +503,7 @@ bool nativeNetplayConnection_PollDatagram(
         uint32_t index = (connection->poll_cursor + offset) %
                          NATIVE_NETPLAY_CONNECTION_MAX_REMOTE_PEERS;
         NativeNetplayConnectionPeer* peer = &connection->peers[index];
-        if (!peer->active ||
+        if (!peer->active || !nativeNetplayGameRoute_Ready(peer) ||
             !nativeNetplayIce_PollDatagram(&peer->ice, &datagram->datagram))
         {
             continue;

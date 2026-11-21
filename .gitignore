@@ -34,6 +34,10 @@
 *.fmakey
 Freak Melee recovery code*.txt
 
+# Private publisher key and its offline backup.
+release-key.dpapi
+freak-melee-release-key.pem
+
 # Preserved local donor/reference material omitted from the native source snapshot.
 /aurora/.github/
 /aurora/assets/

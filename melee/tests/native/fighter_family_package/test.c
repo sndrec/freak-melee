@@ -1,3 +1,4 @@
+#include "../fixture_portrait.h"
 #include <melee/gm/native_content_store.h>
 #include <melee/ft/native_source_assets.h>
 #include <melee/ft/native_source_resources.h>
@@ -9,7 +10,6 @@
 #include "codec_dependencies.inc"
 static unsigned checks,cases;
 #define CHECK(x)do{++checks;if(!(x)){fprintf(stderr,"packet %u: %s\n",__LINE__,#x);exit(1);}}while(0)
-static const uint8_t portrait[45]={137,'P','N','G',13,10,26,10,0,0,0,13,'I','H','D','R',0,0,0,64,0,0,0,56,8,6,[37]='I',[38]='E',[39]='N',[40]='D'};
 static uint8_t dat[32],record[65536];static size_t record_bytes;static NativeSourceAssetFacts facts;
 static const char source[]="fighter:\n    behavior independent\naction Main:\n    on load:\n        pass\n";
 static void fixture(void)
@@ -25,14 +25,67 @@ static void reject(const void* packet,size_t bytes)
  NativeFighterPackage metadata,before;NativeFighterPackageData data,prior;memset(&metadata,0xA5,sizeof(metadata));memset(&data,0xA5,sizeof(data));before=metadata;prior=data;
  CHECK(!nativeContentStore_ParseFighter(packet,bytes,&metadata,&data));CHECK(!memcmp(&metadata,&before,sizeof(metadata))&&!memcmp(&data,&prior,sizeof(data)));
 }
+static void check_compressed(const NativeFighterPackage* metadata,
+                             const NativeFighterPackageData* fixture_data,
+                             size_t stored_size)
+{
+ const size_t animation_size = NATIVE_FIGHTER_MAX_EXPANDED_BYTES - stored_size + sizeof(dat);
+ uint8_t* animation = malloc(animation_size + 1);
+ CHECK(animation);
+ for (size_t i = 0; i <= animation_size; ++i) animation[i] = (uint8_t)(i * 7);
+ NativeFighterPackageData data = *fixture_data;
+ data.members[0].animation_dat = animation;
+ data.members[0].animation_size = animation_size;
+ uint8_t* packet = NULL;
+ size_t size = 0;
+ NativeContentId id;
+ CHECK(nativeContentStore_BuildFighter(metadata, &data, &packet, &size, &id));
+ CHECK(packet[4] == 1 && size < NATIVE_CONTENT_MAX_PACKAGE_BYTES);
+ NativeContentPreview preview = {0};
+ nativeContentStore_UpdatePreview(packet, 208 + sizeof(fixture_portrait), &preview);
+ CHECK(preview.portrait_size == sizeof(fixture_portrait) && !memcmp(preview.portrait_png, fixture_portrait, sizeof(fixture_portrait)));
+ NativeFighterPackage parsed;
+ NativeFighterPackageData spans;
+ CHECK(nativeContentStore_ParseFighter(packet, size, &parsed, NULL));
+ CHECK(nativeContentStore_ParseFighter(packet, size, &parsed, &spans));
+ CHECK(spans.members[0].animation_size == animation_size);
+ CHECK(!memcmp(spans.members[0].animation_dat, animation, animation_size));
+ CHECK(!memcmp(spans.members[0].script_text, source, sizeof(source) - 1));
+ nativeContentStore_ReleaseFighterData(&spans);
+ CHECK(!spans.expanded_payload);
+
+ reject(packet, size - 1);
+ reject(packet, NATIVE_CONTENT_MAX_PACKAGE_BYTES + 1);
+ uint8_t* bad = malloc(size + 1);
+ CHECK(bad);
+ memcpy(bad, packet, size);
+ bad[size] = 0;
+ reject(bad, size + 1);
+ const unsigned animation_length_offset = 116;
+ for (unsigned i = 0; i < 4; ++i)
+     bad[animation_length_offset + i] = (uint8_t)((animation_size + 1) >> (8 * i));
+ reject(bad, size);
+ for (unsigned i = 0; i < 4; ++i)
+     bad[animation_length_offset + i] = (uint8_t)((animation_size - 1) >> (8 * i));
+ reject(bad, size);
+ free(bad);
+ free(packet);
+ packet = NULL;
+ ++data.members[0].animation_size;
+ CHECK(!nativeContentStore_BuildFighter(metadata, &data, &packet, &size, &id));
+ CHECK(!packet);
+ free(animation);
+ ++cases;
+}
 int main(void)
 {
  fixture();NativeFighterPackage metadata={.mode=NativeFighterFamily_Single,.member_count=1};strcpy(metadata.title,"Source fixture");strcpy(metadata.members[0].key,"main");
- NativeFighterPackageData data={.portrait_png=portrait,.portrait_size=sizeof(portrait),.members={{.fighter_dat=dat,.fighter_size=32,.animation_dat=dat,.animation_size=32,.costume_dat=dat,.costume_size=32,.asset_record=record,.asset_record_size=record_bytes,.script_text=(const uint8_t*)source,.script_size=sizeof(source)-1}}};
- uint8_t* packet=NULL;size_t bytes=0;NativeContentId id;CHECK(nativeContentStore_BuildFighter(&metadata,&data,&packet,&bytes,&id));CHECK(bytes==208+45+96+record_bytes+sizeof(source)-1);
+ NativeFighterPackageData data={.portrait_png=fixture_portrait,.portrait_size=sizeof(fixture_portrait),.members={{.fighter_dat=dat,.fighter_size=32,.animation_dat=dat,.animation_size=32,.costume_dat=dat,.costume_size=32,.asset_record=record,.asset_record_size=record_bytes,.script_text=(const uint8_t*)source,.script_size=sizeof(source)-1}}};
+ uint8_t* packet=NULL;size_t bytes=0;NativeContentId id;CHECK(nativeContentStore_BuildFighter(&metadata,&data,&packet,&bytes,&id));CHECK(bytes==208+sizeof(fixture_portrait)+96+record_bytes+sizeof(source)-1);
  CHECK(!memcmp(packet,"FMSC",4)&&packet[4]==0&&packet[5]==0&&packet[6]==1);CHECK(!memcmp(packet+80,"main",5));for(unsigned i=144;i<208;++i)CHECK(!packet[i]);
  NativeFighterPackage parsed;NativeFighterPackageData spans;CHECK(nativeContentStore_ParseFighter(packet,bytes,&parsed,&spans));CHECK(!strcmp(parsed.members[0].key,"main")&&spans.members[0].asset_record_size==record_bytes&&spans.members[0].script_size==sizeof(source)-1);
  CHECK(!memcmp(spans.members[0].asset_record,record,record_bytes)&&!memcmp(spans.members[0].script_text,source,sizeof(source)-1));++cases;
+ check_compressed(&metadata, &data, bytes);
  for(size_t truncated=0;truncated<bytes;++truncated)reject(packet,truncated);++cases;
  uint8_t* bad=malloc(bytes+1);CHECK(bad);memcpy(bad,packet,bytes);bad[bytes]=0;reject(bad,bytes+1);++cases;
  const unsigned offsets[]={0,4,5,6,7,12,79,84,144};for(unsigned i=0;i<sizeof(offsets)/sizeof(*offsets);++i){memcpy(bad,packet,bytes);bad[offsets[i]]=255;reject(bad,bytes);}++cases;

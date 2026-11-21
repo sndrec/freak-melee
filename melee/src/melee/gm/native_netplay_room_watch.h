@@ -23,7 +23,7 @@ typedef struct NativeRoomWatchReceive {
     char peer_id[NATIVE_SIGNALING_MAX_PEER_ID_BYTES+1];
     char failure[128];
     uint8_t metadata[NATIVE_MATCH_STREAM_DESCRIPTION_BYTES];
-    uint64_t session, started_ms, control_ms, data_ms, ack_ms, remote_digest;
+    uint64_t session, started_ms, control_ms, data_ms, backlog_ms, ack_ms, remote_digest;
     uint32_t serial, remote_count;
     uint16_t metadata_size;
     uint8_t metadata_mask;
@@ -39,7 +39,7 @@ typedef struct NativeRoomWatch {
 } NativeRoomWatch;
 
 struct NativeNetplayRoom;
-bool nativeNetplayRoom_WatchMatch(struct NativeNetplayRoom*);
+bool nativeNetplayRoom_WatchMatch(struct NativeNetplayRoom*, const uint8_t expected_digest[32]);
 void nativeNetplayRoom_StopWatching(struct NativeNetplayRoom*);
 void nativeNetplayRoom_ClearWatch(struct NativeNetplayRoom*);
 void nativeNetplayRoom_WatchControl(struct NativeNetplayRoom*,const NativeContentControl*);

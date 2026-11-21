@@ -10,7 +10,7 @@ enum {
     WATCH_CONTROL_BYTES=17, WATCH_METADATA_HEADER=20, WATCH_METADATA_CHUNK=512,
     WATCH_PROGRESS_BYTES=28, WATCH_SEND_WINDOW=96, WATCH_BURST=8,
     WATCH_PUMP_MS=16, WATCH_RETRY_MS=250, WATCH_CONTROL_RETRY_MS=500,
-    WATCH_TIMEOUT_MS=30000,
+    WATCH_TIMEOUT_MS=30000, WATCH_SETUP_TIMEOUT_MS=90000,
 };
 enum { Watch_Request=1, Watch_Accepted, Watch_Pending, Watch_Unavailable, Watch_Cancel };
 enum { Watch_Metadata=1, Watch_Ack, Watch_Status };
@@ -42,16 +42,16 @@ static void stop_send(NativeNetplayRoom* room,NativeRoomWatchSend* send,bool not
 {
     if(!send->serial)return;
     if(notify)control(room,send->peer_id,send->serial,send->session,Watch_Unavailable);
-    nativeNetplayConnection_ReleaseContent(&room->connection,send->peer_id,send->serial,false);
+    nativeNetplayConnection_ReleaseContent(&room->connection,send->peer_id,send->serial,false, NativeContentPurpose_Watch);
     --room->watch.sender_count;
     *send=(NativeRoomWatchSend){0};
 }
 static void release_receive(NativeNetplayRoom* room)
 {
     NativeRoomWatchReceive* r=&room->watch.receive;
-    if(!r->serial)return;
+    if(r->state!=NativeRoomWatch_Requesting && r->state!=NativeRoomWatch_Receiving)return;
     control(room,r->peer_id,r->serial,r->session,Watch_Cancel);
-    nativeNetplayConnection_ReleaseContent(&room->connection,r->peer_id,r->serial,true);
+    nativeNetplayConnection_ReleaseContent(&room->connection,r->peer_id,r->serial,true, NativeContentPurpose_Watch);
 }
 static void fail_receive(NativeNetplayRoom* room,const char* reason)
 {
@@ -71,16 +71,17 @@ void nativeNetplayRoom_ClearWatch(NativeNetplayRoom* room)
         stop_send(room,&room->watch.sends[i],true);
     room->watch.cursor=0;room->watch.pump_ms=0;
 }
-bool nativeNetplayRoom_WatchMatch(NativeNetplayRoom* room)
+bool nativeNetplayRoom_WatchMatch(NativeNetplayRoom* room, const uint8_t expected_digest[32])
 {
-    if(!room || !room->active || room->match_configured ||
+    if(!room || !expected_digest || !room->active || room->match_configured ||
        room->watch.receive.state==NativeRoomWatch_Requesting ||
        room->watch.receive.state==NativeRoomWatch_Receiving)return false;
     const NativeSignalingPresence* p=&room->connection.presence;
     const NativeSignalingParticipant* local=member(room,room->connection.local_peer_id);
     NativeLobbyMatch match;
     if(!local || local->active_mask || !p->match_size ||
-       !nativeLobbyMatch_Decode(&match,p->match,p->match_size))return false;
+       !nativeLobbyMatch_Decode(&match,p->match,p->match_size) ||
+       memcmp(match.content_digest,expected_digest,sizeof(match.content_digest)))return false;
     const NativeLobbyMatchPeer* authority=NULL;
     for(unsigned i=0;i<match.peer_count;++i)
         if(match.peers[i].numeric_peer==0)authority=&match.peers[i];
@@ -93,7 +94,7 @@ bool nativeNetplayRoom_WatchMatch(NativeNetplayRoom* room)
     r->session=match.session_id;r->stream.description.match=match;
     r->serial=++room->content_serial;if(!r->serial)r->serial=++room->content_serial;
     strcpy(r->peer_id,authority->peer_id);r->started_ms=r->data_ms=GetTickCount64();
-    if(!nativeNetplayConnection_ReserveContent(&room->connection,r->peer_id,r->serial,true)) {
+    if(!nativeNetplayConnection_ReserveContent(&room->connection,r->peer_id,r->serial,true, NativeContentPurpose_Watch)) {
         fail_receive(room,"No viewing connection is available.");return false;
     }
     r->state=NativeRoomWatch_Requesting;
@@ -122,14 +123,18 @@ void nativeNetplayRoom_WatchControl(NativeNetplayRoom* room,const NativeContentC
         for(unsigned i=0;i<NATIVE_SIGNALING_MAX_PARTICIPANTS-1;++i) {
             NativeRoomWatchSend* s=&room->watch.sends[i];
             if(s->serial && !strcmp(s->peer_id,message->peer_id)) {
-                if(s->serial==serial && s->session==session) {
-                    control(room,s->peer_id,serial,session,Watch_Accepted);return;
+                NativeContentChannelState state=nativeNetplayConnection_ContentState(
+                    &room->connection,s->peer_id,s->serial,false,NativeContentPurpose_Watch);
+                if(s->session==session && state!=NativeContentChannel_None && state!=NativeContentChannel_Failed) {
+                    control(room,s->peer_id,serial,session,
+                            s->serial==serial ? Watch_Accepted : Watch_Unavailable);
+                    return;
                 }
                 stop_send(room,s,false);
             }
             if(!s->serial && !available)available=s;
         }
-        if(!available || !nativeNetplayConnection_ReserveContent(&room->connection,message->peer_id,serial,false)) {
+        if(!available || !nativeNetplayConnection_ReserveContent(&room->connection,message->peer_id,serial,false, NativeContentPurpose_Watch)) {
             control(room,message->peer_id,serial,session,Watch_Unavailable);return;
         }
         *available=(NativeRoomWatchSend){.serial=serial,.session=session,.last_ack_ms=GetTickCount64()};
@@ -145,12 +150,13 @@ void nativeNetplayRoom_WatchControl(NativeNetplayRoom* room,const NativeContentC
         NativeRoomWatchReceive* r=&room->watch.receive;
         if((r->state!=NativeRoomWatch_Requesting && r->state!=NativeRoomWatch_Receiving) ||
            r->serial!=serial || r->session!=session || strcmp(r->peer_id,message->peer_id))return;
-        if(bytes[4]==Watch_Accepted) {
-            if(!nativeNetplayConnection_StartContent(&room->connection,r->peer_id,r->serial,true))
+        if(bytes[4]==Watch_Accepted && r->state==NativeRoomWatch_Requesting) {
+            if(!nativeNetplayConnection_StartContent(&room->connection,r->peer_id,r->serial,true, NativeContentPurpose_Watch))
                 fail_receive(room,"Could not connect to the match.");
             else {r->state=NativeRoomWatch_Receiving;r->data_ms=GetTickCount64();}
         } else if(bytes[4]==Watch_Unavailable)fail_receive(room,"This match is no longer available.");
-        else if(bytes[4]==Watch_Pending)r->data_ms=GetTickCount64();
+        else if(bytes[4]==Watch_Pending && r->state==NativeRoomWatch_Requesting)
+            r->data_ms=GetTickCount64();
     }
 }
 static bool same_match(const NativeLobbyMatch* a,const NativeLobbyMatch* b)
@@ -169,11 +175,14 @@ static void metadata(NativeNetplayRoom* room,const uint8_t* bytes,size_t size)
     unsigned chunk=total-offset;if(chunk>WATCH_METADATA_CHUNK)chunk=WATCH_METADATA_CHUNK;
     if(size!=WATCH_METADATA_HEADER+chunk)return;
     uint8_t bit=1u<<(offset/WATCH_METADATA_CHUNK);
-    if((r->metadata_mask&bit) && memcmp(r->metadata+offset,bytes+WATCH_METADATA_HEADER,chunk)) {
-        fail_receive(room,"Conflicting match descriptions.");return;
+    if(r->metadata_mask&bit) {
+        if(memcmp(r->metadata+offset,bytes+WATCH_METADATA_HEADER,chunk))
+            fail_receive(room,"Conflicting match descriptions.");
+        return;
     }
     memcpy(r->metadata+offset,bytes+WATCH_METADATA_HEADER,chunk);
     r->metadata_size=(uint16_t)total;r->metadata_mask|=bit;
+    r->data_ms=GetTickCount64();
     if(r->metadata_mask==metadata_bits(total) && !r->stream.records) {
         NativeMatchStreamDescription description;
         if(!nativeMatchStream_DecodeDescription(&description,r->metadata,total) ||
@@ -204,7 +213,14 @@ void nativeNetplayRoom_WatchPacket(NativeNetplayRoom* room,const NativeContentDa
     if(r->state!=NativeRoomWatch_Receiving || r->serial!=message->serial ||
        strcmp(r->peer_id,message->message.peer_id))return;
     if(!memcmp(bytes,"FMWD",4)) {
-        if(r->stream.records && nativeMatchStream_AcceptRecords(&r->stream,bytes,size))r->data_ms=now;
+        uint32_t previous=r->stream.count;
+        if(r->remote_finished && size>=NATIVE_MATCH_STREAM_PACKET_HEADER &&
+           get(bytes+12,4)+bytes[16]>r->remote_count)return;
+        if(r->stream.records && nativeMatchStream_AcceptRecords(&r->stream,bytes,size) &&
+           r->stream.count>previous) {
+            r->data_ms=now;
+            r->backlog_ms=r->stream.count<r->remote_count ? now : 0;
+        }
         return;
     }
     if(size<13 || memcmp(bytes,"FMWV",4) || get(bytes+5,8)!=r->session)return;
@@ -213,20 +229,24 @@ void nativeNetplayRoom_WatchPacket(NativeNetplayRoom* room,const NativeContentDa
         uint32_t count=(uint32_t)get(bytes+13,4);uint64_t digest=get(bytes+20,8);
         if(count>NATIVE_MATCH_STREAM_RECORD_CAPACITY) {fail_receive(room,"The match history is too large.");return;}
         if(count<r->remote_count)return;
-        if(r->status_received && count==r->remote_count && digest!=r->remote_digest) {
+        if((r->remote_finished && count!=r->remote_count) ||
+           (r->status_received && count==r->remote_count && digest!=r->remote_digest) ||
+           ((bytes[17]&1) && count<r->stream.count) ||
+           (r->stream.finished && count>r->stream.count)) {
             fail_receive(room,"Conflicting match history.");return;
         }
-        r->remote_count=count;r->remote_digest=digest;r->remote_finished=bytes[17]&1;r->status_received=true;
+        if(count>r->stream.count && !r->backlog_ms)r->backlog_ms=now;
+        r->remote_count=count;r->remote_digest=digest;r->remote_finished|=(bytes[17]&1)!=0;r->status_received=true;
         if(bytes[17]&2) {fail_receive(room,"The match history is unavailable.");return;}
-    } else return;
-    r->data_ms=now;
+        r->data_ms=now;
+    }
 }
 static bool progress(NativeNetplayRoom* room,const char* peer,uint32_t serial,bool owner,
                      uint64_t session,uint8_t type,uint32_t count,uint8_t flags,uint64_t digest)
 {
     uint8_t bytes[WATCH_PROGRESS_BYTES]={0};memcpy(bytes,"FMWV",4);bytes[4]=type;
     put(bytes+5,session,8);put(bytes+13,count,4);bytes[17]=flags;put(bytes+20,digest,8);
-    return nativeNetplayConnection_SendContent(&room->connection,peer,serial,owner,bytes,sizeof(bytes));
+    return nativeNetplayConnection_SendContent(&room->connection,peer,serial,owner, NativeContentPurpose_Watch,bytes,sizeof(bytes));
 }
 void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
 {
@@ -235,13 +255,16 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
     watch->pump_ms=now;
     NativeRoomWatchReceive* r=&watch->receive;
     if(r->state==NativeRoomWatch_Requesting || r->state==NativeRoomWatch_Receiving) {
-        NativeContentChannelState state=nativeNetplayConnection_ContentState(&room->connection,r->peer_id,r->serial,true);
+        NativeContentChannelState state=nativeNetplayConnection_ContentState(&room->connection,r->peer_id,r->serial,true, NativeContentPurpose_Watch);
         // A completed, verified history survives its transport closing during
         // the Results transition. It no longer needs a connected data route.
         if(r->status_received && r->remote_finished && r->stream.finished && r->stream.count==r->remote_count) {
             if(r->stream.digest!=r->remote_digest)fail_receive(room,"The received history does not match.");
             else {release_receive(room);r->state=NativeRoomWatch_Complete;}
-        } else if(state==NativeContentChannel_Failed || !member(room,r->peer_id) || now-r->data_ms>=WATCH_TIMEOUT_MS)
+        } else if(state==NativeContentChannel_None || state==NativeContentChannel_Failed ||
+                  !member(room,r->peer_id) || now-r->data_ms>=WATCH_TIMEOUT_MS ||
+                  (r->backlog_ms && now-r->backlog_ms>=WATCH_TIMEOUT_MS) ||
+                  (!r->stream.records && now-r->started_ms>=WATCH_SETUP_TIMEOUT_MS))
             fail_receive(room,"The viewing connection timed out.");
         else if(r->state==NativeRoomWatch_Requesting && now-r->control_ms>=WATCH_CONTROL_RETRY_MS) {
             control(room,r->peer_id,r->serial,r->session,Watch_Request);r->control_ms=now;
@@ -259,15 +282,17 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
         unsigned index=watch->cursor++%(NATIVE_SIGNALING_MAX_PARTICIPANTS-1);
         NativeRoomWatchSend* s=&watch->sends[index];if(!s->serial)continue;
         NativeMatchStream* stream=&room->stream;
-        NativeContentChannelState state=nativeNetplayConnection_ContentState(&room->connection,s->peer_id,s->serial,false);
+        NativeContentChannelState state=nativeNetplayConnection_ContentState(&room->connection,s->peer_id,s->serial,false, NativeContentPurpose_Watch);
+        const NativeSignalingParticipant* viewer=member(room,s->peer_id);
         if(!stream->records || stream->description.match.session_id!=s->session || stream->unavailable ||
-           !member(room,s->peer_id) || state==NativeContentChannel_Failed || now-s->last_ack_ms>=WATCH_TIMEOUT_MS) {
+           !viewer || (viewer->active_mask && !stream->finished) || state==NativeContentChannel_None ||
+           state==NativeContentChannel_Failed || now-s->last_ack_ms>=WATCH_TIMEOUT_MS) {
             stop_send(room,s,true);continue;
         }
         if(state==NativeContentChannel_Reserved) {
             if(!starts)continue;
             --starts;
-            if(!nativeNetplayConnection_StartContent(&room->connection,s->peer_id,s->serial,false))
+            if(!nativeNetplayConnection_StartContent(&room->connection,s->peer_id,s->serial,false, NativeContentPurpose_Watch))
                 stop_send(room,s,true);
             continue;
         }
@@ -282,7 +307,7 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
             memcpy(packet,"FMWV",4);packet[4]=Watch_Metadata;put(packet+5,s->session,8);
             put(packet+13,description_size,2);put(packet+15,offset,2);
             memcpy(packet+WATCH_METADATA_HEADER,description+offset,bytes);
-            nativeNetplayConnection_SendContent(&room->connection,s->peer_id,s->serial,false,packet,WATCH_METADATA_HEADER+bytes);
+            nativeNetplayConnection_SendContent(&room->connection,s->peer_id,s->serial,false, NativeContentPurpose_Watch,packet,WATCH_METADATA_HEADER+bytes);
             --budget;continue;
         }
         if(now-s->status_ms>=WATCH_RETRY_MS) {
@@ -297,7 +322,7 @@ void nativeNetplayRoom_PumpWatch(NativeNetplayRoom* room)
         uint8_t packet[NATIVE_MATCH_STREAM_PACKET_BYTES];
         size_t bytes=nativeMatchStream_EncodeRecords(stream,s->sent,packet,sizeof(packet));
         if(!bytes) {stop_send(room,s,true);continue;}
-        if(nativeNetplayConnection_SendContent(&room->connection,s->peer_id,s->serial,false,packet,bytes)) {
+        if(nativeNetplayConnection_SendContent(&room->connection,s->peer_id,s->serial,false, NativeContentPurpose_Watch,packet,bytes)) {
             if(s->sent==s->acknowledged)s->retry_ms=now;
             s->sent+=packet[16];
         }

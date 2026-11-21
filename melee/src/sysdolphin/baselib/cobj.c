@@ -1328,7 +1328,8 @@ HSD_CObj* HSD_CObjLoadDesc(HSD_CObjDesc* desc)
 
     if (desc != NULL) {
         if (desc->class_name == NULL ||
-            (info = hsdSearchClassInfo(desc->class_name)) == NULL)
+            (info = hsdSearchClassInfo(desc->class_name)) == NULL ||
+            !hsdIsDescendantOf(info, &hsdCObj))
         {
             cobj = HSD_CObjAlloc();
         } else {

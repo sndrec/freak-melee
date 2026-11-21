@@ -19,6 +19,24 @@ typedef struct FtCostumeAssets {
     u32 joint_count;
 } FtCostumeAssets;
 
+typedef enum FtModelValidity {
+    FT_MODEL_VALID,
+    FT_MODEL_INVALID_JOINT,
+    FT_MODEL_INVALID_JOINT_ANIMATION,
+    FT_MODEL_INVALID_MATERIAL_ANIMATION,
+} FtModelValidity;
+
+typedef struct FtModelCounts {
+    u32 joints;
+    u32 construction_units;
+} FtModelCounts;
+
+FtModelValidity ftCostumeAssets_ValidateModel(const HSD_Joint* joint,
+    const HSD_AnimJoint* animation, const HSD_MatAnimJoint* materials,
+    u32 mesh_limit, FtModelCounts* counts);
+
+HSD_Joint* ftCostumeAssets_LoadAttachment(FtCostumeAssets* assets, const char* symbol);
+
 bool ftCostumeAssets_Import(const void* bytes, size_t size,
                             const char* joint_name,
                             const char* matanim_joint_name, void* arena,

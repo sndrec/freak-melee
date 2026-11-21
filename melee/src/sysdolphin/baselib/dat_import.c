@@ -22,6 +22,51 @@ void* HSD_DatImportAlloc(HSD_DatImport* import, size_t size)
     return result;
 }
 
+// Sort target addresses independently of the on-disc order of pointer slots.
+// Sifting a heap bounds construction work regardless of the input order.
+static void sift_target(u32* targets, u32 root, u32 count)
+{
+    u32 value = targets[root];
+    while (root < count / 2) {
+        u32 child = root * 2 + 1;
+        if (child + 1 < count && targets[child] < targets[child + 1]) ++child;
+        if (value >= targets[child]) break;
+        targets[root] = targets[child];
+        root = child;
+    }
+    targets[root] = value;
+}
+
+static void index_targets(const HSD_Dat* dat, u32* targets)
+{
+    u32 count = dat->relocation_count;
+    for (u32 i = 0; i < count; ++i) {
+        u32 slot;
+        HSD_DatRelocation(dat, i, &slot);
+        HSD_DatReadU32(dat, slot, &targets[i]);
+    }
+    for (u32 i = count / 2; i > 0; --i) sift_target(targets, i - 1, count);
+    while (count > 1) {
+        u32 largest = targets[0];
+        targets[0] = targets[--count];
+        targets[count] = largest;
+        sift_target(targets, 0, count);
+    }
+}
+
+u32 HSD_DatImportNextTarget(const HSD_DatImport* import, u32 offset)
+{
+    const HSD_Dat* dat = import->dat;
+    if (!import->sorted_targets) return HSD_DatNextTarget(dat, offset);
+    u32 lo = 0, hi = dat->relocation_count;
+    while (lo < hi) {
+        u32 mid = lo + (hi - lo) / 2;
+        if (import->sorted_targets[mid] <= offset) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo < dat->relocation_count ? import->sorted_targets[lo] : dat->data_size;
+}
+
 HSD_DatResult HSD_DatImportInit(HSD_DatImport* import, const HSD_Dat* dat,
                                void* arena, size_t arena_size, u32 max_records)
 {
@@ -30,6 +75,8 @@ HSD_DatResult HSD_DatImportInit(HSD_DatImport* import, const HSD_Dat* dat,
         return import->status = HSD_DAT_CAPACITY;
     }
     import->dat = dat;
+    import->texture_byte_limit = (size_t)-1;
+    import->display_list_limit = (size_t)-1;
     import->arena = arena;
     import->arena_size = arena_size;
     import->record_capacity = max_records;
@@ -42,6 +89,10 @@ HSD_DatResult HSD_DatImportInit(HSD_DatImport* import, const HSD_Dat* dat,
         return import->status;
     }
     import->slots = HSD_DatImportAlloc(import, (size_t) import->slot_count * sizeof(*import->slots));
+    if (import->slots && dat && dat->relocation_count > HSD_DAT_LINEAR_RELOCATIONS) {
+        import->sorted_targets = HSD_DatImportAlloc(import, (size_t) dat->relocation_count * sizeof(u32));
+        if (import->sorted_targets) index_targets(dat, import->sorted_targets);
+    }
     return import->status;
 }
 
@@ -225,8 +276,33 @@ char* HSD_DatImportString(HSD_DatImport* import, u32 slot)
     return (char*) data;
 }
 
+static bool valid_joint_tracks(const HSD_AnimJoint* animation)
+{
+    if (!animation->aobjdesc) return true;
+    u32 count = 0;
+    for (const HSD_FObjDesc* track = animation->aobjdesc->fobjdesc; track; track = track->next) {
+        // FObjUpdateAnim supplies one scalar. JObjUpdateFunc reads a Vec3
+        // for the four matrix columns supplied by the constraint solver.
+        if (++count > 256 || (track->type >= 0x32 && track->type <= 0x35)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool valid_particle_list(const HSD_Joint* joint)
+{
+    if (!union_type_ptcl(joint)) return true;
+    unsigned count = 0;
+    for (const HSD_SList* particle = joint->u.ptcl; particle; particle = particle->next) {
+        if (++count > 256) return false;
+    }
+    return true;
+}
+
 void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType type)
 {
+    const u32 first = import->decoded_count;
     void* result = HSD_DatImportObject(import, offset, type, 1);
     // The growing record array is also the work queue. Register objects before
     // decoding links so shared references and cycles need no recursive descent.
@@ -251,17 +327,40 @@ void* HSD_DatImportGraph(HSD_DatImport* import, u32 offset, HSD_DatImportType ty
             HSD_DatDecodeModelRecord(import, record);
         }
     }
-    for (u32 i = 0; i < import->record_count && import->status == HSD_DAT_OK; ++i) {
+    bool has_new_geometry = false;
+    for (u32 i = first; i < import->record_count && import->status == HSD_DAT_OK; ++i) {
         HSD_DatImportRecord* record = &import->records[i];
-        if (record->type == DAT_POBJ && !HSD_DatValidateGeometry(import, record->object)) {
+        if (record->type == DAT_JOINT && !valid_particle_list(record->object)) {
+            import->status = HSD_DAT_RESOURCE_LIMIT;
+            import->error_offset = record->offset;
+        }
+        if (record->type == DAT_ANIMJOINT && !valid_joint_tracks(record->object)) {
             import->status = HSD_DAT_DESCRIPTOR;
             import->error_offset = record->offset;
+        }
+        if (record->type == DAT_TEXANIM &&
+            !HSD_DatBindTextureAnimation(import, record->object)) {
+            import->status = HSD_DAT_DESCRIPTOR;
+            import->error_offset = record->offset;
+        }
+        if (record->type == DAT_POBJ) {
+            has_new_geometry = true;
+            if (!HSD_DatValidateGeometry(import, record->object)) {
+                import->status = HSD_DAT_DESCRIPTOR;
+                import->error_offset = record->offset;
+            }
         }
         if (record->type == DAT_SHAPE_SET && !HSD_DatValidateShape(import, record->object)) {
             import->status = HSD_DAT_DESCRIPTOR;
             import->error_offset = record->offset;
         }
     }
-    if (import->status == HSD_DAT_OK && !HSD_DatNormalizeVertexArrays(import)) return NULL;
+    if (has_new_geometry && import->status == HSD_DAT_OK &&
+        !HSD_DatNormalizeVertexArrays(import)) return NULL;
+    if (type == DAT_JOINT && import->status == HSD_DAT_OK &&
+        import->has_joint_bindings && !HSD_DatValidateConstraintBindings(import, result)) {
+        import->status = HSD_DAT_DESCRIPTOR;
+        import->error_offset = offset;
+    }
     return import->status == HSD_DAT_OK ? result : NULL;
 }

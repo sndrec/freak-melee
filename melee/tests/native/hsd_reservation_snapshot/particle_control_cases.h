@@ -29,6 +29,7 @@ static void test_particle_controls(void)
     pending_generators=generators[0];hsd_804D78FC=generators[1];hsd_804D78F4=list;psCamera=camera;
     generator_id_cursor=65535;CHECK(hsd_8039D1EC()==256);CHECK(hsd_8039D1EC()==257);
     particle_count=2;hsd_804D78E0=2;particle_peak_count=7;particle_float_bits=0x12345678;
+    particle_work_this_tick=(HSD_ParticleWork){5,10,8};
     memset(particle_sort_frames,0,sizeof(particle_sort_frames));
     memset(particle_non_edge_heads,0,sizeof(particle_non_edge_heads));
     particle_display_frame=254;particle_non_edge_heads[15]=particles[1];
@@ -46,6 +47,8 @@ static void test_particle_controls(void)
     for(unsigned pass=0;pass<2;++pass) {
         CHECK(nativeObjAlloc_Load(particle_payloads_saved,ab));
         CHECK(nativeParticleControl_Load(&saved,sizeof(saved)));
+        CHECK(particle_work_this_tick.generators==5 && particle_work_this_tick.emissions==10 &&
+              particle_work_this_tick.particles==8);
         HSD_Particle *sorted,*non_edge;
         CHECK(particleSort(0,particle_display_frame,&sorted,&non_edge)==particles[1]);
         CHECK(sorted==particles[1] && non_edge==particles[0]);
@@ -58,6 +61,9 @@ static void test_particle_controls(void)
             particle_display_frame=particle_display_frame<255 ? particle_display_frame+1 : 1;
             (void)particleSort(0,particle_display_frame,&sorted,&non_edge);
             CHECK(hsd_8039D1EC()>=256);particle_float_bits+=frame;particle_peak_count+=frame;hsd_804D78D8+=frame;
+            ++particle_work_this_tick.generators;
+            particle_work_this_tick.emissions+=2;
+            particle_work_this_tick.particles+=3;
             pending_generators=generators[frame%2];hsd_804D0908[0]=particles[frame%2];
         }
         CHECK(nativeParticleControl_Save(pass ? &repeat : &end,sizeof(end),&bytes));
@@ -67,6 +73,11 @@ static void test_particle_controls(void)
     CHECK(!nativeParticleControl_Load(&bad,sizeof(bad)));CHECK(nativeParticleControl_Save(&after,sizeof(after),&bytes)); \
     CHECK(!memcmp(&after,&saved,sizeof(saved)));++particle_control_refusals;}while(0)
     REJECT(++bad.epoch);REJECT(bad.state.id_cursor=1);REJECT(bad.state.commands[0]=(void*)1);
+    REJECT(bad.state.work.generators=HSD_GENERATORS_PER_TICK+1);
+    REJECT(bad.state.work.emissions=HSD_PARTICLES_PER_TICK+1);
+    REJECT(bad.state.work.particles=HSD_PARTICLES_PER_TICK+1);
+    REJECT(bad.state.generator_count=HSD_GENERATORS_LIVE+1);
+    REJECT(bad.state.particle_count=HSD_PARTICLES_LIVE+1);
     REJECT(bad.state.callbacks=(void*)1);REJECT(bad.state.appsrt_config[0]=1);
     REJECT(bad.state.non_edge_heads[15]=(void*)1);REJECT(++bad.non_edge_heads[15].slot);
     REJECT(bad.non_edge_heads[15].allocator=&hsd_804D0F90.alloc_data);

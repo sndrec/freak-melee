@@ -57,5 +57,12 @@ void test_native_figatree(void)
     data[32] = 1; data[21] = 255;
     require(lbAnim_DecodeFigaTree(&dat, 0, &tree, tracks, 1, &nodes) == HSD_DAT_DESCRIPTOR,
             "Truncated animation stream was accepted");
+    data[21] = sizeof(stream) - 1;
+    require(lbAnim_DecodeFigaTree(&dat, 0, &tree, tracks, 1, &nodes) == HSD_DAT_DESCRIPTOR,
+            "A scalar extending beyond its declared track length was accepted");
+    data[21] = 6;
+    data[45] = 0x80;
+    require(lbAnim_DecodeFigaTree(&dat, 0, &tree, tracks, 1, &nodes) == HSD_DAT_DESCRIPTOR,
+            "A frame interval ending inside a packed integer was accepted");
     puts("FigaTree import, original joint playback, restart and bounds checks passed");
 }

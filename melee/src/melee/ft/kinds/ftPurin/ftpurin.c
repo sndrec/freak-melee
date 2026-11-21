@@ -475,17 +475,12 @@ void ftPr_Init_8013C360(HSD_GObj* gobj)
 #ifdef MELEE_NATIVE
             FtCostumeAssets* assets =
                 costume_list[fp->x619_costume_id].native_assets;
-            u32 root;
-            HSD_ASSERT(0, assets != NULL);
-            HSD_ASSERTREPORT(
-                0,
-                HSD_DatFindRoot(&assets->dat,
-                                ftPr_Init_803D05B4[fp->x619_costume_id],
-                                &root),
-                "Missing Jigglypuff costume hat");
-            joints[fp->x619_costume_id] = HSD_DatImportGraph(
-                &assets->import, root, DAT_JOINT);
-            HSD_ASSERT(0, joints[fp->x619_costume_id] != NULL);
+            joints[fp->x619_costume_id] = ftCostumeAssets_LoadAttachment(
+                assets, ftPr_Init_803D05B4[fp->x619_costume_id]);
+            if (!joints[fp->x619_costume_id]) {
+                fp->u.pr.x223C = NULL;
+                return;
+            }
 #else
             joints[fp->x619_costume_id] = HSD_ArchiveGetPublicAddress(
                 costume_list[fp->x619_costume_id].x14_archive,

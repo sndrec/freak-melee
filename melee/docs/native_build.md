@@ -11,6 +11,8 @@ preserved in the private repository's pre-cleanup commit, not a work list.
 - LLVM Clang targeting MSVC, with Visual Studio C++ libraries and a Windows SDK.
   MinGW Clang is not the supported toolchain.
 - CMake 3.25 or newer, Ninja, 7-Zip and Python 3.
+- The release payload tests use the Python `cryptography` package. On Windows
+  install `pywin32` as well to test the publisher key backup and restore.
 - This repository's modified Aurora at sibling `aurora/`; CMake obtains the
   configured third-party dependencies. Reference-only folders are unnecessary.
 - A local USA v1.02 Melee ISO and a local 4,096-byte DSP coefficient table.

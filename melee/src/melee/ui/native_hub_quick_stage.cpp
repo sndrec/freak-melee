@@ -19,6 +19,7 @@ struct {
     uint64_t sent_ms;
     uint32_t sequence;
     float x, y;
+    unsigned seat;
     bool dirty;
 } cursor;
 
@@ -60,6 +61,7 @@ bool nativeHubQuickStage_OpenRound()
     std::snprintf(room,sizeof(room),"%s",current);
     hub.stage_seat = 0;
     cursor = {};
+    cursor.dirty = true;
     return true;
 }
 
@@ -68,11 +70,12 @@ void nativeHubQuickStage_Tick()
     const auto* quick = nativeOnlineSession_Quick();
     if (!hub.visible || hub.page != NativeHubPage_QuickStage || !quick || quick->phase != 3 ||
         quick->team != quick->chooser) return;
-    if (cursor.x != hub.pointer_x || cursor.y != hub.pointer_y) {
-        cursor.x = hub.pointer_x; cursor.y = hub.pointer_y; cursor.dirty = true;
+    if (cursor.x != hub.pointer_x || cursor.y != hub.pointer_y || cursor.seat != hub.stage_seat) {
+        cursor.x = hub.pointer_x; cursor.y = hub.pointer_y; cursor.seat = hub.stage_seat;
+        cursor.dirty = true;
     }
     uint64_t now = SDL_GetTicks();
-    if (!cursor.dirty || now - cursor.sent_ms < 50) return;
+    if (!cursor.dirty || now - cursor.sent_ms < NATIVE_CURSOR_SEND_MS) return;
     NativeStageCursor update{};
     update.x = int16_t(std::clamp((cursor.x / 640.f * 54.f - 27.f) * 256.f, -6912.f, 6912.f));
     update.y = int16_t(std::clamp((19.f - cursor.y / 480.f * 38.f) * 256.f, -4864.f, 4864.f));
@@ -81,7 +84,7 @@ void nativeHubQuickStage_Tick()
         float x = 175 + (stage % 2) * 220, y = 148 + (stage / 2) * 57;
         if (cursor.x >= x && cursor.x < x+210 && cursor.y >= y && cursor.y < y+49) update.tile = stage;
     }
-    update.seat = hub.stage_seat;
+    update.seat = cursor.seat;
     update.sequence = ++cursor.sequence;
     if (nativeOnlineSession_PublishStageCursor(&update)) { cursor.dirty = false; cursor.sent_ms = now; }
 }
@@ -156,8 +159,9 @@ void nativeHubQuickStage_DrawCursor(const Mtx canvas)
     if (hub.page != NativeHubPage_QuickStage) return;
     const auto* shared = nativeOnlineSession_StageCursor();
     if (!shared || !std::strcmp(shared->peer_id, nativeOnlineSession_LocalPeerId())) return;
-    nativeHubHand_Draw((shared->x / 256.f + 27.f) / 54.f * 640.f,
-                      (19.f - shared->y / 256.f) / 38.f * 480.f, false, canvas);
+    float x, y;
+    nativeOnlineSession_SampleStageCursor(SDL_GetTicks(), &x, &y);
+    nativeHubHand_Draw((x + 27.f) / 54.f * 640.f, (19.f - y) / 38.f * 480.f, false, canvas);
 }
 
 bool nativeHubQuickStage_Activate(HubAction action, int value)

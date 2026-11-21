@@ -56,6 +56,7 @@ bool nativeMenuPortrait_Load(NativeMenuPortrait* result,
         result->pixels = nativeGxImage_Decode(picture,
                                               (unsigned) picture_size,
                                               &result->width, &result->height);
+        nativeContentStore_ReleaseFighterData(&data);
         free(bytes);
     } else {
         uint8_t character;

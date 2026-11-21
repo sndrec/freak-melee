@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         .vsync = !nativeMatchLaunch_Fast(),
         .hideWindow = nativeMatchLaunch_Hidden(),
         .logLevel = LOG_INFO,
-        .logCallback = nativeFeedbackContext_Log,
+        .diagnosticWarningCallback = nativeFeedbackContext_RecordWarning,
         .eventFilter = nativeFeedback_Event,
         .mem1Size = 128 * 1024 * 1024,
         .mem2Size = 16 * 1024 * 1024 };

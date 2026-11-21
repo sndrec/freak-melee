@@ -171,13 +171,14 @@ bool nativeRollbackInput_SubmitRemote(NativeRollbackInputHistory* history,
                                       const PADStatus* input)
 {
     if (history == NULL || input == NULL ||
-        frame < history->oldest_required_frame ||
+        frame < history->oldest_required_frame || frame == UINT64_MAX ||
         port >= NATIVE_ROLLBACK_INPUT_PORTS ||
         (history->local_mask & (1U << port)) ||
-        (history->has_newest_frame &&
-         frame + NATIVE_ROLLBACK_INPUT_CAPACITY <= history->newest_frame) ||
-        (history->has_newest_frame &&
-         frame > history->newest_frame + NATIVE_ROLLBACK_INPUT_CAPACITY))
+        (!history->has_newest_frame && frame >= NATIVE_ROLLBACK_INPUT_CAPACITY) ||
+        (frame < history->newest_frame &&
+         history->newest_frame - frame >= NATIVE_ROLLBACK_INPUT_CAPACITY) ||
+        (frame > history->newest_frame &&
+         frame - history->newest_frame > NATIVE_ROLLBACK_INPUT_CAPACITY))
     {
         return false;
     }

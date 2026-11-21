@@ -131,25 +131,23 @@ bool nativeNetplayUdp_Send(NativeNetplayUdp* transport)
         return false;
     }
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
-    size_t packet_size;
-    if (!nativeNetplayExchange_PreparePacket(
-            &transport->exchange, packet, sizeof(packet), &packet_size)) {
-        return false;
-    }
-    if (packet_size == 0) {
-        return true;
-    }
-    for (uint32_t peer = 0; peer < 4; ++peer) {
-        if (!transport->peers[peer].configured) {
-            continue;
-        }
-        struct sockaddr_in address;
-        socket_address(&transport->peers[peer], &address);
-        int sent = sendto(transport_socket(transport), (const char*) packet,
-                          (int) packet_size, 0,
-                          (const struct sockaddr*) &address, sizeof(address));
-        if (sent != (int) packet_size) {
-            return false;
+    for (unsigned repair = 0; repair < 2; ++repair) {
+        for (uint8_t peer = 0; peer < 4; ++peer) {
+            if (!transport->peers[peer].configured) continue;
+            size_t packet_size;
+            if (!nativeNetplayExchange_PreparePacket(&transport->exchange, peer,
+                    repair != 0, packet, sizeof(packet), &packet_size)) return false;
+            if (packet_size == 0) continue;
+            struct sockaddr_in address;
+            socket_address(&transport->peers[peer], &address);
+            int sent = sendto(transport_socket(transport), (const char*) packet,
+                              (int) packet_size, 0,
+                              (const struct sockaddr*) &address, sizeof(address));
+            if (sent != (int) packet_size) {
+                int error = sent == SOCKET_ERROR ? WSAGetLastError() : 0;
+                if (error != WSAEWOULDBLOCK && error != WSAENOBUFS) return false;
+                ++transport->exchange.send_backpressure;
+            }
         }
     }
     return true;

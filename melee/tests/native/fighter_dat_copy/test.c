@@ -75,7 +75,8 @@ static void synthetic_tests(void){
     // Both inputs may be the same immutable archive; appended slots stay distinct.
     CHECK(nativeFighterDatCopy_PointerField(s,ss,0,s,ss,0,output,sizeof(output),&required,&st));CHECK(st.source_base==96&&st.merged_external_count==2);CHECK(HSD_DatOpen(&result,output,required)==HSD_DAT_OK);resolve(&result,112,HSD_DAT_REF_EXTERNAL,"shared");resolve(&result,16,HSD_DAT_REF_EXTERNAL,"shared");
     // Unsorted relocation input is rebuilt sorted without changing its data.
-    memcpy(bad,s,ss);put(bad+32+68,8);put(bad+32+68+8,0);CHECK(nativeFighterDatCopy_PointerField(d,ds,0,bad,ss,0,output,sizeof(output),&required,&st));CHECK(HSD_DatOpen(&result,output,required)==HSD_DAT_OK&&result.relocations_sorted);
+    memcpy(bad,s,ss);put(bad+32+68,8);put(bad+32+68+8,0);CHECK(nativeFighterDatCopy_PointerField(d,ds,0,bad,ss,0,output,sizeof(output),&required,&st));CHECK(HSD_DatOpen(&result,output,required)==HSD_DAT_OK);
+    for (u32 i=1;i<result.relocation_count;++i) { u32 prior,slot;CHECK(HSD_DatRelocation(&result,i-1,&prior)&&HSD_DatRelocation(&result,i,&slot)&&prior<slot); }
     // Alignment padding is zero and non-word-sized source data is preserved.
     memcpy(bad,d,ds);put(bad+4,63);memmove(bad+95,bad+96,ds-96);put(bad,(uint32_t)ds-1);
     CHECK(nativeFighterDatCopy_PointerField(bad,ds-1,0,s,ss,0,output,sizeof(output),&required,&st));CHECK(st.source_base==64&&output[32+63]==0);

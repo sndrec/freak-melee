@@ -56,6 +56,10 @@ struct HSD_AObjDesc {
     f32 end_frame;
     HSD_FObjDesc* fobjdesc;
     uintptr_t obj_id;
+#ifdef MELEE_NATIVE
+    // A DAT relocation identifies a joint that the loader may construct.
+    bool obj_id_is_joint;
+#endif
 };
 
 struct HSD_AnimJoint {

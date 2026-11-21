@@ -34,18 +34,40 @@ bool new_id(char (&id)[37])
         b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]);
     return true;
 }
-bool write(const char* path, yyjson_mut_doc* document)
+bool write(const char* path, yyjson_mut_doc* document, std::shared_ptr<const std::string>& saved, NativeFileIdentity& identity)
 {
     size_t length = 0; char* bytes = yyjson_mut_write(document, 0, &length);
-    FILE* file = bytes && length <= 512 * 1024 ? std::fopen(path, "wb") : nullptr;
-    bool ok = file && std::fwrite(bytes, 1, length, file) == length;
-    if (file) ok = std::fclose(file) == 0 && ok;
+    bool ok = bytes && length <= 512 * 1024 &&
+        nativeFile_PublishLocal(path, bytes, length, NATIVE_FILE_PRESERVE, &identity);
+    if (ok) saved = std::make_shared<const std::string>(bytes, length);
     std::free(bytes); return ok;
 }
 }
 
-bool fallback(const NativeFeedbackDraft& draft, yyjson_val* agent_report)
+std::shared_ptr<const std::string> read_attachment(const char* path, uint32_t limit)
 {
+    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return {};
+    BY_HANDLE_FILE_INFORMATION info{};
+    std::shared_ptr<std::string> bytes;
+    if (GetFileType(file) == FILE_TYPE_DISK && GetFileInformationByHandle(file, &info) &&
+        !(info.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) &&
+        !info.nFileSizeHigh && info.nFileSizeLow && info.nFileSizeLow <= limit) {
+        bytes = std::make_shared<std::string>(info.nFileSizeLow, '\0');
+        DWORD read = 0;
+        if (!ReadFile(file, bytes->data(), info.nFileSizeLow, &read, nullptr) ||
+            read != info.nFileSizeLow) bytes.reset();
+    }
+    CloseHandle(file);
+    return bytes;
+}
+
+bool fallback(NativeFeedbackDraft& draft, NativeCommunityUpload& upload, yyjson_val* agent_report)
+{
+    if (upload.context_bytes)
+        return nativeFile_PublishLocal(draft.context_path, upload.context_bytes->data(),
+                                       upload.context_bytes->size(), NATIVE_FILE_PRESERVE, &draft.context_file);
     auto* doc = yyjson_mut_doc_new(nullptr); if (!doc) return false;
     auto* root = yyjson_mut_obj(doc); yyjson_mut_doc_set_root(doc, root);
     yyjson_mut_obj_add_strcpy(doc, root, "id", draft.id);
@@ -58,10 +80,10 @@ bool fallback(const NativeFeedbackDraft& draft, yyjson_val* agent_report)
     yyjson_mut_obj_add_uint(doc, root, "image_width", draft.image.width);
     yyjson_mut_obj_add_uint(doc, root, "image_height", draft.image.height);
     if (agent_report) yyjson_mut_obj_add_val(doc, root, "agent_report", yyjson_val_mut_copy(doc, agent_report));
-    bool ok = write(draft.context_path, doc); yyjson_mut_doc_free(doc); return ok;
+    bool ok = write(draft.context_path, doc, upload.context_bytes, draft.context_file); yyjson_mut_doc_free(doc); return ok;
 }
 
-bool notes(const NativeFeedbackDraft& draft, const NativeCommunityUpload& upload, bool complete)
+bool notes(NativeFeedbackDraft& draft, NativeCommunityUpload& upload, bool complete)
 {
     auto* doc = yyjson_mut_doc_new(nullptr); if (!doc) return false;
     auto* root = yyjson_mut_obj(doc); yyjson_mut_doc_set_root(doc, root);
@@ -76,7 +98,14 @@ bool notes(const NativeFeedbackDraft& draft, const NativeCommunityUpload& upload
         yyjson_mut_obj_add_real(doc, row, "x", pin.x); yyjson_mut_obj_add_real(doc, row, "y", pin.y);
         yyjson_mut_obj_add_strcpy(doc, row, "text", pin.text);
     }
-    bool ok = write(upload.metadata, doc); yyjson_mut_doc_free(doc); return ok;
+    bool ok = write(upload.metadata, doc, upload.notes_bytes, draft.notes_file); yyjson_mut_doc_free(doc); return ok;
+}
+
+void discard(const NativeFeedbackDraft& draft, const NativeCommunityUpload& upload)
+{
+    nativeFile_RemoveOwned(draft.image_path, &draft.screenshot_file);
+    nativeFile_RemoveOwned(draft.context_path, &draft.context_file);
+    nativeFile_RemoveOwned(upload.metadata, &draft.notes_file);
 }
 
 bool create(NativeFeedbackDraft& draft, NativeCommunityUpload& upload, bool retain_image,
@@ -102,7 +131,7 @@ bool create(NativeFeedbackDraft& draft, NativeCommunityUpload& upload, bool reta
     SYSTEMTIME time; GetSystemTime(&time);
     std::snprintf(draft.captured_at, sizeof(draft.captured_at), "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ",
         time.wYear,time.wMonth,time.wDay,time.wHour,time.wMinute,time.wSecond,time.wMilliseconds);
-    if (!aurora_capture_presented(draft.image_path, retain_image, &draft.image)) return false;
+    if (!aurora_capture_presented(retain_image, &draft.image)) return false;
     auto* context = aurora::rmlui::get_context();
     const auto* focused = context ? context->GetFocusElement() : nullptr;
     const bool workshop = nativeShellWorkshop_IsOpen();
@@ -115,7 +144,14 @@ bool create(NativeFeedbackDraft& draft, NativeCommunityUpload& upload, bool reta
     state.menu_transition = nativeMenuScene_Active();
     state.focused_control = focused ? focused->GetId().c_str() : "";
     state.agent_report = agent_report;
-    complete = nativeFeedbackContext_Write(draft.context_path, draft.id, draft.captured_at, &draft.image, &state);
+    size_t size = 0;
+    if (char* bytes = nativeFeedbackContext_Collect(draft.id, draft.captured_at, &draft.image, &state, &size)) {
+        upload.context_bytes = std::make_shared<const std::string>(bytes, size);
+        std::free(bytes);
+        complete = true;
+        nativeFile_PublishLocal(draft.context_path, upload.context_bytes->data(), size,
+                                NATIVE_FILE_PRESERVE, &draft.context_file);
+    }
     return true;
 }
 

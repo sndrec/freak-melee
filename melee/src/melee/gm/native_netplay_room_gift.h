@@ -37,7 +37,7 @@ typedef struct NativeNetplayGift {
     uint8_t kind;
     uint32_t serial;
     NativeNetplayGiftState state;
-    uint64_t last_control_ms;
+    uint64_t join_order, last_control_ms;
     uint64_t awaiting_since_ms;
     uint8_t* bytes;
     size_t size;

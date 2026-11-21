@@ -68,7 +68,7 @@ void ftCo_8009F834(Fighter_GObj* gobj, int arg1, enum Fighter_Part part,
     }
     fp->x2219_b0 = true;
 block_2:
-    if (part != 0x8D) {
+    if (part != FT_EFFECT_ROTATING_JOINT) {
         goto block_5;
     }
 
@@ -81,7 +81,7 @@ block_2:
     fp->x2220_b0 = 0;
     goto block_9;
 block_5:
-    if (part != 0x8E) {
+    if (part != FT_EFFECT_MODEL_JOINT) {
         goto block_7;
     }
     part = fp->ft_data->x8->x10;

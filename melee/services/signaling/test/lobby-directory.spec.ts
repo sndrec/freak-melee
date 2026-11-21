@@ -1,6 +1,7 @@
 import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
-import { evictDurableObject } from "cloudflare:test";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
+import { CONNECTION_TIMEOUT_MS } from "../src/connection-lease";
 import { describe, expect, it } from "vitest";
 import { ServerMessageType, decodeServerMessage, encodeSetListing, encodeRequestLobbies,
   encodeUpdate, encodeConfigureQuick, type ServerMessage } from "../src/wire";
@@ -102,8 +103,6 @@ describe("native lobby browser", () => {
 
   it("paginates, survives object eviction, and rejects stale advertisement updates", async () => {
     const directory = env.LOBBY_DIRECTORY.getByName("public");
-    await directory.advertise("STALE77", 10, false);
-    await directory.advertise("STALE77", 9, true);
     const browser = await connect("/v1/lobbies/connect?build=page-build");
     const sockets = [browser.socket];
     try {
@@ -121,13 +120,62 @@ describe("native lobby browser", () => {
       browser.socket.send(encodeRequestLobbies(8));
       expect(await browser.next(ServerMessageType.Lobbies)).toMatchObject({ total: 10, offset: 8,
         entries: [expect.objectContaining({ code: "PAGE0008" }), expect.objectContaining({ code: "PAGE0009" })] });
-      await directory.advertise("PAGE0000", 100, false);
-      await directory.advertise("PAGE0000", 99, true);
+      const oldEntry = await env.ROOMS.getByName("PAGE0000").directoryEntry();
+      expect(oldEntry).not.toBeNull();
+      const issued = Date.now();
+      await directory.advertise("PAGE0000", 100, issued, null, 0);
+      await directory.advertise("PAGE0000", 99, issued, oldEntry, issued + CONNECTION_TIMEOUT_MS);
       await new Promise(resolve => setTimeout(resolve, 270));
       browser.socket.send(encodeRequestLobbies(0));
       expect(await browser.next(ServerMessageType.Lobbies)).toMatchObject({ total: 9,
         entries: [expect.objectContaining({ code: "PAGE0001" }), ...Array(7).fill(expect.anything())] });
     } finally { await closeAll(sockets); }
+  });
+
+  it("reads compatible summaries locally and retires expired listings and withdrawals", async () => {
+    const directory = env.LOBBY_DIRECTORY.getByName("public"), now = Date.now();
+    const entry = { code: "ZLEASE77", title: "Fresh", host: "Host", build: "lease-build", fighting: 1,
+      capacity: 4, locked: false, waiting: 0, spectating: 0, participants: 1, playing: false };
+    await directory.advertise(entry.code, 1, now, entry, now + CONNECTION_TIMEOUT_MS);
+    await directory.advertise("EXPIRE77", 2, now, { ...entry, code: "EXPIRE77" }, now);
+    await directory.advertise("HIDDEN77", 3, now, null, 0);
+    await runInDurableObject(directory, (_instance, state) => {
+      state.storage.sql.exec(`WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM n WHERE i<513)
+        INSERT INTO lobby_summaries SELECT printf('A%07d',i), revision, issued, 'other-build', entry, visible_until, retire_at
+        FROM n, lobby_summaries WHERE code='ZLEASE77'`);
+    });
+    const browser = await connect("/v1/lobbies/connect?build=lease-build");
+    try {
+      browser.socket.send(encodeRequestLobbies(0));
+      expect(await browser.next(ServerMessageType.Lobbies)).toMatchObject({ total: 1, entries: [{ code: entry.code, title: entry.title }] });
+      await runInDurableObject(directory, (_instance, state) => {
+        state.storage.sql.exec("UPDATE lobby_summaries SET retire_at=0 WHERE code IN ('EXPIRE77','HIDDEN77')");
+      });
+      await runDurableObjectAlarm(directory);
+      await directory.advertise("HIDDEN77", 2, now - CONNECTION_TIMEOUT_MS, { ...entry, code: "HIDDEN77" }, now);
+      const retained = await runInDurableObject(directory, (_instance, state) =>
+        state.storage.sql.exec("SELECT code FROM lobby_summaries WHERE code IN ('EXPIRE77','HIDDEN77','ZLEASE77')").toArray());
+      expect(retained).toEqual([{ code: entry.code }]);
+    } finally { await closeAll([browser.socket]); }
+  });
+
+  it("rebuilds a live lobby summary on the room heartbeat without a settings change", async () => {
+    const host = await connect("/v1/rooms/RENEW777/connect?peer=host0000&name=Host&build=renew-build&players=1");
+    const browser = await connect("/v1/lobbies/connect?build=renew-build");
+    const room = env.ROOMS.getByName("RENEW777"), directory = env.LOBBY_DIRECTORY.getByName("public");
+    try {
+      host.socket.send(encodeSetListing("Renewed", true)); await host.next(ServerMessageType.Listing);
+      browser.socket.send(encodeRequestLobbies(0));
+      expect(await browser.next(ServerMessageType.Lobbies)).toMatchObject({ total: 1 });
+      await runInDurableObject(directory, (_instance, state) => {
+        state.storage.sql.exec("DELETE FROM lobby_summaries WHERE code='RENEW777'");
+      });
+      await evictDurableObject(room);
+      await runDurableObjectAlarm(room);
+      await new Promise(resolve => setTimeout(resolve, 270));
+      browser.socket.send(encodeRequestLobbies(0));
+      expect(await browser.next(ServerMessageType.Lobbies)).toMatchObject({ total: 1, entries: [{ title: "Renewed" }] });
+    } finally { await closeAll([host.socket, browser.socket]); }
   });
 
   it("keeps Quick Play parties out of the directory", async () => {

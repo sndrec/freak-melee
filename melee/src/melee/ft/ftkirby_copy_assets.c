@@ -576,7 +576,7 @@ bool ftKirbyCopyAssets_Import(const void* bytes, size_t size,
         HSD_DatImportInit(&output->import, &output->dat, arena, arena_size,
                           record_capacity) != HSD_DAT_OK ||
         !HSD_DatFindRoot(&output->dat, root_name, &root) ||
-        HSD_DatNextTarget(&output->dat, root) - root !=
+        HSD_DatImportNextTarget(&output->import, root) - root !=
             root_sizes[copied_kind])
     {
         return false;

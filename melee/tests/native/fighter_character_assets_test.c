@@ -3,7 +3,9 @@
 
 #include <aurora/dvd.h>
 #include <dolphin/dvd.h>
+#include <melee/ft/ftaction.h>
 #include <melee/ft/ftcharacter_assets.h>
+#include <melee/ft/ftcostume_assets.h>
 #include <melee/ft/ftdata.h>
 #include <melee/ft/ftparts.h>
 #include <melee/ft/native_fighter_runtime.h>
@@ -12,6 +14,10 @@
 #include <melee/ft/kinds/ftGameWatch/types.h>
 #include <melee/it/itCharItems.h>
 #include <melee/it/itYoyo.h>
+#include <melee/it/itanimlist.h>
+#include <melee/it/types.h>
+#include <melee/lb/lbcommand.h>
+#include <sysdolphin/baselib/gobj.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -24,6 +30,38 @@ static void require(bool condition, const char* message)
         fputs(message, stderr);
         exit(1);
     }
+}
+
+static void validate_timeline_catchup(void)
+{
+    // Seek across many ordinary one-frame waits. All four playback paths
+    // must preserve the first unprocessed command and finish on the next call.
+    static union CmdUnion commands[LB_COMMAND_UPDATE_LIMIT + 2];
+    for (unsigned i = 0; i + 1 < ARRAY_SIZE(commands); ++i) {
+        commands[i].Command_00 = (struct Command_00) { .code = 1, .value = 1 };
+    }
+    static Fighter fighter;
+    Fighter_GObj fighter_object = { .user_data = &fighter };
+    void (*updates[])(Fighter_GObj*) = {
+        ftAction_80073240, ftAction_80073354, ftAction_8007349C
+    };
+    CommandInfo start = { .u = commands, .timer = -(float) ARRAY_SIZE(commands) };
+    for (unsigned i = 0; i < ARRAY_SIZE(updates); ++i) {
+        fighter.x3E4_fighterCmdScript = start;
+        updates[i](&fighter_object);
+        require(fighter.x3E4_fighterCmdScript.u == &commands[LB_COMMAND_UPDATE_LIMIT],
+                "fighter timeline resumes at the next command\n");
+        updates[i](&fighter_object);
+        require(fighter.x3E4_fighterCmdScript.u == NULL, "fighter timeline finished\n");
+    }
+    static Item item;
+    Item_GObj item_object = { .user_data = &item };
+    item.x524_cmd = start;
+    it_802799E4(&item_object);
+    require(item.x524_cmd.u == &commands[LB_COMMAND_UPDATE_LIMIT],
+            "item timeline resumes at the next command\n");
+    it_802799E4(&item_object);
+    require(item.x524_cmd.u == NULL, "item timeline finished\n");
 }
 
 static void validate_asset_layouts(void)
@@ -379,6 +417,7 @@ int main(int argc, char** argv)
     u32 reference_attribute_count = 0;
 
     require(argc == 2, "usage: native_fighter_character_assets_test <iso>|--layout-only\n");
+    validate_timeline_catchup();
     require(aurora_dvd_open(argv[1]), "open ISO\n");
 
     for (FighterKind kind = Ft_Kind_Mario; kind < Ft_Kind_StockCount; ++kind) {
@@ -672,6 +711,10 @@ int main(int argc, char** argv)
                     "Link arrow model attributes\n");
             require(assets.fighter_items[6] != NULL,
                     "Link equipment model\n");
+            HSD_Joint sword = *assets.joint_graphs[6];
+            sword.child = sword.next = NULL;
+            require(ftCostumeAssets_ValidateModel(&sword, NULL, NULL, 124, NULL) == FT_MODEL_VALID,
+                    "The stock sword can be installed in the reserved joint by itself\n");
             break;
         }
         case Ft_Kind_Seak:

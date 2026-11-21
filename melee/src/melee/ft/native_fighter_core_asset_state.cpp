@@ -17,7 +17,7 @@ bool nativeFighterCoreAssets_Capture(const NativeFighterProject& p,
     const size_t sizes[]={p.fighter_size,p.animation_size,p.costume_size,p.asset_record_size};
     NativeFighterCoreAssetState candidate;
     for(unsigned n=0;n<4;++n){
-        if(!data[n]||!sizes[n]||sizes[n]>NATIVE_CONTENT_MAX_PACKAGE_BYTES)return false;
+        if(!data[n]||!sizes[n]||sizes[n]>NATIVE_CONTENT_MAX_ASSET_BYTES)return false;
         candidate.bytes[n].assign(data[n],data[n]+sizes[n]);
     }
     candidate.facts=p.facts;candidate.rig_revision=p.rig_edit_revision;
@@ -52,7 +52,7 @@ bool nativeFighterCoreAssets_Restore(NativeFighterProject& p,
     size_t* sizes[]={&candidate.fighter_size,&candidate.animation_size,&candidate.costume_size,&candidate.asset_record_size};
     for(unsigned n=0;n<4;++n){
         const auto& bytes=replacement.bytes[n];
-        if(bytes.empty()||bytes.size()>NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+        if(bytes.empty()||bytes.size()>NATIVE_CONTENT_MAX_ASSET_BYTES)
             return fail(error,capacity,"The bone edit has an invalid asset size.");
         storage[n].reset((uint8_t*)std::malloc(bytes.size()));
         if(!storage[n])return fail(error,capacity,"Could not allocate storage to restore the bone edit.");

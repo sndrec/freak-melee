@@ -20,7 +20,7 @@ bool target_arrays(NativeAssetDat& dat, const std::vector<float>& source,
 {
     if (!components) { *descriptor = *table = *array = 0; return source.empty(); }
     if (source.size() != size_t(targets)*old_count*components || logical.size() > size_t(UINT16_MAX)+1 ||
-        source.size()>NATIVE_CONTENT_MAX_PACKAGE_BYTES/sizeof(float)) return false;
+        source.size()>NATIVE_CONTENT_MAX_ASSET_BYTES/sizeof(float)) return false;
     std::vector<float> physical;
     std::vector<uint32_t> indices;
     std::map<std::array<u32, 9>, uint32_t> lookup;

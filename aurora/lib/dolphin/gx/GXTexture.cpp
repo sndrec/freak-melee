@@ -20,6 +20,30 @@ constexpr u8 GX2HWFiltConv[6] = {0x00, 0x04, 0x01, 0x05, 0x02, 0x06};
 
 u32 sNextTexObjId = 1;
 u32 sNextTlutObjId = 1;
+u32 sNextTextureRevision = 2;
+
+u32 next_texture_revision() {
+  // A rollback can restore the GX object without rewinding the GPU cache.
+  // Give each update a fresh revision even when it follows a restored object.
+  if (sNextTextureRevision == 0) {
+    FATAL("GX texture data revision overflow");
+  }
+  return sNextTextureRevision++;
+}
+
+u8 encode_lod_bias(float bias) {
+  // GX stores signed fixed-point bias in an eight-bit register field.
+  if (bias != bias) return 0;
+  const float bounded = std::clamp(bias, -4.0f, 127.0f / 32.0f);
+  return static_cast<u8>(static_cast<s8>(32.0f * bounded));
+}
+
+void set_max_lod(GXTexObj_& obj, float maxLod) {
+  const auto previousLevels = obj.mip_count();
+  const auto clamped = std::clamp(maxLod, 0.0f, 10.0f);
+  SET_REG_FIELD(0, obj.mode1, 8, 8, static_cast<u8>(16.0f * clamped));
+  if (obj.mip_count() != previousLevels) obj.texDataVersion = next_texture_revision();
+}
 
 u32 next_tex_obj_id() {
   if (sNextTexObjId == 0) {
@@ -107,8 +131,7 @@ void GXInitTexObjCI(GXTexObj* obj_, const void* data, u16 width, u16 height, GXC
 void GXInitTexObjLOD(GXTexObj* obj_, GXTexFilter minFilt, GXTexFilter magFilt, float minLod, float maxLod,
                      float lodBias, GXBool biasClamp, GXBool doEdgeLod, GXAnisotropy maxAniso) {
   auto* obj = reinterpret_cast<GXTexObj_*>(obj_);
-  const float clampedBias = std::clamp(lodBias, -4.0f, 3.99f);
-  const auto lbias = static_cast<u8>(32.0f * clampedBias);
+  const auto lbias = encode_lod_bias(lodBias);
   SET_REG_FIELD(0, obj->mode0, 8, 9, lbias);
   SET_REG_FIELD(0, obj->mode0, 1, 4, magFilt == GX_LINEAR ? 1 : 0);
   SET_REG_FIELD(0, obj->mode0, 3, 5, GX2HWFiltConv[minFilt]);
@@ -119,15 +142,14 @@ void GXInitTexObjLOD(GXTexObj* obj_, GXTexFilter minFilt, GXTexFilter magFilt, f
   SET_REG_FIELD(0, obj->mode0, 1, 21, biasClamp);
 
   const auto clampedMin = std::clamp(minLod, 0.0f, 10.0f);
-  const auto clampedMax = std::clamp(maxLod, 0.0f, 10.0f);
   SET_REG_FIELD(0, obj->mode1, 8, 0, static_cast<u8>(16.0f * clampedMin));
-  SET_REG_FIELD(0, obj->mode1, 8, 8, static_cast<u8>(16.0f * clampedMax));
+  set_max_lod(*obj, maxLod);
 }
 
 void GXInitTexObjData(GXTexObj* obj_, const void* data) {
   auto* obj = reinterpret_cast<GXTexObj_*>(obj_);
   obj->data = data;
-  ++obj->texDataVersion;
+  obj->texDataVersion = next_texture_revision();
 }
 
 void GXInitTexObjWrapMode(GXTexObj* obj_, GXTexWrapMode wrapS, GXTexWrapMode wrapT) {
@@ -149,8 +171,7 @@ void GXInitTexObjFilter(GXTexObj* obj_, GXTexFilter minFilt, GXTexFilter magFilt
 
 void GXInitTexObjMaxLOD(GXTexObj* obj_, float maxLod) {
   auto* obj = reinterpret_cast<GXTexObj_*>(obj_);
-  const auto clampedMax = std::clamp(maxLod, 0.0f, 10.0f);
-  SET_REG_FIELD(0, obj->mode1, 8, 8, static_cast<u8>(16.0f * clampedMax));
+  set_max_lod(*obj, maxLod);
 }
 
 void GXInitTexObjMinLOD(GXTexObj* obj_, float minLod) {
@@ -161,8 +182,7 @@ void GXInitTexObjMinLOD(GXTexObj* obj_, float minLod) {
 
 void GXInitTexObjLODBias(GXTexObj* obj_, float lodBias) {
   auto* obj = reinterpret_cast<GXTexObj_*>(obj_);
-  const float clampedBias = std::clamp(lodBias, -4.0f, 3.99f);
-  const auto lbias = static_cast<u8>(32.0f * clampedBias);
+  const auto lbias = encode_lod_bias(lodBias);
   SET_REG_FIELD(0, obj->mode0, 8, 9, lbias);
 }
 
@@ -324,7 +344,7 @@ void GXInitTlutObj(GXTlutObj* obj_, const void* data, GXTlutFmt format, u16 entr
 void GXInitTlutObjData(GXTlutObj* obj_, const void* data) {
   auto* obj = reinterpret_cast<GXTlutObj_*>(obj_);
   obj->data = data;
-  ++obj->tlutDataVersion;
+  obj->tlutDataVersion = next_texture_revision();
 }
 
 void GXLoadTlut(const GXTlutObj* obj_, u32 idx) {

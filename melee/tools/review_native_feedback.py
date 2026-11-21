@@ -126,9 +126,20 @@ def main():
         client.command("ui-key", "enter")
         wait_visible(client, "feedback-dialog")
         picture(client, output / "send-confirmation.png")
+        # The player can archive an image while writing notes. The report still
+        # owns the F2 frame, and cleanup must preserve the new image at the old path.
+        screenshot = contexts[0].parent / (captured["id"] + ".png")
+        original = screenshot.rename(output / "first-attempt.png")
+        replacement = (output / "note-bubble.png").read_bytes()
+        screenshot.write_bytes(replacement)
         client.click("feedback-send")
         wait_visible(client, "feedback-retry")
         assert contexts[0].read_bytes() == context
+        # The request owns its attachments after confirmation. Archiving the
+        # working files between attempts must preserve the request body.
+        for suffix in (".notes.json", ".context.json"):
+            path = contexts[0].parent / (captured["id"] + suffix)
+            path.rename(output / ("first-attempt" + suffix))
         client.click("feedback-retry")
         wait_visible(client, "feedback-close")
         assert len(packets) == 2 and packets[0] == packets[1]
@@ -144,6 +155,7 @@ def main():
         assert abs(metadata["pins"][0]["y"] - 420/captured["image_height"]) < .002
         screen = output / "captured.png"
         screen.write_bytes(body[20+a:20+a+b])
+        assert screen.read_bytes() == original.read_bytes() and screenshot.read_bytes() == replacement
         with Image.open(screen) as image:
             assert image.size == (captured["image_width"], captured["image_height"])
         assert not contexts[0].exists(), "Accepted local attachments should be removed"

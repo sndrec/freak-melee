@@ -47,8 +47,8 @@ typedef struct NativeScriptItemAsset {
     const char* icon_path;
     const uint8_t* icon_png;
     uint32_t icon_bytes;
-    const void* dat_bytes;
-    size_t dat_size;
+    const struct HSD_Dat* dat;
+    uint32_t attribute_bytes;
     uint32_t owner_node; // UINT32_MAX if this asset has no source declaration.
     const NativeScriptItemModelRootAsset* model_roots;
     uint32_t model_root_count;

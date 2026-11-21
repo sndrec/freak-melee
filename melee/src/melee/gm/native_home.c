@@ -21,7 +21,6 @@
 #include "gmvsmelee.h"
 #include "gmvsmode.h"
 #include "native_match_launch.h"
-#include "native_match_selection.h"
 #include "native_spectator_match.h"
 #include "native_online_session.h"
 #include "native_practice.h"
@@ -99,6 +98,7 @@ static struct {
     unsigned workshop_companion_proc_count;
     NativeFighterAnimationClip workshop_pose_clip;
     FigaTree* workshop_pose_tree;
+    const FigaTree* workshop_demo_source_tree;
     bool workshop_draft_applied;
     const NativeFighterProject* workshop_pose_project;
     const struct FtCostumeAssets* workshop_pose_costume;
@@ -591,6 +591,7 @@ void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
     home.workshop_pose_project = NULL;
     home.workshop_pose_clip.index = UINT_MAX;
     home.workshop_pose_tree = NULL;
+    home.workshop_demo_source_tree = NULL;
     home.workshop_pose_costume = NULL;
     home.workshop_pose_root = NULL;
     home.workshop_pose_parts = NULL;
@@ -890,7 +891,10 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
     if (home.workshop_pose_gobj != gobj ||
         home.workshop_pose_generation != generation)
         nativeHome_WorkshopPoseRelease(true);
-    const bool same_clip = home.workshop_pose_clip.bank == clip.bank &&
+    bool same_clip = home.workshop_pose_gobj == gobj &&
+                           home.workshop_pose_generation == generation &&
+                           nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
+                           home.workshop_pose_clip.bank == clip.bank &&
                            home.workshop_pose_clip.index == clip.index &&
                            home.workshop_pose_project == draft &&
                            home.workshop_pose_kind == kind &&
@@ -901,6 +905,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
     FtMotionId motion = 0;
     u32 part_mask = fighter->x594_bits;
     FigaTree* tree = NULL;
+    const FigaTree* demo_source = NULL;
     const struct FtCostumeAssets* costume = NULL;
     if (clip.bank == NativeFighterAnimation_Action) {
         if (!workshop_motion_for_action(fighter, clip.index, &motion))
@@ -918,18 +923,11 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
                 assets.character->import.arena_used, data->x14,
                 assets.demo_count * sizeof(*data->x14))) return false;
         tree = data->x14[clip.index].x14;
+        demo_source = tree;
         costume = assets.costume;
-        bool cached = home.workshop_pose_gobj == gobj &&
-            home.workshop_pose_generation == generation &&
-            home.workshop_pose_kind == kind && home.workshop_pose_data == data &&
-            home.workshop_pose_source == source &&
-            nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
-            home.workshop_pose_clip.bank == clip.bank &&
-            home.workshop_pose_clip.index == clip.index &&
-            home.workshop_pose_costume == costume &&
-            home.workshop_pose_root == gobj->hsd_obj &&
-            home.workshop_pose_parts == fighter->parts;
-        if (!cached && (!workshop_pose_tree_valid(gobj, &assets, tree, part_mask) ||
+        same_clip = same_clip && home.workshop_demo_source_tree == demo_source &&
+                    home.workshop_pose_costume == costume;
+        if (!same_clip && (!workshop_pose_tree_valid(gobj, &assets, tree, part_mask) ||
             nativeFighterRuntime_PoseClip(gobj, fighter->anim_id) != fighter->x590 ||
             !workshop_pose_tree_valid(gobj, &assets, fighter->x590, part_mask)))
             return false;
@@ -972,12 +970,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
         }
     }
     workshop_preview_presentation_begin();
-    if (home.workshop_pose_gobj == gobj &&
-        home.workshop_pose_kind == kind && home.workshop_pose_data == data &&
-        home.workshop_pose_source == source &&
-        nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
-        home.workshop_pose_clip.bank == clip.bank &&
-        home.workshop_pose_clip.index == clip.index &&
+    if (same_clip && nativeFighterLifetime_Current(&home.workshop_pose_lifetime) &&
         home.workshop_pose_tree == tree &&
         (clip.bank == NativeFighterAnimation_Action ||
             (home.workshop_pose_costume == costume &&
@@ -998,6 +991,7 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
     home.workshop_pose_clip = clip;
     home.workshop_pose_project = draft;
     home.workshop_pose_tree = tree;
+    home.workshop_demo_source_tree = demo_source;
     home.workshop_pose_costume = costume;
     home.workshop_pose_root = gobj->hsd_obj;
     home.workshop_pose_parts = fighter->parts;
@@ -1689,19 +1683,6 @@ bool nativeHome_LocalRosterMatchesRoom(void)
     return true;
 }
 
-bool nativeHome_PublishRoomMatch(uint8_t stage)
-{
-    NativeLobbyMatch match;
-    NativeContentId costumes[4], fighters[4];
-    VsModeData combined = *gmVsMelee_GetVsData();
-    bool requested;
-    return nativeOnlineSession_IsOwner() &&
-        collect_room_players(&combined, &requested, costumes, fighters) && requested &&
-        (!combined.start.rules.is_teams || has_opposing_teams(combined.start.players)) &&
-        nativeMatchSelection_Build(&match, &combined, stage, costumes, fighters) &&
-        nativeOnlineSession_BeginMatch(&match);
-}
-
 bool nativeHome_CanStartMatch(void)
 {
     if (nativeOnlineSession_Quick()) return false;
@@ -2205,7 +2186,7 @@ void nativeHome_Tick(void)
         const NativeSignalingPresence* presence=nativeOnlineSession_Presence();
         const NativeRoomLobbyState* lobby=nativeOnlineSession_LobbyState();
         if (presence && lobby && lobby->phase==2 && presence->stage!=UINT8_MAX && !presence->match_size)
-            nativeHome_PublishRoomMatch(presence->stage);
+            nativeOnlineSession_StartLobbyMatch();
     }
     if (home.authoring || home.preview_active ||
         !nativeHome_IsPractice() || home.enter_stage_select || home.enter_match_setup) {
@@ -2219,7 +2200,7 @@ void nativeHome_Tick(void)
                           presence->stage != UINT8_MAX;
     if (selected_stage && !presence->match_size &&
         nativeOnlineSession_IsOwner()) {
-        nativeHome_PublishRoomMatch(presence->stage);
+        nativeOnlineSession_StartLobbyMatch();
     }
     NativeLobbySessionState state = nativeOnlineSession_State();
     // Another PC can finish a manual pick before this PC has left practice.
@@ -2262,7 +2243,7 @@ void nativeHome_Tick(void)
             } else if (nativeOnlineSession_IsOwner()) {
                 const NativeSignalingPresence* p = nativeOnlineSession_Presence();
                 if (p && p->stage != UINT8_MAX && p->match_size == 0)
-                    nativeHome_PublishRoomMatch(p->stage);
+                    nativeOnlineSession_StartLobbyMatch();
             }
         }
     }

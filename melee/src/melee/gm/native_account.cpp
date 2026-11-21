@@ -192,8 +192,8 @@ namespace {
             if (nativeAccount_Refresh(w, view)) std::snprintf(view.status, sizeof(view.status), "Signed in.");
             return;
         }
-        if (operation == NativeAccountOperation::RemoveKey || operation == NativeAccountOperation::RevokeAll ||
-            operation == NativeAccountOperation::RotateRecovery) {
+        if (operation == NativeAccountOperation::RemoveKey || operation == NativeAccountOperation::RevokeSession ||
+            operation == NativeAccountOperation::RevokeAll || operation == NativeAccountOperation::RotateRecovery) {
             NativeAccountRequest approval{}; approval.operation = NativeAccountOperation::Approve;
             if (!nativeAccount_Login(w, approval, view)) return;
         }

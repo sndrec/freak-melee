@@ -144,7 +144,7 @@ static void half(u8* p,u32 at,u16 v) {p[at]=(u8)(v>>8);p[at+1]=(u8)v;}
 static void synthetic(void) {
  u8 bytes[1024]={0},rels[16]={0},arena[65536];HSD_Joint graph[101]={0};
  word(rels,0,0);word(rels,4,4);word(rels,8,36);word(rels,12,44);
- HSD_Dat dat={.data=bytes,.data_size=sizeof(bytes),.relocations=rels,.relocation_count=4,.relocations_sorted=true};
+ HSD_Dat dat={.data=bytes,.data_size=sizeof(bytes),.relocations=rels,.relocation_count=4};
  word(bytes,0,32);word(bytes,4,48);word(bytes,36,48);word(bytes,44,304);half(bytes,32,256);half(bytes,40,256);
  for(unsigned i=0;i<101;++i) {if(i<100)graph[i].child=&graph[i+1];}
  // Exact capacity succeeds, with repeat and unsorted index preservation.

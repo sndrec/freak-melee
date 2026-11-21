@@ -345,6 +345,9 @@ void hsd_80398A08(u32 unused)
     memset(particle_sort_frames, 0, sizeof(particle_sort_frames));
     memset(particle_non_edge_heads, 0, sizeof(particle_non_edge_heads));
     particle_count = 0;
+#ifdef MELEE_NATIVE
+    particle_work_this_tick.particles = 0;
+#endif
     particle_peak_count = 0;
     for (i = 0; i < 0x41; i++) {
         psCmdListArray[i] = 0;
@@ -375,6 +378,12 @@ HSD_Particle* psGenerateParticle0(HSD_Particle** head, int linkNo, int bank,
     HSD_Particle** slot;
     s16 cmd_wait;
 
+#ifdef MELEE_NATIVE
+    if ((u32)linkNo >= ARRAY_SIZE(hsd_804D0908) || (u32)bank >= ARRAY_SIZE(psCmdListArray) ||
+        particle_count >= HSD_PARTICLES_LIVE ||
+        particle_work_this_tick.particles >= HSD_PARTICLES_PER_TICK) return NULL;
+    ++particle_work_this_tick.particles;
+#endif
     pp = HSD_ObjAlloc(&hsd_804D0F60.alloc_data);
     if (pp != NULL) {
         memset(pp, 0, sizeof(*pp));

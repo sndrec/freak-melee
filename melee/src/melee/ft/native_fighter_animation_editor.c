@@ -654,7 +654,7 @@ static bool store_track_stream(NativeFighterProject* project,
     const size_t new_bank_size = project->animation_size + added_size;
     if (descriptor + 12 > 32 + clip->dat.data_size ||
         new_clip_size > UINT32_MAX || new_bank_size >
-            NATIVE_CONTENT_MAX_PACKAGE_BYTES || append > UINT32_MAX) {
+            NATIVE_CONTENT_MAX_ASSET_BYTES || append > UINT32_MAX) {
         free(stream);
         return false;
     }
@@ -856,7 +856,7 @@ bool nativeFighterAnimation_KeyChannel(NativeFighterProject* project,
         clip.size - 32 - clip.dat.data_size - clip.dat.relocation_count * 4;
     const size_t clip_size = 32 + data_size + new_relocations * 4 + tail_size;
     const size_t bank_size = project->animation_size - clip.size + clip_size;
-    if (bank_size > NATIVE_CONTENT_MAX_PACKAGE_BYTES || clip_size > UINT32_MAX)
+    if (bank_size > NATIVE_CONTENT_MAX_ASSET_BYTES || clip_size > UINT32_MAX)
     {
         return false;
     }
@@ -1118,7 +1118,7 @@ bool nativeFighterAnimation_EditKeys(NativeFighterProject* project,
                              clip.dat.relocation_count * 4;
     const size_t clip_size = 32 + data_size + relocations * 4 + tail_size;
     const size_t bank_size = project->animation_size - clip.size + clip_size;
-    uint8_t* bank = valid && bank_size <= NATIVE_CONTENT_MAX_PACKAGE_BYTES
+    uint8_t* bank = valid && bank_size <= NATIVE_CONTENT_MAX_ASSET_BYTES
         ? calloc(1, bank_size) : NULL;
     uint8_t* fighter = bank ? malloc(project->fighter_size) : NULL;
     valid = fighter && rebase_descriptors(project, clip.offset, clip.size,

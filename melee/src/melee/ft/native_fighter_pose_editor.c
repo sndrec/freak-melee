@@ -126,7 +126,7 @@ bool nativeFighterPose_Paste(NativeFighterProject* project,
     }
     free(tracks);
     if (ok && written != 0 &&
-        working.animation_size <= NATIVE_CONTENT_MAX_PACKAGE_BYTES) {
+        working.animation_size <= NATIVE_CONTENT_MAX_ASSET_BYTES) {
         memcpy(project->fighter_dat, working.fighter_dat, project->fighter_size);
         free(working.fighter_dat);
         free(project->animation_dat);

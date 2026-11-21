@@ -19,17 +19,18 @@ def main():
  if out.drive.upper()!='A:' or out.exists():p.error('fresh A: output required')
  hashes=extract(ROOT,out);compiler=a.compiler.resolve()/'clang.exe'
  names=['native_script_source','native_script_expression','native_script_statement','native_script_program','native_script_bytecode','native_script_value','native_script_math','native_script_constants','native_script_bindings', 'native_script_binding_item_resources_catalog', 'native_script_binding_spawn_catalog','native_script_binding_effect_resolve','native_script_effect_program','native_script_binding_spawn_resolve','native_script_compile', 'native_script_binding_item_resources_resolve','native_script_moves','native_script_move_lowering','native_script_events','native_script_event_payload','native_script_storage','native_script_runtime','native_script_receiver','native_script_binding_receiver','native_script_metadata','native_script_item_program', 'native_script_binding_item_animation_prepare', 'native_script_resource_metadata','native_script_fighter_program']
- units=[ROOT/'src/melee/ft'/(n+'.c') for n in names]+[ROOT/'src/sysdolphin/baselib/dat.c',ROOT/'src/melee/gm/native_match_pool.c',ROOT/'src/melee/ft/native_callback_lifetime.c',HERE.parent/'script_bindings_unavailable_actions.c',HERE.parent/'script_bindings_unavailable_actions.c',HERE.parent/'script_bindings_unavailable_effect.c',HERE.parent/'script_bindings_unavailable_spawn.c',HERE/'test.c',HERE/'boundary.c',HERE.parent/'script_receiver_unavailable_registry.c',HERE.parent/'script_receiver_unavailable_identity.c',HERE.parent/'script_receiver_unavailable_pool.c']
- units += [ROOT/'tests/native/script_bindings_unavailable_article_feedback.c', ROOT/'tests/native/script_bindings_unavailable_item_resources.c', ROOT/'tests/native/script_bindings_unavailable_hitlag.c', ROOT/'tests/native/script_bindings_unavailable_stage.c', ROOT/'tests/native/script_bindings_unavailable_family.c']
- units += [ROOT/'tests/native/script_bindings_unavailable_common_movement.c', ROOT/'tests/native/script_bindings_unavailable_visuals.c']
- units += [ROOT/'src/melee/ft/native_script_pose_metadata.c', ROOT/'src/melee/ft/native_fighter_pose_path.c', ROOT/'tests/native/script_bindings_unavailable_pose.c']
- units += [ROOT/'src/melee/ft/native_script_fighter_hooks.c']
- units += [ROOT/'tests/native/script_bindings_unavailable_normal_attacks.c']
- units += [ROOT/'src/melee/ft'/(name+'.c') for name in ['native_source_declarations', 'native_source_asset_validation', 'ftcharacter_asset_layout', 'native_fighter_sound_policy']]
- units += [ROOT/'tests/native/script_bindings_unavailable_fighter_items.c']
- units += [ROOT/'src/melee/ft'/(name+'.c') for name in ['native_source_motion_policy']]
- units += [ROOT/'tests/native/script_bindings_unavailable_colors.c']
- units += [ROOT/'src/melee/it/native_article_animation_demand.c', ROOT/'src/melee/it/native_article_animation_texture.c', ROOT/'src/melee/it/native_article_animation_origins.c']
+ units=[ROOT/'src/melee/ft'/(n+'.c') for n in names]
+ units += [ROOT/'src/sysdolphin/baselib/dat.c', ROOT/'src/melee/gm/native_match_pool.c',
+           ROOT/'src/melee/ft/native_callback_lifetime.c', HERE/'test.c', HERE/'boundary.c']
+ units += sorted(HERE.parent.glob('script_bindings_unavailable_*.c'))
+ units += [HERE.parent/('script_receiver_unavailable_'+n+'.c') for n in ('registry','identity','pool','item_relations')]
+ units += [ROOT/'src/melee/ft'/(n+'.c') for n in (
+     'native_script_pose_metadata','native_fighter_pose_path','native_script_fighter_hooks',
+     'native_source_declarations','native_source_asset_validation','ftcharacter_asset_layout',
+     'native_fighter_sound_policy','native_source_motion_policy','native_script_hitbox_metadata',
+     'native_script_binding_item_model_resolve','native_script_binding_article_reference_resolve',
+     'native_script_binding_signal_resolve','native_script_model_metadata')]
+ units += [ROOT/'src/melee/it'/('native_article_animation_'+n+'.c') for n in ('demand','texture','origins')]
  sha=lambda path:hashlib.sha256(path.read_bytes()).hexdigest();inputs=units+[HERE/'run.py',compiler]+list((ROOT/'src').rglob('*.h'))+list((ROOT/'extern/dolphin/include').rglob('*.h'))
  hashes.update({str(path):sha(path) for path in inputs});commands=[]
  command=[str(compiler),'-std=gnu11','-O2','-ffp-contract=off','-ffunction-sections','-fdata-sections','-fuse-ld=lld','-Wl,/opt:ref','-DMELEE_NATIVE=1','-D_CRT_SECURE_NO_WARNINGS','-D_USE_MATH_DEFINES','-I'+str(ROOT/'src'),'-I'+str(ROOT/'extern/dolphin/include'),'-I'+str(out)]+list(map(str,units))+['-o',str(out/'test.exe')]

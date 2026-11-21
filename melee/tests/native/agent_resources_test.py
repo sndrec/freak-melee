@@ -65,10 +65,11 @@ def resource_checks(call,target,project,fixtures,*,live=False):
         old=call(read,dict(target,limit=200));disk=snapshot(project)
         args=dict(target,revision=old['revision'],changes=changes)
         if live:args['summary']='Reject resource batch'
-        call(edit,args,expected=False)
+        error=call(edit,args,expected=False)
         current=call(read,dict(target,limit=200))
         assert current['revision']==old['revision'] and current['resources']==old['resources']
         assert snapshot(project)==disk
+        return error
     imports=[dict(operation='import',name='agent/token.png',kind='png',path=str(image)),
              dict(operation='import',name='agent/data.bin',kind='blob',path=str(blob))]
     first=change(imports)
@@ -82,7 +83,7 @@ def resource_checks(call,target,project,fixtures,*,live=False):
     args=dict(target,revision=original['revision'],changes=imports)
     if live:args['summary']='Stale resource edit'
     assert call(edit,args,expected=False)['code']=='revision_conflict'
-    output=fixtures/'export.png';exported=call(export,dict(target,name='agent/token.png',output=str(output)))
+    output=fixtures/'export-雪.png';exported=call(export,dict(target,name='agent/token.png',output=str(output)))
     assert output.read_bytes()==image.read_bytes() and exported['sha256']==names['agent/token.png']['sha256']
     call(export,dict(target,name='agent/token.png',output=str(output)),expected=False)
     assert output.read_bytes()==image.read_bytes()
@@ -97,6 +98,9 @@ def resource_checks(call,target,project,fixtures,*,live=False):
     reject([dict(operation='import',name='agent/bad.png',kind='png',path=str(bad))])
     huge=fixtures/'huge.bin';huge.write_bytes(bytes(4*1024*1024+1))
     reject([dict(operation='import',name='agent/huge',kind='blob',path=str(huge))])
+    chunk=fixtures/'chunk.bin';chunk.write_bytes(bytes(3*1024*1024))
+    batch=[dict(operation='import',name=f'agent/chunk{i}',kind='blob',path=str(chunk)) for i in range(3)]
+    assert reject(batch)['code']=='resource_input_unavailable'
     malformed=fixtures/'bad.item';malformed.write_bytes(b'FMIB'+bytes(40))
     reject([dict(operation='import',name='agent/bad.item',kind='blob',path=str(malformed))])
     if live:
@@ -145,6 +149,19 @@ def main():
         project=root/'Mario'
         call('project.clone_stock',dict(iso=str(iso),fighter_id=mario['fighter_id'],title='Resources',output=str(project)))
         result=resource_checks(call,dict(project=str(project)),project,root/'inputs')
+        # The final collection fits even when new names precede removals in the edit.
+        state=call('resources.read',dict(project=str(project)))
+        chunk=root/'inputs/chunk.bin'
+        def chunk_edit(name):
+            return dict(operation='import',name=name,kind='blob',path=str(chunk))
+        initial_imports=[chunk_edit('old/one'),chunk_edit('old/two')]
+        initial=call('resources.edit',dict(project=str(project),revision=state['revision'],changes=initial_imports))
+        replacements=[chunk_edit('new/one'),chunk_edit('new/two')]
+        removals=[dict(operation='remove',name=row['name']) for row in initial_imports]
+        replaced=call('resources.edit',dict(project=str(project),revision=initial['revision'],changes=replacements+removals))
+        assert replaced['bundle_bytes']==initial['bundle_bytes']
+        call('resources.edit',dict(project=str(project),revision=replaced['revision'],
+                                   changes=[dict(operation='remove',name=row['name']) for row in replacements]))
         # Failed publication under a real Windows file lock preserves the bundle.
         state=call('resources.read',dict(project=str(project)));before=snapshot(project)
         bundle=project/'resources.fmr'

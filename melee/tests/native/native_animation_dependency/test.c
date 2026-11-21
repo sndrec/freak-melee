@@ -143,10 +143,14 @@ static void owner_cases(HSD_FObjDesc* track,HSD_AObjDesc* recipe)
     CHECK(again==reused&&again_x==reused_x&&again_y==reused_y);
     HSD_AObjFree(again);HSD_FObjFree(again_x);HSD_FObjFree(again_y);HSD_AObjRemove(b);++cases;
 
-    // Source target-load fallback owns the newly loaded joint's initial ref.
+    // An unknown registry ID leaves the animation unattached.
     track->next=NULL;recipe->obj_id=2;target.object.ref_count=1;
+    a=HSD_AObjLoadDesc(recipe);CHECK(!fallback_loads&&!a->hsd_obj);
+    HSD_AObjRemove(a);
+    // A relocated joint owns the newly loaded target's initial ref.
+    recipe->obj_id_is_joint=true;
     a=HSD_AObjLoadDesc(recipe);CHECK(fallback_loads==1&&a->hsd_obj==(HSD_Obj*)&target&&target.object.ref_count==1);
-    HSD_AObjRemove(a);CHECK(target.object.ref_count==0);recipe->obj_id=1;++cases;
+    HSD_AObjRemove(a);CHECK(target.object.ref_count==0);recipe->obj_id=1;recipe->obj_id_is_joint=false;++cases;
 
     target.object.ref_count=1;a=HSD_AObjLoadDesc(recipe);HSD_AObjReqAnim(a,0);probe_callback=true;frame(a);probe_callback=false;++cases;
     b=HSD_AObjAlloc();HSD_FObj* foreign=HSD_FObjAlloc();

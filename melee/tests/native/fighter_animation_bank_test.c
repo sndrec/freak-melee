@@ -117,6 +117,16 @@ static void check_fighter_animation_tracks(FighterKind kind,
 
 int main(int argc, char** argv)
 {
+    s8 rig_nodes[] = {0, 0, -1};
+    FigaTree rig_tree = { .nodes = rig_nodes };
+    struct Fighter_WaitAnimData rig_clip = { .x14 = &rig_tree };
+    require(ftAnimationBank_FitsRig(&rig_clip, 3, 1) &&
+            !ftAnimationBank_FitsRig(&rig_clip, 1, 0),
+            "Clip must fit its available bones\n");
+    rig_clip.x10_animCurrFlags = 1u << 11;
+    require(!ftAnimationBank_FitsRig(&rig_clip, 3, 1) &&
+            ftAnimationBank_FitsRig(&rig_clip, 2, 1),
+            "Enabled insertion must consume a clip node\n");
     require(argc == 2, "usage: native_fighter_animation_bank_test <iso>\n");
     require(aurora_dvd_open(argv[1]), "open ISO\n");
     void* character_arena = _aligned_malloc(

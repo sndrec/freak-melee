@@ -44,6 +44,9 @@ struct HSD_Exp {
     HSD_Rvalue* rvalue;
     u32 nb_args;
     u8 is_bytecode;
+#ifdef MELEE_NATIVE
+    u8 evaluating;
+#endif
 };
 
 struct HSD_ExpDesc {

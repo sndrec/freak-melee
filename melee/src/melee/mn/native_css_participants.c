@@ -4,13 +4,13 @@
 #include <string.h>
 
 static void open_slots(NativeCssParticipants* result, unsigned expected,
-                        bool searching, unsigned occupied)
+                       bool searching)
 {
     if (!expected) return;
     result->online = true;
-    for (unsigned slot = 0; slot < expected && result->count < expected; ++slot) {
-        if (occupied & (1U << slot)) continue;
-        NativeCssParticipant* card = &result->cards[result->count++];
+    while (result->count < expected) {
+        unsigned slot = result->count++;
+        NativeCssParticipant* card = &result->cards[slot];
         card->kind = Gm_PKind_NA;
         card->physical_port = card->canonical_port = card->seat = NATIVE_CSS_NO_PORT;
         card->card_slot = slot;
@@ -48,7 +48,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
                      : local_name               ? local_name
                                                 : "Player");
         }
-        open_slots(result, expected_players, searching, 0);
+        open_slots(result, expected_players, searching);
         return true;
     }
     if (!local_peer ||
@@ -57,6 +57,7 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
         return false;
     }
     NativeCssParticipant canonical[4] = { 0 };
+    if (fixed_cards) open_slots(result, expected_players, searching);
     unsigned count = 0;
     unsigned occupied = 0;
     uint8_t physical[4], physical_count = 0;
@@ -86,14 +87,13 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
             if (count == 4) {
                 return false;
             }
-            NativeCssParticipant* card = &canonical[count];
+            unsigned slot = fixed_cards ? person->card_slots[seat] : count;
+            if (slot >= 4 || (fixed_cards && slot >= expected_players) ||
+                occupied & (1u << slot)) return false;
+            occupied |= 1u << slot;
+            NativeCssParticipant* card = fixed_cards ? &result->cards[slot] : &canonical[count];
             card->canonical_port = count++;
-            card->card_slot = fixed_cards ? person->card_slots[seat]
-                                          : card->canonical_port;
-            if (card->card_slot >= 4 ||
-                (fixed_cards && card->card_slot >= expected_players) ||
-                occupied & (1u << card->card_slot)) return false;
-            occupied |= 1u << card->card_slot;
+            card->card_slot = slot;
             card->physical_port = NATIVE_CSS_NO_PORT;
             card->seat = seat;
             card->kind = Gm_PKind_Human;
@@ -109,8 +109,8 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
             card->ready = decoded && selected.confirmed;
         }
     }
-    // Stable partition: each client sees its local seats first, while every
-    // card retains the canonical port negotiated by the room.
+    if (fixed_cards) return true;
+    // In Quick Play the local cards come first. Match ports stay canonical.
     for (unsigned pass = 0; pass < 2; ++pass) {
         for (unsigned i = 0; i < count; ++i) {
             if (canonical[i].local == (pass == 0)) {
@@ -119,6 +119,6 @@ bool nativeCssParticipants_Build(const NativeSignalingPresence* presence,
         }
     }
     result->online = true;
-    open_slots(result, expected_players, searching, occupied);
+    open_slots(result, expected_players, searching);
     return true;
 }

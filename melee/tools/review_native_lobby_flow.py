@@ -66,7 +66,13 @@ def main():
      host.click('lobby-capacity-'+direction)
      inspect(host,'match-rules',rf'capacity={limit} ')
     case['screenshots']['lobby-rules']=str(host.screenshot())
-   host.click('rules-next-page');finish_rules(host)
+   finish_rules(host)
+   host.element('play-rules')
+   rules_menu(host);host.click('rules-next-page')
+   host.tap('B',frames=4)
+   host.element('play-rules')
+   rules_menu(host);host.click('rules-row-5');finish_rules(host)
+   host.element('play-rules')
    if a.spectator_host:
     click_card(host,0,0)
     wait(lambda:room(host)['members'][peers[0]]['active']==0,'host released exact card')
@@ -88,6 +94,8 @@ def main():
     case['screenshots']['spectating-hand']=str(host.screenshot())
     click_card(guest,1,0,mouse=True)
     wait(lambda:room(host)['members'][peers[-1]]['active']==1,'guest claimed exact card')
+    for c in active:
+     inspect(c,'css-cards',rf'display=1 peer={peers[-1]} seat=0 [^\r\n]* card=1\b')
     inspect(host,'css-cards',rf'\[css-hand\] peer={peers[-1]} seat=0 numbered=1 held=1 ')
     assert 'origin=' not in guest.inspect('css-fight-seat-0')
    rules_menu(guest);inspect(guest,'match-rules',rf'editable=0 .*damage=110 .*stage={policy} ')

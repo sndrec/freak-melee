@@ -1,9 +1,9 @@
 # Prepared Windows releases
 
-Updated: 2026-11-14. The public playtest download channel carries
-`2026-11-13-community-1`, including fighter deletion, news, announcements and F2
-feedback. The October local acceptance below covers installation, Workshop
-authoring, and launcher updates.
+The live channel's `latest.json` identifies the currently offered build.
+The November 13 community release described below introduced fighter deletion,
+news, announcements and F2 feedback. The October local acceptance below covers
+installation, Workshop authoring and launcher updates.
 
 The manifest and download URLs are public distribution endpoints. Their path
 component is a channel name, not a password or an access-control mechanism.
@@ -47,6 +47,33 @@ Preparation creates an update ZIP, `latest.json`, an `install/` folder and
 their exact file lists, initial version selection and every version-file hash.
 It performs no upload.
 
+### Release signing
+
+The publisher signs the exact bytes of `latest.json` on the maintainer's
+Windows PC. The manifest identifies the release and records the hashes of the
+setup ZIP, update ZIP and individual installed files. Each packaged launcher
+contains the public key from `tools/release-key.pub`. It verifies the signature
+before reading the file list or installing an update. A person with access only
+to the download server cannot sign a replacement build.
+
+Install the maintainer's Python dependencies with
+`python -m pip install cryptography pywin32`. The launcher uses Windows'
+built-in cryptography. Windows protects the private key for the publishing
+account at `%LOCALAPPDATA%\Freak Melee Publisher\release-key.dpapi`. Keep an
+encrypted backup on offline media. Run these commands from `melee`, substituting
+the path on your removable drive. Enter the backup passphrase at the local prompt.
+
+```powershell
+python tools/release_signer.py backup "E:\freak-melee-release-key.pem"
+```
+
+On a replacement publishing PC, install the dependencies and run
+`python tools/release_signer.py restore "E:\freak-melee-release-key.pem"`.
+Restore checks the key against the project's public key and writes a fresh
+Windows-protected copy for that account. Both commands preserve existing files.
+Loss of every copy would require players to establish trust in a replacement
+key through a separately trusted installer.
+
 ## Launch and update
 
 Extract the setup ZIP and run `Freak Melee.bat`. On first launch choose a local
@@ -76,6 +103,19 @@ The rejected version is skipped until the channel offers another release.
 `-Rollback -CheckOnly` changes the selected version without launching.
 `-Hidden -Mute` launches a hidden, muted client for automated checks.
 An explicit `-Channel <local latest.json>` supports isolated local update tests.
+Installed channels use HTTPS. The launcher checks each redirect before requesting
+the next URL and allows up to five redirects per download. It reads the detached
+signature from `manifest-<sha256 of latest.json>.sig`. The digest in the name
+keeps each manifest paired with its own signature during a release change.
+The launcher remembers the newest accepted release timestamp through a manual
+rollback. To offer an earlier build to everyone, publish it under a new release
+ID with a later timestamp.
+
+The initial installer establishes which publisher the client trusts. Existing
+unsigned installations receive their first signing-aware launcher through the
+old HTTPS update path. Signature enforcement begins with the new launcher. Each
+launcher carries its own release timestamp so it can reject an older offer even
+when the existing installation has never recorded a signed update.
 
 ## Publish
 
@@ -152,13 +192,26 @@ Check that the embedded/configured source identity matches the pinned commit
 and is not marked modified. Preserve the optional local startup HPS for official
 builds. Keep game data, account keys and player profiles out of the payload.
 
-Choose a new release ID; never reuse an ID for different bytes. Prepare both
-ZIPs with the hosted channel URL, then run the existing publication dry run.
+Choose a new release ID for each build. Prepare both ZIPs with the hosted
+channel URL. Check that the new `issued_ms` exceeds the shipped manifest's
+timestamp when the shipped manifest has one. Sign the final manifest from the
+pinned checkout, then run the dry run. Both commands verify the archives against
+the manifest. Signing also checks that the launcher matches that checkout and
+contains the official public key.
+
+```powershell
+python tools/publish_native_release.py <prepared-directory> --sign-only
+python tools/publish_native_release.py <prepared-directory> --dry-run
+```
+
+For local launcher acceptance, supply two builds signed with the same disposable
+test key to `review_native_release.py`. The release payload tests generate their
+own test key.
 Store the captured old manifest, hashes and stage results in a local
 `publication-receipt.json` beside the prepared output. Receipts contain no tokens
 or account keys. Do not create an unrelated smoke test on the live channel.
 
-### 4. Stage the updater archives
+### 4. Stage the updater archives and signature
 
 Check whether the chosen archive names already exist at the public download
 paths. Existing objects must match this run's expected sizes and hashes; stop
@@ -171,14 +224,16 @@ From the `melee` directory:
 python tools/publish_native_release.py <prepared-directory> --stage-only
 ```
 
-This uploads the setup/update ZIPs, downloads both and verifies their SHA-256
-hashes. It leaves `latest.json` unchanged. Record successful staging.
+This uploads and reads back both ZIPs and the detached signature, checking each
+against the prepared bytes. Before the first signed release goes live, deploy
+the release Worker that serves the signature route and verify its public GET
+returns the exact staged signature. Record successful staging.
 
 ### 5. Prepare GitHub and the News draft
 
 Create a GitHub draft release in `sndrec/freak-melee` using the release ID as its
 tag, the pinned source commit as its target, and the patch-notes file as its body.
-Upload the setup ZIP, update ZIP, `latest.json` and `patch-notes.md`. Verify asset
+Upload the setup ZIP, update ZIP, `latest.json`, its signature and `patch-notes.md`. Verify asset
 names, sizes and hashes using GitHub's asset digests or authenticated downloads.
 Avoid autogenerated commit-log release notes.
 
@@ -190,8 +245,10 @@ $releaseId = '2026-11-16-feedback-1'
 $sourceRevision = '<pinned full source revision>'
 $prepared = "build/native/releases/$releaseId"
 $notes = "docs/releases/$releaseId.md"
+$manifestHash = (Get-FileHash -Algorithm SHA256 -LiteralPath "$prepared/latest.json").Hash.ToLowerInvariant()
+$signatureName = "manifest-$manifestHash.sig"
 gh release create $releaseId --repo sndrec/freak-melee --target $sourceRevision --title "Freak Melee $releaseId" --notes-file $notes --draft
-gh release upload $releaseId --repo sndrec/freak-melee "$prepared/freak-melee-setup-$releaseId.zip" "$prepared/freak-melee-$releaseId.zip" "$prepared/latest.json" "$prepared/patch-notes.md"
+gh release upload $releaseId --repo sndrec/freak-melee "$prepared/freak-melee-setup-$releaseId.zip" "$prepared/freak-melee-$releaseId.zip" "$prepared/latest.json" "$prepared/$signatureName" "$prepared/patch-notes.md"
 gh release view $releaseId --repo sndrec/freak-melee --json id,tagName,targetCommitish,isDraft,assets,body
 python tools/save_native_news_draft.py --key $releaseId --title "Freak Melee $releaseId" --body-file $notes --receipt "$prepared/news-draft.json"
 ```
@@ -213,11 +270,12 @@ continuing. The command cannot publish an article or create an announcement.
 Write `release-info.json` beside the prepared output and attach it to the GitHub
 draft. Include `release`, `source_revision`, `previous_release`,
 `previous_source_revision`, `archive`, `size`, `sha256`, `setup_sha256`,
-`executable_sha256`, `patch_notes_sha256`, and the saved News draft's title/ID.
+`issued_ms`, `manifest_sha256`, `signature_sha256`, `executable_sha256`,
+`patch_notes_sha256`, and the saved News draft's title/ID.
 Copy archive values from the validated manifest and hash the actual setup ZIP
 and notes file. This record identifies the shipped source for the next workflow.
 Upload it with `gh release upload $releaseId --repo sndrec/freak-melee
-"$prepared/release-info.json"`, then verify all five asset digests. Use
+"$prepared/release-info.json"`, then verify all six asset digests. Use
 `gh release view` to find an existing draft and verify its target and bytes before
 resuming; do not use `--clobber` to replace different release assets.
 
@@ -248,10 +306,10 @@ gh api "repos/sndrec/freak-melee/git/ref/tags/$releaseId"
 python tools/publish_native_release.py <prepared-directory> --activate-only
 ```
 
-Activation downloads and verifies both staged remote archives again, then writes
-`latest.json` last. It does not upload replacement archive bytes. Re-read the
-public manifest and verify its release ID, archive name, size, hash and file list
-against the prepared manifest. Verify the public setup/update download paths
+Activation downloads and verifies both staged archives and the signature again,
+then writes the signed bytes of `latest.json` last. Download the public manifest
+and signature and compare both byte-for-byte with the signed local copies.
+Verify the public setup/update download paths
 and complete the receipt. Rerun the same News draft command to read its current
 server state and check that it remains unpublished unless the owner independently
 changed it.

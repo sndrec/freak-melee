@@ -117,6 +117,9 @@ void lb_8000FD18(DynamicsDesc* desc)
         cur->next = temp;
     }
     desc->data = NULL;
+#ifdef MELEE_NATIVE
+    desc->count = 0;
+#endif
 }
 
 static inline struct DynamicsData* popDynamicsData(void)
@@ -139,6 +142,11 @@ void lb_8000FD48(HSD_JObj* jobj, DynamicsDesc* desc, size_t max_count)
         return;
     }
 
+#ifdef MELEE_NATIVE
+    desc->count = 0;
+    desc->data = NULL;
+    if (max_count == 0) return;
+#endif
     if (jobj == NULL) {
         desc->data = NULL;
         return;
@@ -147,6 +155,12 @@ void lb_8000FD48(HSD_JObj* jobj, DynamicsDesc* desc, size_t max_count)
     desc->count = 0;
 
     while ((s32) desc->count < (s32) max_count) {
+#ifdef MELEE_NATIVE
+        if (jobj == NULL) {
+            lb_8000FD18(desc);
+            return;
+        }
+#endif
         if ((s32) desc->count == 0) {
             desc->data = (prev = popDynamicsData());
         } else {
@@ -155,6 +169,9 @@ void lb_8000FD48(HSD_JObj* jobj, DynamicsDesc* desc, size_t max_count)
         }
 
         if (prev == NULL) {
+#ifdef MELEE_NATIVE
+            lb_8000FD18(desc);
+#endif
             return;
         }
 
@@ -435,7 +452,11 @@ void lb_8001044C(DynamicsDesc* desc, const DynamicsCollider* colliders, int num_
 #ifdef MUST_MATCH
     (void) parent_mtx[loop_index];
 #endif
+#ifdef MELEE_NATIVE
+    if ((unsigned) part >= desc->count || part > 0xFF) {
+#else
     if (part > 0xFF) {
+#endif
         return;
     }
 
@@ -996,14 +1017,16 @@ void lb_80011710(DynamicsDesc* arg0, DynamicsDesc* arg1)
     arg1->pos.x = arg0->pos.x;
     arg1->pos.y = arg0->pos.y;
     arg1->pos.z = arg0->pos.z;
-    data1 = arg1->data;
+#ifdef MELEE_NATIVE
+    // A short costume branch or exhausted node pool leaves an empty chain.
+    if (arg1->count < arg0->count) return;
+#endif
     // Archive dynamics entries form a variable-length array of 0x3C-byte
     // records, not the two-entry view in DynamicsData.
     data0 = (struct lb_00F9_UnkDesc1Inner*) arg0->data;
     for (data1 = arg1->data, i = 0; i < (int) arg0->count;
          data1 = data1->next, i++)
     {
-        s32 tmp0, tmp1;
         data1->desc.lb_unk0.unk_4C = data0[i].unk_0;
         data1->desc.lb_unk0.unk_50 = data0[i].unk_4;
         data1->desc.lb_unk0.unk_58 = data0[i].unk_8;

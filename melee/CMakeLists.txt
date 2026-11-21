@@ -44,7 +44,15 @@ add_custom_command(
     DEPENDS "${MELEE_ISO}" tools/prepare_native_assets.py
         config/GALE01/config.yml config/GALE01/symbols.txt
     VERBATIM)
-add_custom_target(melee_embedded_assets DEPENDS ${MELEE_GENERATED_FONTS})
+set(MELEE_STOCK_RIG_SIZES "${MELEE_GENERATED_ASSETS}/include/melee/ft/stock_rig_sizes.inc")
+set(MELEE_STOCK_COSTUMES "${MELEE_GENERATED_ASSETS}/include/melee/ft/stock_costume_bindings.inc")
+add_custom_command(OUTPUT "${MELEE_STOCK_RIG_SIZES}" "${MELEE_STOCK_COSTUMES}"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_fighter_rig_sizes.py"
+        --iso "${MELEE_ISO}" --output "${MELEE_STOCK_RIG_SIZES}" --costumes-output "${MELEE_STOCK_COSTUMES}"
+    DEPENDS "${MELEE_ISO}" tools/prepare_fighter_rig_sizes.py tools/fighter_animation_io.py
+        tools/prepare_native_assets.py config/GALE01/config.yml config/GALE01/symbols.txt
+    VERBATIM)
+add_custom_target(melee_embedded_assets DEPENDS ${MELEE_GENERATED_FONTS} "${MELEE_STOCK_RIG_SIZES}" "${MELEE_STOCK_COSTUMES}")
 
 # Compile the full gameplay/HSD tree in place for the native runtime.
 file(GLOB_RECURSE MELEE_GAME_SOURCES CONFIGURE_DEPENDS
@@ -52,7 +60,8 @@ file(GLOB_RECURSE MELEE_GAME_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sysdolphin/*.c")
 set(NATIVE_INVERSE_TRIG "${CMAKE_CURRENT_SOURCE_DIR}/src/melee/lb/native_float_math.c")
-list(REMOVE_ITEM MELEE_GAME_SOURCES "${NATIVE_INVERSE_TRIG}")
+list(REMOVE_ITEM MELEE_GAME_SOURCES "${NATIVE_INVERSE_TRIG}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sysdolphin/baselib/bytecode.c")
 file(GLOB_RECURSE CORE_MATH_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/extern/core-math/*.c")
 add_library(melee_math STATIC ${CORE_MATH_SOURCES} "${NATIVE_INVERSE_TRIG}")
@@ -940,7 +949,7 @@ if(MELEE_BUILD_TESTS)
         src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
     target_include_directories(native_room_chat_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_room_chat_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(native_room_chat_test PRIVATE winhttp bcrypt)
+    target_link_libraries(native_room_chat_test PRIVATE SDL3::SDL3 winhttp bcrypt)
     target_sources(native_room_chat_test PRIVATE src/melee/gm/native_account_transport.cpp)
     add_test(NAME native_room_chat COMMAND native_room_chat_test)
     add_executable(native_utf8_test tests/native/utf8_test.c)
@@ -1039,28 +1048,31 @@ if(MELEE_BUILD_TESTS)
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     add_test(NAME native_settings COMMAND native_settings_test)
     add_executable(native_content_store_test
+        src/melee/ft/native_file_publish.c
         tests/native/content_store_test.c
         src/melee/gm/native_content_store.c
-    src/melee/gm/native_fighter_package.c)
+        src/melee/gm/native_fighter_package.c)
     target_include_directories(native_content_store_test PRIVATE src)
     target_compile_definitions(native_content_store_test PRIVATE
         MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(native_content_store_test PRIVATE bcrypt)
+    target_link_libraries(native_content_store_test PRIVATE bcrypt ZLIB::ZLIB)
     add_test(NAME native_content_store COMMAND native_content_store_test)
     add_executable(native_room_gift_test tests/native/room_gift_test.c
+        src/melee/ft/native_file_publish.c
         src/melee/gm/native_netplay_room_gift.c
         src/melee/gm/native_content_transfer.c
         src/melee/gm/native_content_store.c src/melee/gm/native_fighter_package.c)
     target_include_directories(native_room_gift_test PRIVATE src extern/dolphin/include)
     target_compile_definitions(native_room_gift_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(native_room_gift_test PRIVATE bcrypt)
+    target_link_libraries(native_room_gift_test PRIVATE bcrypt ZLIB::ZLIB)
     add_test(NAME native_room_gift COMMAND native_room_gift_test)
     add_executable(native_fighter_family_package_test
+        src/melee/ft/native_file_publish.c
         tests/native/fighter_family_package/test.c
         src/melee/gm/native_content_store.c src/melee/gm/native_fighter_package.c)
     target_include_directories(native_fighter_family_package_test PRIVATE src)
     target_compile_definitions(native_fighter_family_package_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(native_fighter_family_package_test PRIVATE bcrypt)
+    target_link_libraries(native_fighter_family_package_test PRIVATE bcrypt ZLIB::ZLIB)
     add_test(NAME native_fighter_family_package COMMAND native_fighter_family_package_test)
     add_executable(native_content_transfer_test
         tests/native/content_transfer_test.c
@@ -1142,6 +1154,12 @@ add_subdirectory("${MELEE_AURORA_SOURCE}" "${CMAKE_BINARY_DIR}/aurora" EXCLUDE_F
 target_compile_options(aurora_mtx PRIVATE ${NATIVE_MATH_COMPILE_OPTIONS})
 target_link_libraries(aurora_mtx PUBLIC melee_math)
 include("${MELEE_AURORA_SOURCE}/cmake/AuroraCopyRuntimeDLLs.cmake")
+
+if(MELEE_BUILD_TESTS)
+    aurora_copy_runtime_dlls(native_content_store_test)
+    aurora_copy_runtime_dlls(native_room_gift_test)
+    aurora_copy_runtime_dlls(native_fighter_family_package_test)
+endif()
 add_custom_target(melee_platform DEPENDS aurora_core aurora_os aurora_gx
     aurora_mtx aurora_vi aurora_pad aurora_dvd aurora_card aurora_thp)
 
@@ -1163,18 +1181,14 @@ add_library(melee_account_crypto STATIC
 target_include_directories(melee_account_crypto PUBLIC
     ${monocypher_SOURCE_DIR}/src ${monocypher_SOURCE_DIR}/src/optional)
 if(MELEE_BUILD_TESTS)
-    add_executable(native_account_test tests/native/account_test.cpp
-        src/melee/gm/native_account.cpp src/melee/gm/native_account_json.cpp
-        src/melee/gm/native_account_store.cpp)
-    target_sources(native_account_test PRIVATE src/melee/gm/native_account_social.cpp)
-    target_sources(native_account_test PRIVATE src/melee/gm/native_account_transport.cpp)
+    add_executable(native_account_test tests/native/account_test.cpp)
     target_include_directories(native_account_test PRIVATE src)
-    target_compile_definitions(native_account_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_definitions(native_account_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
     target_compile_options(native_account_test PRIVATE -UNDEBUG)
-    target_sources(native_account_test PRIVATE src/melee/gm/native_account_login.cpp)
-    target_sources(native_account_test PRIVATE src/melee/gm/native_account_key.cpp)
-    target_sources(native_account_test PRIVATE src/melee/gm/native_account_key_file.cpp)
-    target_link_libraries(native_account_test PRIVATE yyjson melee_account_crypto winhttp crypt32 comdlg32 bcrypt)
+    target_link_libraries(native_account_test PRIVATE melee_runtime
+        aurora_os aurora_gx aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+    target_link_options(native_account_test PRIVATE "LINKER:/opt:ref")
+    aurora_copy_runtime_dlls(native_account_test)
     add_test(NAME native_account COMMAND native_account_test)
 endif()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)
@@ -1206,6 +1220,8 @@ if(MELEE_BUILD_TESTS)
         MELEE_NATIVE=1)
     add_test(NAME native_netplay_connection_wire
         COMMAND native_netplay_connection_wire_test)
+    add_test(NAME native_netplay_signal_handling
+        COMMAND native_connection_probe --check-signal-handling)
 endif()
 
 if(MELEE_BUILD_TESTS)
@@ -2280,13 +2296,21 @@ add_test(NAME native_fighter_installed_clone_roundtrip COMMAND
 target_link_libraries(melee_game PRIVATE yyjson melee_account_crypto aurora_main aurora_core
     LibJuice::LibJuice)
 target_link_libraries(melee_runtime PUBLIC melee_math LibJuice::LibJuice yyjson melee_account_crypto ws2_32 winhttp bcrypt crypt32 comdlg32 windowscodecs ole32 advapi32)
+target_link_libraries(melee_game PRIVATE ZLIB::ZLIB)
+target_link_libraries(melee_runtime PUBLIC ZLIB::ZLIB)
 
 add_executable(native_feedback_input_test tests/native/native_feedback_input_test.c
     src/melee/gm/native_feedback_input.c)
 target_include_directories(native_feedback_input_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_feedback_input_test PRIVATE MELEE_NATIVE=1)
 add_test(NAME native_feedback_input COMMAND native_feedback_input_test)
+add_executable(native_feedback_diagnostics_test tests/native/native_feedback_diagnostics_test.cpp
+    ../aurora/lib/logging.cpp)
+target_include_directories(native_feedback_diagnostics_test PRIVATE src ../aurora/include ../aurora/lib)
+target_link_libraries(native_feedback_diagnostics_test PRIVATE fmt::fmt yyjson)
+add_test(NAME native_feedback_diagnostics COMMAND native_feedback_diagnostics_test)
 add_executable(native_feedback_owner_test tests/native/native_feedback_owner_test.cpp
+    src/melee/ft/native_file_publish.c
     src/melee/gm/native_feedback.cpp src/melee/gm/native_feedback_capture.cpp
     src/melee/gm/native_feedback_agent.cpp src/melee/gm/native_content_store.c
     src/melee/ft/native_authoring_reply.cpp)
@@ -2322,7 +2346,7 @@ add_executable(native_signaling_probe
 target_include_directories(native_signaling_probe PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_signaling_probe PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(native_signaling_probe PRIVATE winhttp bcrypt)
+target_link_libraries(native_signaling_probe PRIVATE SDL3::SDL3 winhttp bcrypt)
 target_sources(native_signaling_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 add_executable(native_chat_probe tools/native_chat_probe.c
     src/melee/ui/native_chat.c src/melee/ui/native_chat_wire.c)
@@ -2332,6 +2356,7 @@ target_link_libraries(native_chat_probe PRIVATE winhttp bcrypt)
 target_sources(native_chat_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 
 add_executable(native_connection_probe
+    src/melee/ft/native_file_publish.c
     tools/native_connection_probe.c
     src/melee/gm/native_content_store.c
     src/melee/gm/native_fighter_package.c
@@ -2341,6 +2366,7 @@ add_executable(native_connection_probe
     src/melee/gm/native_lobby_topology.c
     src/melee/gm/native_netplay_exchange.c
     src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_netplay_game_route.c
     src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_content_channel.c
     src/melee/gm/native_netplay_connection_wire.c
@@ -2365,6 +2391,7 @@ target_link_libraries(native_connection_probe PRIVATE
 add_executable(native_content_channel_probe
     tools/native_content_channel_probe.c
     src/melee/gm/native_netplay_connection.c
+    src/melee/gm/native_netplay_game_route.c
     src/melee/gm/native_room_chat.c
     src/melee/gm/native_netplay_content_channel.c
     src/melee/gm/native_netplay_connection_wire.c
@@ -2373,7 +2400,7 @@ add_executable(native_content_channel_probe
     src/melee/gm/native_signaling_wire.c src/melee/gm/native_room_rules.c)
 target_include_directories(native_content_channel_probe PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_content_channel_probe PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(native_content_channel_probe PRIVATE LibJuice::LibJuice winhttp bcrypt)
+target_link_libraries(native_content_channel_probe PRIVATE LibJuice::LibJuice SDL3::SDL3 winhttp bcrypt)
 target_sources(native_content_channel_probe PRIVATE src/melee/gm/native_account_transport.cpp)
 
 add_executable(melee_native_control tools/native_control.c
@@ -2595,6 +2622,7 @@ target_compile_definitions(native_callback_lifetime_test PRIVATE MELEE_NATIVE=1 
 add_test(NAME native_callback_lifetime COMMAND native_callback_lifetime_test)
 
 add_executable(native_model_effect_lifetime_test tests/native/model_effect_lifetime_test.c
+    tests/native/model_effect_script_fixture.c
     src/melee/ef/native_model_effect.c src/melee/ft/native_callback_lifetime.c)
 target_include_directories(native_model_effect_lifetime_test PRIVATE src extern/dolphin/include)
 target_compile_definitions(native_model_effect_lifetime_test PRIVATE MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS)
@@ -2607,6 +2635,7 @@ add_custom_command(OUTPUT "${MODEL_EFFECT_GROUP_FIXTURE}"
     DEPENDS tests/native/model_effect_group_fixture.py src/melee/ef/efsync.c
         src/melee/ef/efasync.c src/melee/ef/eflib.c VERBATIM)
 add_executable(native_model_effect_group_test tests/native/model_effect_group_test.c
+    tests/native/model_effect_script_fixture.c
     src/melee/ef/native_model_effect.c src/melee/ft/native_callback_lifetime.c
     "${MODEL_EFFECT_GROUP_FIXTURE}")
 target_include_directories(native_model_effect_group_test PRIVATE
@@ -2614,6 +2643,14 @@ target_include_directories(native_model_effect_group_test PRIVATE
 target_compile_definitions(native_model_effect_group_test PRIVATE
     MELEE_NATIVE=1 _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
 add_test(NAME native_model_effect_group COMMAND native_model_effect_group_test)
+
+add_executable(native_effect_limits_test tests/native/effect_limits_test.c)
+target_include_directories(native_effect_limits_test PRIVATE src extern/dolphin/include)
+target_compile_definitions(native_effect_limits_test PRIVATE MELEE_NATIVE=1)
+target_link_libraries(native_effect_limits_test PRIVATE melee_runtime aurora_os aurora_gx
+    aurora_vi aurora_pad aurora_mtx aurora_dvd aurora_card aurora_thp)
+aurora_copy_runtime_dlls(native_effect_limits_test)
+add_test(NAME native_effect_limits COMMAND native_effect_limits_test)
 
 set(CALLBACK_ENGINE_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/callback_engine_fixture.h")
 add_custom_command(OUTPUT "${CALLBACK_ENGINE_FIXTURE}"

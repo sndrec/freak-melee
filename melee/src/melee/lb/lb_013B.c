@@ -171,6 +171,9 @@ lb_803BA248_fn lb_803BA248[] = {
 bool lb_80014258(Fighter_GObj* gobj, void* arg1, FtCmd2 cmd)
 {
     ColorOverlay* co = arg1;
+#ifdef MELEE_NATIVE
+    unsigned remaining = LB_COMMAND_UPDATE_LIMIT;
+#endif
 
     if (co->x8_ptr1 != NULL) {
         s32 timer = co->x0_timer;
@@ -180,6 +183,9 @@ bool lb_80014258(Fighter_GObj* gobj, void* arg1, FtCmd2 cmd)
     }
 
     while (co->x8_ptr1 != NULL && co->x0_timer == 0) {
+#ifdef MELEE_NATIVE
+        if (remaining-- == 0) break;
+#endif
         u32 opcode = co->x8_ptr1->unk.unk;
         if (!Command_Execute((CommandInfo*) co, opcode)) {
             if (opcode < 0x15U) {

@@ -182,6 +182,7 @@ void efLib_SetParamAlpha(HSD_GObj* o,u8 alpha){CHECK(o&&nativeScriptFighter_Stat
 #include "native_hurtbox.inc"
 #include "native_hurtbox_reference.inc"
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 static EF_QueuedEffect async_packets[16];static bool async_used[16],async_allocation_failure;
 static unsigned async_live,async_deliveries,async_samples;
 static Vec3 async_position;static float async_scalar;static int async_effect;

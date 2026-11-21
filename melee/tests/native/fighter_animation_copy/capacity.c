@@ -41,6 +41,37 @@ static void reject(const NativeFighterAnimationCopyInput* d,const NativeFighterA
 }
 void test_capacity(void)
 {
+    // Appending owned clip names can turn a small, unordered relocation table
+    // into a large one. Preserve every original pointer in the materialized DAT.
+    NativeFighterAnimationCopyInput empty = fighter(160, false);
+    NativeFighterAnimationCopyInput donor = fighter(160, true);
+    enum { EXTRA = 64, TABLE = 32 + 16 + 160 * 24 };
+    unsigned char* grown = realloc((void*)empty.fighter_dat, empty.fighter_size + EXTRA * 4);
+    CHECK(grown);
+    memmove(grown + TABLE + (EXTRA + 1) * 4, grown + TABLE + 4, 16);
+    empty.fighter_dat = grown;
+    empty.fighter_size += EXTRA * 4;
+    be32(grown, (uint32_t)empty.fighter_size);
+    be32(grown + 8, EXTRA + 1);
+    for (unsigned i = 0; i < EXTRA; ++i) {
+        unsigned action = i % 2 ? EXTRA - 1 - i / 2 : i / 2;
+        be32(grown + TABLE + (i + 1) * 4, 16 + 24 * action + 12);
+    }
+    NativeFighterAnimationCopyOutput expanded = {0};
+    CHECK(nativeFighterAnimationCopy_Materialize(&empty, &donor, &expanded));
+    HSD_Dat combined;
+    CHECK(HSD_DatOpen(&combined, expanded.fighter_dat, expanded.fighter_size) == HSD_DAT_OK);
+    for (unsigned i = 0; i < EXTRA; ++i) {
+        u32 target;
+        const char* symbol;
+        CHECK(HSD_DatResolve(&combined, 16 + 24 * i + 12, &target, &symbol) ==
+              HSD_DAT_REF_LOCAL && !target);
+    }
+    ++cases;
+    nativeFighterAnimationCopy_Free(&expanded);
+    destroy(&empty);
+    destroy(&donor);
+
     NativeFighterAnimationCopyInput d=fighter(1024,false),s=fighter(1024,true);
     NativeFighterAnimationCopyOutput o={0};CHECK(nativeFighterAnimationCopy_Materialize(&d,&s,&o));
     CHECK(o.filled_actions==1024 && o.copied_blobs==1024);++cases;

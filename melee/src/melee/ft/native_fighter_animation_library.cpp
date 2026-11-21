@@ -59,7 +59,7 @@ namespace {
         }
         std::memcpy(dat.data.data() + string, name, std::strlen(name) + 1);
         size_t offset = (project->animation_size + 31) & ~size_t(31);
-        if (offset + clip.size() > NATIVE_CONTENT_MAX_PACKAGE_BYTES) {
+        if (offset + clip.size() > NATIVE_CONTENT_MAX_ASSET_BYTES) {
             return false;
         }
         std::vector<uint8_t> bank(project->animation_dat,

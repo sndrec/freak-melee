@@ -48,6 +48,7 @@ void __assert(char* file, u32 line, char* expression)
 #include "fox_falco_model_effect_stock_fixture.h"
 
 HSD_ObjAllocData efAsync_AllocData;
+EF_EffectUsage efLib_Usage;
 HSD_GObjProc* HSD_GObj_CurrentInvokedProc;
 void* HSD_ObjAlloc(HSD_ObjAllocData* allocator) { (void)allocator; abort(); }
 void efAsync_QueueProcessDeferred(HSD_GObj* source, EF_QueuedEffect* queued)

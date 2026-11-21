@@ -63,12 +63,27 @@ static void check_clock_samples(uint64_t session_id)
                 nativeNetplayExchange_MaxLead(&local) == 4000 &&
                 local.peers[1].sample_frame == 19,
             "an out-of-order packet cannot move the peer clock backward");
+
+    sample.has_checksum = true;
+    sample.checksum_frame = sample.sample_frame;
+    sample.session_id++;
+    size = nativeNetplayInput_Encode(&sample, packet, sizeof(packet));
+    require(size && !nativeNetplayExchange_AcceptPacket(&local, &inputs, 1, packet, size) &&
+                !local.peers[1].has_checksum && local.peers[1].sample_frame == 19,
+            "another session cannot publish a checksum or change the peer clock");
+    sample.session_id = session_id;
+    sample.start_frame = sample.sample_frame = 25 + NATIVE_ROLLBACK_INPUT_CAPACITY;
+    size = nativeNetplayInput_Encode(&sample, packet, sizeof(packet));
+    require(size && !nativeNetplayExchange_AcceptPacket(&local, &inputs, 1, packet, size) &&
+                !local.peers[1].has_checksum && local.peers[1].sample_frame == 19,
+            "use local time to bound incoming samples even before the first simulated tick");
 }
 
 static void check_delayed_samples(uint64_t session_id)
 {
     NativeNetplayExchange sender;
-    require(nativeNetplayExchange_Init(&sender, session_id, 0, 0xD),
+    require(nativeNetplayExchange_Init(&sender, session_id, 0, 0xD) &&
+                nativeNetplayExchange_AddPeer(&sender, 1, 0x2),
             "initialize buffered sender");
     sender.input_delay_frames = 2;
     PADStatus pads[4] = { 0 };
@@ -80,7 +95,7 @@ static void check_delayed_samples(uint64_t session_id)
     uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
     size_t size;
     NativeNetplayInputBatch batch;
-    require(nativeNetplayExchange_PreparePacket(&sender, packet, sizeof(packet), &size) &&
+    require(nativeNetplayExchange_PreparePacket(&sender, 1, false, packet, sizeof(packet), &size) &&
                 nativeNetplayInput_Decode(&batch, packet, size) &&
                 batch.sample_frame == 0 && batch.start_frame == 0 &&
                 batch.frame_count == 3,
@@ -102,11 +117,93 @@ static void check_delayed_samples(uint64_t session_id)
             "preserve the configured buffer across phases and clear its inputs");
 }
 
+static void check_burst_recovery(uint64_t session_id)
+{
+    NativeNetplayExchange sender, receiver;
+    NativeRollbackInputHistory sender_inputs, receiver_inputs;
+    require(nativeNetplayExchange_Init(&sender, session_id, 0, 0xD) &&
+                nativeNetplayExchange_AddPeer(&sender, 1, 0x2) &&
+                nativeNetplayExchange_Init(&receiver, session_id, 1, 0x2) &&
+                nativeNetplayExchange_AddPeer(&receiver, 0, 0xD),
+            "initialize loss-recovery peers");
+    initialize_inputs(&sender_inputs, 0xD);
+    initialize_inputs(&receiver_inputs, 0x2);
+    sender.input_delay_frames = receiver.input_delay_frames = 2;
+
+    enum { LostStart = 20, Resume = 32, MissingInput = LostStart + 2 };
+    uint8_t packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
+    uint8_t stale_ack[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
+    size_t size, stale_size = 0;
+    PADStatus neutral[4] = { 0 };
+    PADStatus resolved[4];
+    for (uint64_t frame = 0; frame <= Resume; ++frame) {
+        PADStatus local[4] = { 0 };
+        if (frame == LostStart) local[0].button = PAD_BUTTON_A;
+        require(nativeNetplayExchange_RecordLocal(&sender, frame, local) &&
+                    nativeNetplayExchange_RecordLocal(&receiver, frame, neutral),
+                "record both samples through a one-way burst");
+        require(nativeNetplayExchange_PreparePacket(&sender, 1, false,
+                    packet, sizeof(packet), &size) && size,
+                "always prepare the newest inputs first");
+        // Simulate twelve dropped sends (including any repair packets).
+        if (frame < LostStart || frame == Resume) {
+            require(nativeNetplayExchange_AcceptPacket(&receiver, &receiver_inputs,
+                        0, packet, size), "receive the normal input stream");
+        }
+        require(nativeRollbackInput_PrepareFrame(&receiver_inputs, frame, neutral,
+                    resolved), "keep predicting while input is missing");
+        require(nativeNetplayExchange_PreparePacket(&receiver, 0, false,
+                    packet, sizeof(packet), &size) && size &&
+                    nativeNetplayExchange_AcceptPacket(&sender, &sender_inputs,
+                        1, packet, size), "receive acknowledgements while the other direction is impaired");
+        if (frame == LostStart - 1) {
+            stale_size = size;
+            for (size_t i = 0; i < size; ++i) stale_ack[i] = packet[i];
+        }
+    }
+
+    const NativeNetplayInputAck before = sender.peers[1].acknowledged;
+    uint64_t boundary;
+    require(before.boundary == MissingInput && before.selective != 0 &&
+                nativeRollbackInput_ConfirmedBoundary(&receiver_inputs, 0, Resume + 1,
+                    0xD, &boundary) && boundary == MissingInput,
+            "newer input is selectively acknowledged without skipping the lost frame");
+    require(nativeNetplayExchange_AcceptPacket(&sender, &sender_inputs, 1,
+                stale_ack, stale_size) &&
+                sender.peers[1].acknowledged.selective == before.selective,
+            "reordered acknowledgements do not erase newer confirmations");
+
+    NativeNetplayInputBatch repair;
+    require(nativeNetplayExchange_PreparePacket(&sender, 1, true,
+                packet, sizeof(packet), &size) && size &&
+                nativeNetplayInput_Decode(&repair, packet, size) &&
+                repair.repair && repair.start_frame == MissingInput &&
+                repair.frame_count == 5 &&
+                nativeNetplayExchange_AcceptPacket(&receiver, &receiver_inputs, 0, packet, size),
+            "repair the precise older interval omitted by the normal packet");
+    uint64_t correction;
+    require(nativeRollbackInput_ConfirmedBoundary(&receiver_inputs, 0, Resume + 1,
+                0xD, &boundary) && boundary == Resume + 1 &&
+                nativeRollbackInput_TakeCorrection(&receiver_inputs, &correction) &&
+                correction == MissingInput &&
+                nativeRollbackInput_GetFrame(&receiver_inputs, MissingInput, resolved) &&
+                resolved[0].button == PAD_BUTTON_A,
+            "repair frees the checkpoint boundary and restores the lost button edge");
+    require(nativeNetplayExchange_PreparePacket(&receiver, 0, false,
+                packet, sizeof(packet), &size) && size &&
+                nativeNetplayExchange_AcceptPacket(&sender, &sender_inputs, 1, packet, size) &&
+                sender.peers[1].acknowledged.boundary == Resume + 3 &&
+                nativeNetplayExchange_PreparePacket(&sender, 1, true,
+                    packet, sizeof(packet), &size) && size == 0,
+            "a fresh acknowledgement retires the repair without another tick");
+}
+
 int main(void)
 {
     const uint64_t session_id = UINT64_C(0x0123456789ABCDEF);
     check_clock_samples(session_id);
     check_delayed_samples(session_id);
+    check_burst_recovery(session_id);
     NativeNetplayUdp first;
     NativeNetplayUdp second;
     require(
@@ -154,9 +251,9 @@ int main(void)
                                                   second_pads),
             "record each PC's two local fighter slots");
     require(nativeNetplayExchange_SetChecksum(
-                &first.exchange, 5, UINT64_C(0x123456789ABCDEF0)) &&
+                &first.exchange, 0, UINT64_C(0x123456789ABCDEF0)) &&
                 !nativeNetplayExchange_SetChecksum(
-                    &first.exchange, 5, UINT64_C(0x123456789ABCDEF0)),
+                    &first.exchange, 0, UINT64_C(0x123456789ABCDEF0)),
             "publish each confirmed checksum frame only once");
     require(nativeNetplayUdp_Send(&first) && nativeNetplayUdp_Send(&second),
             "exchange first-frame datagrams");
@@ -167,22 +264,10 @@ int main(void)
                 second.exchange.received_packets == 1,
             "each endpoint accepts its configured peer");
     require(second.exchange.peers[0].has_checksum &&
-                second.exchange.peers[0].checksum_frame == 5 &&
+                second.exchange.peers[0].checksum_frame == 0 &&
                 second.exchange.peers[0].checksum ==
                     UINT64_C(0x123456789ABCDEF0),
             "receiver retains the peer's newest semantic checksum");
-    require(nativeNetplayExchange_SetChecksum(
-                &first.exchange, 6, UINT64_C(0x0FEDCBA987654321)) &&
-                nativeNetplayUdp_Send(&first) &&
-                nativeNetplayUdp_Receive(&second, &second_inputs) &&
-                second.exchange.peers[0].pending_checksums[5].valid &&
-                second.exchange.peers[0].pending_checksums[5].value ==
-                    UINT64_C(0x123456789ABCDEF0) &&
-                second.exchange.peers[0].pending_checksums[6].valid &&
-                second.exchange.peers[0].pending_checksums[6].value ==
-                    UINT64_C(0x0FEDCBA987654321),
-            "retain both peer checksums until delayed simulation catches up");
-
     PADStatus resolved[4];
     require(nativeRollbackInput_PrepareFrame(&first_inputs, 0,
                                              first_pads, resolved),
@@ -208,9 +293,18 @@ int main(void)
     first_pads[0] = pad(PAD_BUTTON_LEFT, 12);
     first_pads[2] = pad(PAD_BUTTON_RIGHT, 32);
     require(nativeNetplayExchange_RecordLocal(&first.exchange, 2, first_pads) &&
+                nativeNetplayExchange_SetChecksum(&first.exchange, 1,
+                    UINT64_C(0x0FEDCBA987654321)) &&
                 nativeNetplayUdp_Send(&first) &&
                 nativeNetplayUdp_Receive(&second, &second_inputs),
             "next datagram redundantly delivers the skipped frame");
+    require(second.exchange.peers[0].pending_checksums[0].valid &&
+                second.exchange.peers[0].pending_checksums[0].value ==
+                    UINT64_C(0x123456789ABCDEF0) &&
+                second.exchange.peers[0].pending_checksums[1].valid &&
+                second.exchange.peers[0].pending_checksums[1].value ==
+                    UINT64_C(0x0FEDCBA987654321),
+            "retain both peer checksums until delayed simulation catches up");
     PADStatus neutral[4] = { 0 };
     require(nativeRollbackInput_PrepareFrame(&second_inputs, 1,
                                              neutral, resolved) &&
@@ -233,7 +327,7 @@ int main(void)
     uint8_t old_packet[NATIVE_NETPLAY_INPUT_PACKET_CAPACITY];
     size_t old_packet_size = 0;
     require(nativeNetplayExchange_PreparePacket(
-                &first.exchange, old_packet, sizeof(old_packet),
+                &first.exchange, 1, false, old_packet, sizeof(old_packet),
                 &old_packet_size) && old_packet_size != 0,
             "retain one old-scene packet for phase isolation");
     const uint64_t sudden_death_id = session_id ^ UINT64_C(0x53554444454E0001);

@@ -5,6 +5,7 @@
 // Initialized storage belongs to the rollback-managed game data section.
 #pragma clang section data = ".mstate$m"
 u32 efLib_AllocationSerial = 0;
+EF_EffectUsage efLib_Usage = {0};
 #endif
 
 /* 458EB0 */ HSD_ObjAllocData efLib_AllocData;

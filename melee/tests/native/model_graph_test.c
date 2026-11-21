@@ -5,6 +5,7 @@
 #include <melee/ft/ftparts.h>
 #include <melee/ft/native_fighter_module.h>
 #include <melee/ft/native_fighter_model_graph.h>
+#include <melee/ft/native_source_package.h>
 #include <sysdolphin/baselib/dobj.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/jobj.h>
@@ -27,6 +28,8 @@ static struct Fighter_804D6540_t omission_table;
 static struct Fighter_804D6540_t* omission_tables[Ft_Kind_RuntimeCapacity];
 struct Fighter_804D6540_t** Fighter_804D6540 = omission_tables;
 static NativeFighterDefinition definition;
+static NativeSourcePackage package;
+static bool use_package;
 static ftData data;
 static void* graphs[16];
 static HSD_Joint descriptor, child_descriptor, sibling_descriptor;
@@ -41,6 +44,8 @@ struct Fighter_ShakeTable_t* Fighter_SmashChargeShakeTable;
 
 const NativeFighterDefinition* nativeFighterRuntime_Definition(FighterKind kind)
 { return kind == Ft_Kind_CustomFirst ? &definition : NULL; }
+const struct NativeSourcePackage* nativeFighterRuntime_SourcePackage(FighterKind kind)
+{ return use_package && kind == Ft_Kind_CustomFirst ? &package : NULL; }
 HSD_JObj* ftParts_8007482C(HSD_Joint* source)
 {
     ++loads;
@@ -145,6 +150,22 @@ int main(void)
     reset(0, 255); descriptor.u.dobjdesc = &mesh; fighter.dobj_list.count = 124;
     CHECK(!nativeFighterModelGraph_Install(&object, 6, 0) && loads == 0);
     reset(0, 255); descriptor.flags = JOBJ_SPLINE; CHECK(!nativeFighterModelGraph_Install(&object, 6, 0));
+    reset(0, 255);
+    use_package = true;
+    package.assets.ready = true;
+    package.assets.facts.layout = definition.asset_layout;
+    package.assets.facts.joints = 5;
+    package.assets.facts.omission_count = 1;
+    package.assets.character.data.x48_items = graphs;
+    fighter.ft_data = &package.assets.character.data;
+    package.assets.parts = part_table;
+    part_tables[fighter.kind] = &package.assets.parts;
+    package.assets.omissions = omission_table;
+    omission_tables[fighter.kind] = &package.assets.omissions;
+    CHECK(!nativeFighterModelGraph_Install(&object, 6, 0) && loads == 0 && registrations == 0);
+    CHECK(parents[0].child == &children[0] && parents[1].child == &children[1]);
+    package.assets.detachable_joints[6][7] = UINT32_C(1) << 31;
+    CHECK(nativeFighterModelGraph_Install(&object, 6, 0) && loads == 2 && registrations == 1);
     common.x2E4 = .125f; common.x2E8 = .75f;
     CHECK(common_attribute(NativeFighterCommon_ShieldPushbackLightMin) == .125f);
     CHECK(common_attribute(NativeFighterCommon_ShieldPushbackLightMax) == .75f);

@@ -41,8 +41,8 @@ namespace {
         std::snprintf(p.title,sizeof(p.title),"%s",p.character < 26 ? names[p.character] : "Fighter");
         if (same_id(&p.fighter,&empty)) return;
         char path[512]; const char* root = nativeHubCatalog_Root(path); uint8_t* bytes = nullptr; size_t size = 0;
-        NativeFighterPackage metadata; NativeFighterPackageData data;
-        if (root && nativeContentStore_Read(root,&p.fighter,&bytes,&size) && nativeContentStore_ParseFighter(bytes,size,&metadata,&data))
+        NativeFighterPackage metadata;
+        if (root && nativeContentStore_Read(root,&p.fighter,&bytes,&size) && nativeContentStore_ParseFighter(bytes,size,&metadata,nullptr))
             std::snprintf(p.title,sizeof(p.title),"%s",metadata.title);
         std::free(bytes);
     }
@@ -59,7 +59,7 @@ void import_costume(unsigned port)
     const NativeContentId empty = {};
     if (!same_id(&metadata.fighter_id, &empty)) {
         NativeFighterCostumeFamilyInfo family;
-        if (!nativeFighterRuntime_CostumeInfoCached(&metadata.fighter_id, root, &family)) {
+        if (!nativeFighterRuntime_CostumeInfoCached(&metadata.fighter_id, root, metadata.model_variant, &family)) {
             message("Could not read this fighter's outfit requirements.");
             return;
         }
@@ -104,7 +104,7 @@ void import_costume(unsigned port)
         }
         long length = -1;
         if (std::fseek(file, 0, SEEK_END) == 0) length = std::ftell(file);
-        read = length >= 32 && length < NATIVE_CONTENT_MAX_PACKAGE_BYTES &&
+        read = length >= 32 && length <= NATIVE_CONTENT_MAX_ASSET_BYTES &&
                std::fseek(file, 0, SEEK_SET) == 0;
         if (read) {
             owned[m] = static_cast<uint8_t*>(std::malloc(size_t(length)));

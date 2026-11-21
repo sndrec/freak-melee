@@ -105,14 +105,16 @@ struct SourceKeyCacheEntry {
 
 struct SourceKeyCacheKey {
   XXH128_hash_t hash;
+  u32 width, height, format, mipCount;
 
   bool operator==(const SourceKeyCacheKey& rhs) const noexcept {
-    return hash.low64 == rhs.hash.low64 && hash.high64 == rhs.hash.high64;
+    return hash.low64 == rhs.hash.low64 && hash.high64 == rhs.hash.high64 &&
+           width == rhs.width && height == rhs.height && format == rhs.format && mipCount == rhs.mipCount;
   }
 
   template <typename H>
   friend H AbslHashValue(H h, const SourceKeyCacheKey& key) {
-    return H::combine(std::move(h), key.hash.low64, key.hash.high64);
+    return H::combine(std::move(h), key.hash.low64, key.hash.high64, key.width, key.height, key.format, key.mipCount);
   }
 };
 
@@ -295,9 +297,10 @@ TextureKeys hash_texture_source(const GXTexObj_& obj, const GXTlutObj_* tlut, bo
 
   uint32_t minTlutIndex = UINT32_MAX;
   uint32_t maxTlutIndex = 0;
+  const SourceKeyCacheKey sourceLayout{keys.contentKey.textureHash, obj.width(), obj.height(), obj.format(),
+                                       obj.mip_count()};
   if (buildSourceKey) {
-    if (const auto it = s_sourceKeyCache.find(SourceKeyCacheKey{keys.contentKey.textureHash});
-        it != s_sourceKeyCache.end()) {
+    if (const auto it = s_sourceKeyCache.find(sourceLayout); it != s_sourceKeyCache.end()) {
       keys.sourceKey = it->second.sourceKey;
       minTlutIndex = it->second.minTlutIndex;
       maxTlutIndex = it->second.maxTlutIndex;
@@ -346,8 +349,7 @@ TextureKeys hash_texture_source(const GXTexObj_& obj, const GXTlutObj_* tlut, bo
     if (s_sourceKeyCache.size() >= SourceKeyCacheMaxEntries) {
       s_sourceKeyCache.clear();
     }
-    s_sourceKeyCache.emplace(SourceKeyCacheKey{keys.contentKey.textureHash},
-                             SourceKeyCacheEntry{*keys.sourceKey, minTlutIndex, maxTlutIndex});
+    s_sourceKeyCache.emplace(sourceLayout, SourceKeyCacheEntry{*keys.sourceKey, minTlutIndex, maxTlutIndex});
   }
 
   if (tlut != nullptr) {
@@ -370,7 +372,7 @@ TextureKeys hash_texture_source(const GXTexObj_& obj, const GXTlutObj_* tlut, bo
   return keys;
 }
 
-gfx::TextureHandle get_tlut_texture(const GXTlutObj_& tlut) {
+gfx::TextureHandle get_copy_palette_texture(const GXTlutObj_& tlut) {
   if (tlut.tlutObjId != 0) {
     auto& cache = s_tlutObjectCaches[tlut.tlutObjId];
     cache.lastUsedFrame = s_frameCount;
@@ -388,8 +390,11 @@ gfx::TextureHandle get_tlut_texture(const GXTlutObj_& tlut) {
     cache.staticTextureUsers.clear();
   }
 
-  const size_t sourceBytes = texture::tlut_source_size(tlut.numEntries);
-  const auto handle = gfx::new_static_texture_2d(tlut.numEntries, 1, 1, gfx::tlut_texture_format(tlut.format),
+  // The framebuffer-copy shaders sample four- or eight-bit indices. A full
+  // C14X2 palette can exceed the GPU's maximum width for a one-row texture.
+  const auto entries = std::min<u16>(tlut.numEntries, 256);
+  const size_t sourceBytes = texture::tlut_source_size(entries);
+  const auto handle = gfx::new_static_texture_2d(entries, 1, 1, gfx::tlut_texture_format(tlut.format),
                                                  {static_cast<const u8*>(tlut.data), sourceBytes}, true, "Loaded TLUT");
   if (tlut.tlutObjId != 0) {
     auto& cache = s_tlutObjectCaches[tlut.tlutObjId];
@@ -404,7 +409,7 @@ gfx::TextureHandle resolve_dynamic_palette_texture(const GXTexObj_& obj, const G
                                                    const GXTlutObj_& tlut) {
   ZoneScoped;
 
-  const auto tlutHandle = get_tlut_texture(tlut);
+  const auto tlutHandle = get_copy_palette_texture(tlut);
   auto& tlutCache = s_tlutObjectCaches[tlut.tlutObjId];
   tlutCache.lastUsedFrame = s_frameCount;
   auto& entry = tlutCache.dynamicPaletteTextures[make_dynamic_palette_key(obj, source)];

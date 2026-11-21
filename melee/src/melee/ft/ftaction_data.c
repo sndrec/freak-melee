@@ -3,6 +3,7 @@
 #include "native_hitbox_lifetime.h"
 #endif
 
+#include <melee/lb/lbcommand_data.h>
 #include <melee/lb/types.h>
 #include <melee/ft/types.h>
 #include <sysdolphin/baselib/dat_import_internal.h>
@@ -77,8 +78,9 @@ u32 ftActionData_SourceFieldMaximum(unsigned opcode, unsigned field, unsigned wi
 {
     // The encoded index is wider than the engine's actual throw-record array.
     if (ftAction_IsThrowHitbox(opcode) && field == 0) return 1;
-    if ((nativeHitbox_IsCreate(opcode) || opcode == 12 || opcode == 13) && field == 0) return 3;
-    if (opcode == 15 && field == 0) return 3;
+    if (field == 0 &&
+        (nativeHitbox_IsCreate(opcode) || (opcode >= 12 && opcode <= 15)))
+        return ARRAY_SIZE(((Fighter*) 0)->x914) - 1;
     return width == 32 ? UINT32_MAX : (1u << width) - 1;
 }
 
@@ -199,14 +201,17 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
     if (import == NULL) return false;
     if (table == NULL || stats == NULL || (wait_source & 3) != 0 ||
         wait_source == 0 || wait_source > import->dat->data_size ||
-        wait_count == 0)
+        wait_count == 0 ||
+        wait_count > (import->dat->data_size - wait_source) / 24)
         return fail(import, HSD_DAT_DESCRIPTOR, wait_source);
     memset(stats, 0, sizeof(*stats));
     u32 source_words = wait_source / 4;
     size_t pending_capacity = (size_t) source_words + wait_count;
     u8* state = calloc(source_words, 1);
     u32* pending = malloc(pending_capacity * sizeof(*pending));
-    if (state == NULL || pending == NULL) {
+    LbCommandEntry* entries = calloc(wait_count, sizeof(*entries));
+    if (state == NULL || pending == NULL || entries == NULL) {
+        free(entries);
         free(state);
         free(pending);
         return fail(import, HSD_DAT_CAPACITY, wait_source);
@@ -230,7 +235,7 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
             goto cleanup;
         }
         pending[pending_count++] = target;
-        ++entry_count;
+        entries[entry_count++].source = target;
     }
     while (pending_count != 0) {
         u32 at = pending[--pending_count];
@@ -240,11 +245,11 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
                 goto cleanup;
             }
             u32 index = at / 4;
-            if (state[index] == 2) {
+            if (state[index] == LB_COMMAND_OPERAND) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
             }
-            if (state[index] == 1) break;
+            if (state[index] != 0) break;
             u32 raw;
             if (!HSD_DatReadU32(import->dat, at, &raw)) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
@@ -253,8 +258,12 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
             u32 opcode = raw >> 26;
             const unsigned hitbox_slot = (raw >> 23) & 7;
             const bool capsule = nativeHitbox_HasCapsule(opcode, hitbox_slot);
-            if (nativeHitbox_OwnsFlags(opcode) &&
-                nativeHitbox_Slot(opcode, hitbox_slot) >= 4) {
+            const unsigned slots = ARRAY_SIZE(((Fighter*) 0)->x914);
+            if ((nativeHitbox_IsCreate(opcode) &&
+                 nativeHitbox_Slot(opcode, hitbox_slot) >= slots) ||
+                ((opcode == 12 || opcode == 13) && hitbox_slot >= slots) ||
+                (opcode == 14 && ((raw >> 2) & 0xffffff) >= slots) ||
+                (opcode == 15 && (raw & 0x3ffffff) >= slots)) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
             }
@@ -324,13 +333,13 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
                     goto cleanup;
                 }
             }
-            state[index] = 1;
+            state[index] = (u8) width;
             for (u32 word = 1; word < width; ++word) {
                 if (state[index + word] != 0) {
                     fail(import, HSD_DAT_DESCRIPTOR, at + word * 4);
                     goto cleanup;
                 }
-                state[index + word] = 2;
+                state[index + word] = LB_COMMAND_OPERAND;
             }
             if (at < source_begin) source_begin = at;
             ++instruction_count;
@@ -359,6 +368,9 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
         fail(import, HSD_DAT_DESCRIPTOR, wait_source);
         goto cleanup;
     }
+    if (!lbCommandData_ValidateFlow(import, state, source_words, entries,
+                                    entry_count, true, NULL))
+        goto cleanup;
     u32 word_count = (wait_source - source_begin) / 4;
     union CmdUnion* commands = HSD_DatImportAlloc(
         import, (size_t) word_count * sizeof(*commands));
@@ -367,7 +379,7 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
         goto cleanup;
     }
     for (u32 at = source_begin; at < wait_source; at += 4) {
-        if (state[at / 4] != 1) continue;
+        if (state[at / 4] == 0 || state[at / 4] == LB_COMMAND_OPERAND) continue;
         u32 raw;
         HSD_DatReadU32(import->dat, at, &raw);
         u32 opcode = raw >> 26;
@@ -409,6 +421,7 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
     okay = true;
 
 cleanup:
+    free(entries);
     free(pending);
     free(state);
     return okay;

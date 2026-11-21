@@ -79,9 +79,9 @@ void compact_payloads(const std::vector<u8>& original, const std::vector<u8>& re
         for (u32 record = 0; record < graph.record_count; ++record) {
             const auto& node = graph.records[record];
             if (node.type == DAT_IMAGE) {
-                HSD_ImageDesc image; size_t bytes;
-                check(HSD_DatDecodeImage(&a, node.offset, &image, &bytes) == HSD_DAT_OK, "image extent");
-                payload(image.image_ptr, bytes, "all texture pixels and mip levels");
+                HSD_ImageDesc image; HSD_DatImageSize size;
+                check(HSD_DatDecodeImage(&a, node.offset, &image, &size) == HSD_DAT_OK, "image extent");
+                payload(image.image_ptr, size.source_bytes, "all texture pixels and mip levels");
             } else if (node.type == DAT_PALETTE) {
                 const auto* palette = static_cast<const HSD_TlutDesc*>(node.object);
                 payload(palette->lut, size_t(palette->n_entries)*2, "all palette entries");

@@ -110,7 +110,7 @@ struct NativeAssetDat {
     }
 
     bool finish(std::vector<uint8_t>* result,
-                 size_t max_output = NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+                 size_t max_output = NATIVE_CONTENT_MAX_ASSET_BYTES)
     {
         std::sort(relocations.begin(), relocations.end());
         relocations.erase(std::unique(relocations.begin(), relocations.end()),

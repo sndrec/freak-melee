@@ -360,7 +360,7 @@ static void stage_candidate(const char* path)
     tree->source=source;tree->source_bytes=(uint32_t)strlen(source);
     CHECK(nativeScriptSource_Parse(tree,&diagnostic));
     CHECK(nativeSourceMotionPolicy_Prepare(tree,ftData_MotionStateList,&candidate.assets,&diagnostic));
-    CHECK(nativeSourceEntityAssets_Prepare(&candidate.entities,&candidate.assets,&candidate.owned_input.assets,&candidate.resources,tree,&diagnostic));
+    CHECK(nativeSourceEntityAssets_Prepare(&candidate.entities,&candidate.assets,&candidate.resources,tree,&diagnostic));
     candidate.metadata=(NativeScriptItemMetadataContext){.motions=&candidate.assets.facts.moves,
         .assets=candidate.entities.rows,.asset_count=candidate.entities.count,.source_facts=&candidate.assets.facts,.source_assets=&candidate.assets};
     NativeScriptCompileRequest request={.source=source,.source_bytes=(uint32_t)strlen(source),

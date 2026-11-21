@@ -115,6 +115,8 @@ bool HSD_DatValidateGeometry(HSD_DatImport* import, HSD_PObjDesc* polygon)
         if ((command & 7) || command < 0x80 || command > 0xB8 || command == 0x88 || length - cursor < 2) return false;
         u32 count = (u32) display[cursor] << 8 | display[cursor + 1];
         cursor += 2;
+        if (count && (!ordered[GX_VA_POS] || ordered[GX_VA_POS]->attr_type == GX_NONE))
+            return false;
         for (u32 vertex = 0; vertex < count; ++vertex) {
             for (u32 attr = 0; attr <= GX_VA_TEX7; ++attr) {
                 HSD_VtxDescList* v = ordered[attr];

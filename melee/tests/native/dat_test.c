@@ -27,6 +27,130 @@ static void put32(u8* bytes, u32 value)
     bytes[3] = (u8) value;
 }
 
+static void test_relocation_order(void)
+{
+    enum { SLOT_COUNT = 256, DATA_SIZE = SLOT_COUNT * 8 };
+    u8 bytes[32 + DATA_SIZE + SLOT_COUNT * 4] = { 0 };
+    put32(bytes + 4, DATA_SIZE);
+    for (int shape = 0; shape < 3; ++shape) {
+        u32 count = shape == 2 ? HSD_DAT_LINEAR_RELOCATIONS : SLOT_COUNT;
+        u32 length = 32 + DATA_SIZE + count * 4;
+        put32(bytes, length);
+        put32(bytes + 8, count);
+        for (u32 i = 0; i < count; ++i) {
+            u32 index;
+            if (shape == 0) {
+                index = count - 1 - i;
+            } else if (shape == 1) {
+                index = i < count / 2 ? i * 2 : (count - i) * 2 - 1;
+            } else {
+                index = i % 2 ? count - 1 - i / 2 : i / 2;
+            }
+            put32(bytes + 32 + DATA_SIZE + i * 4, index * 8);
+            put32(bytes + 32 + index * 8, (count - index - 1) * 4);
+        }
+        HSD_Dat dat;
+        require(HSD_DatOpen(&dat, bytes, length) == HSD_DAT_OK,
+                "Could not open an unordered relocation table");
+        for (u32 i = 0; i < count; ++i) {
+            u32 target;
+            const char* external;
+            require(HSD_DatResolve(&dat, i * 8, &target, &external) ==
+                        HSD_DAT_REF_LOCAL && target == (count - i - 1) * 4,
+                    "Unordered table resolved the wrong local target");
+            require(HSD_DatResolve(&dat, i * 8 + 4, &target, &external) ==
+                        HSD_DAT_REF_NULL, "Unordered table matched an absent slot");
+        }
+    }
+    put32(bytes, sizeof(bytes));
+    put32(bytes + 8, SLOT_COUNT);
+    for (u32 i = 0; i < SLOT_COUNT; ++i) {
+        u32 index = i % 2 ? SLOT_COUNT - 1 - i / 2 : i / 2;
+        put32(bytes + 32 + DATA_SIZE + i * 4, index * 8);
+    }
+    HSD_Dat dat;
+    require(HSD_DatOpen(&dat, bytes, sizeof(bytes)) == HSD_DAT_RESOURCE_LIMIT &&
+                !dat.data, "Large fragmented table exceeded the lookup budget");
+}
+
+static void test_external_budget(void)
+{
+    enum { SLOTS = HSD_DAT_EXTERNAL_BUDGET, DATA_SIZE = SLOTS * 4 };
+    u8 bytes[32 + DATA_SIZE + 8 + 2] = { 0 };
+    put32(bytes, sizeof(bytes));
+    put32(bytes + 4, DATA_SIZE);
+    put32(bytes + 16, 1);
+    for (u32 i = 0; i < SLOTS - 1; ++i) {
+        put32(bytes + 32 + i * 4, (i + 1) * 4);
+    }
+    put32(bytes + 32 + DATA_SIZE - 4, U32_MAX);
+    put32(bytes + 32 + DATA_SIZE, 4);
+    memcpy(bytes + sizeof(bytes) - 2, "x", 2);
+    HSD_Dat dat;
+    u32 value;
+    const char* name;
+    require(HSD_DatOpen(&dat, bytes, sizeof(bytes)) == HSD_DAT_OK &&
+                HSD_DatResolve(&dat, DATA_SIZE - 4, &value, &name) ==
+                    HSD_DAT_REF_EXTERNAL && strcmp(name, "x") == 0,
+            "Could not resolve the last external at the budget limit");
+    put32(bytes + 32 + DATA_SIZE, 0);
+    require(HSD_DatOpen(&dat, bytes, sizeof(bytes)) == HSD_DAT_RESOURCE_LIMIT &&
+                !dat.data, "External table exceeded its lookup budget");
+}
+
+static void test_root_budget(void)
+{
+    enum { DATA_END = 36, ROOTS = HSD_DAT_MAX_ROOTS, EXTRA = 1 };
+    u8 file[DATA_END + (ROOTS + EXTRA) * 8 + HSD_DAT_MAX_SYMBOL_BYTES + 2] = { 0 };
+    size_t length = DATA_END + ROOTS * 8 + HSD_DAT_MAX_SYMBOL_BYTES + 2;
+    put32(file, (u32) length);
+    put32(file + 4, 4);
+    put32(file + 12, ROOTS);
+    u8* names = file + DATA_END + ROOTS * 8;
+    memset(names, 'a', HSD_DAT_MAX_SYMBOL_BYTES);
+    // One root uses the final letter of the same string.
+    put32(file + DATA_END + (ROOTS - 1) * 8 + 4, HSD_DAT_MAX_SYMBOL_BYTES - 1);
+    HSD_Dat dat;
+    u32 offset;
+    require(HSD_DatOpen(&dat, file, length) == HSD_DAT_OK &&
+                HSD_DatFindRoot(&dat, "a", &offset) && offset == 0,
+            "Full root table and shared name suffix");
+    names[HSD_DAT_MAX_SYMBOL_BYTES] = 'a';
+    require(HSD_DatOpen(&dat, file, length) == HSD_DAT_RESOURCE_LIMIT && !dat.data,
+            "Symbol name exceeds the archive limit");
+    put32(file, sizeof(file));
+    put32(file + 12, ROOTS + EXTRA);
+    require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_RESOURCE_LIMIT && !dat.data,
+            "Root count exceeds the archive limit");
+}
+
+static void test_target_index(void)
+{
+    enum { COUNT = 257, DATA_BYTES = COUNT * 4 };
+    u8 file[32 + DATA_BYTES + COUNT * 4] = { 0 };
+    put32(file, sizeof(file));
+    put32(file + 4, DATA_BYTES);
+    put32(file + 8, COUNT);
+    for (u32 i = 0; i < COUNT; ++i) {
+        // Many pointers share targets. Targets may be unaligned or at data end.
+        put32(file + 32 + i * 4, i == 0 ? DATA_BYTES : (i * 73 % 157) * 5);
+        put32(file + 32 + DATA_BYTES + i * 4, (COUNT - 1 - i) * 4);
+    }
+    HSD_Dat dat;
+    HSD_DatImport import;
+    u8 arena[2048];
+    require(HSD_DatOpen(&dat, file, sizeof(file)) == HSD_DAT_OK &&
+                HSD_DatImportInit(&import, &dat, arena, sizeof(arena), 2) == HSD_DAT_OK &&
+                import.sorted_targets, "Index a large archive");
+    for (u32 at = 0; at <= DATA_BYTES + 1; ++at) {
+        u32 next = at < 780 ? (at / 5 + 1) * 5 : DATA_BYTES;
+        require(HSD_DatImportNextTarget(&import, at) == next &&
+                    HSD_DatNextTarget(&dat, at) == next, "Next distinct target address");
+    }
+    require(HSD_DatImportInit(&import, &dat, arena, 128, 2) == HSD_DAT_CAPACITY,
+            "An undersized arena does not publish an index");
+}
+
 static void inspect_file(const char* path, bool decode_image, HSD_DatImportType import_type, u32 image_offset)
 {
     FILE* file = fopen(path, "rb");
@@ -123,6 +247,12 @@ int main(int argc, char** argv)
     memcpy(bytes + 88, "root\0external\0", 14);
     memcpy(original, bytes, sizeof(bytes));
     require(HSD_DatOpen(&dat, bytes, sizeof(bytes)) == HSD_DAT_OK, "Valid DAT rejected");
+    require(HSD_DatContainsReference(&dat, 0, 4) &&
+                HSD_DatContainsReference(&dat, 19, 24) &&
+                HSD_DatContainsReference(&dat, 5, 12) &&
+                !HSD_DatContainsReference(&dat, 1, 11) &&
+                !HSD_DatContainsReference(&dat, 16, 20),
+            "Range lookups include complete local and external slots");
     require(memcmp(bytes, original, sizeof(bytes)) == 0, "DAT open modified file bytes");
     require(dat.data_size == 32 && dat.relocation_count == 2 &&
                 dat.root_count == 1 && dat.extern_count == 1, "Wrong native metadata");
@@ -162,6 +292,10 @@ int main(int argc, char** argv)
     put32(bytes + 40, 8);
     require(HSD_DatOpen(&dat, bytes, sizeof(bytes)) == HSD_DAT_EXTERNAL, "Cyclic external list accepted");
     puts("Immutable DAT metadata and endian reads passed");
+    test_relocation_order();
+    test_external_budget();
+    test_root_budget();
+    test_target_index();
     test_dat_textures();
     test_dat_import();
     test_dat_animation();

@@ -12,6 +12,7 @@ namespace aurora::gx::testing {
 void reset_texture_stubs();
 uint64_t texture_allocations();
 uint64_t palette_conversions();
+uint32_t copy_palette_width();
 gfx::TextureHandle make_texture_handle(uint32_t width, uint32_t height, u32 format = GX_TF_RGBA8_PC);
 void set_replacement(gfx::TextureHandle handle, uint64_t id = 1);
 void set_source_replacement(aurora::texture::TextureSourceKey key, gfx::TextureHandle handle);
@@ -253,17 +254,27 @@ TEST_F(GxTextureCacheTest, TlutRefreshInvalidatesBoundPaletteTexture) {
   EXPECT_EQ(testing::texture_allocations(), 2);
 }
 
+TEST_F(GxTextureCacheTest, SourceReplacementUsesImageLayout) {
+  std::array<uint8_t, 16> pixels{};
+  const auto replacement = testing::make_texture_handle(8, 8);
+  testing::set_source_replacement({.textureHash = XXH64(pixels.data(), pixels.size(), 0),
+                                   .width = 1, .height = 4, .format = GX_TF_RGBA8_PC}, replacement);
+  EXPECT_NE(texture::resolve_static_texture(make_texture(pixels.data(), 1)), replacement);
+  EXPECT_EQ(texture::resolve_static_texture(make_texture(pixels.data(), 2, GX_TF_RGBA8_PC, 1, 4)), replacement);
+}
+
 TEST_F(GxTextureCacheTest, CopyRevisionRequeuesDynamicPaletteConversion) {
-  std::array<uint8_t, 32> palette{};
+  std::array<uint8_t, 16384 * 2> palette{};
   const auto copy = testing::make_texture_handle(4, 4, GX_TF_C8);
   g_gxState.loadedTextures[0] = make_texture(palette.data(), 1, GX_TF_C8, 4, 4);
   g_gxState.loadedTextures[0].tlut = GX_TLUT0;
-  g_gxState.loadedTluts[0] = make_tlut(palette.data(), 1, 256);
+  g_gxState.loadedTluts[0] = make_tlut(palette.data(), 1, 16384);
   g_gxState.copyTextures[palette.data()] = {.handle = copy, .revision = 1};
   ShaderInfo info{};
   info.sampledTextures.set(0);
   resolve_sampled_textures(info);
   EXPECT_EQ(testing::palette_conversions(), 1);
+  EXPECT_EQ(testing::copy_palette_width(), 256);
 
   ++g_gxState.copyTextures[palette.data()].revision;
   texture::invalidate_bindings();

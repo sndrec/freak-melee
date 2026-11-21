@@ -19,14 +19,21 @@ static bool lose_metadata,lose_records;
 
 static unsigned index_of(NativeNetplayConnection* c)
 {CHECK(c==&rooms[0].connection || c==&rooms[1].connection);return c==&rooms[1].connection;}
-bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner)
-{unsigned i=index_of(c);CHECK(!strcmp(peer,rooms[1-i].connection.local_peer_id));CHECK(owner==(i==1));routes[i]=(Route){.serial=serial,.reserved=true};return true;}
-bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner)
-{(void)peer;(void)owner;unsigned i=index_of(c);CHECK(routes[i].reserved && routes[i].serial==serial);routes[i].started=true;return true;}
-void nativeNetplayConnection_ReleaseContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner)
-{(void)peer;(void)owner;unsigned i=index_of(c);if(routes[i].serial==serial)routes[i]=(Route){0};}
-NativeContentChannelState nativeNetplayConnection_ContentState(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner)
+bool nativeNetplayConnection_ReserveContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner, NativeContentPurpose purpose)
 {
+    CHECK(purpose == NativeContentPurpose_Watch);
+    unsigned i=index_of(c);CHECK(!strcmp(peer,rooms[1-i].connection.local_peer_id));CHECK(owner==(i==1));routes[i]=(Route){.serial=serial,.reserved=true};return true;}
+bool nativeNetplayConnection_StartContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Watch);
+    (void)peer;(void)owner;unsigned i=index_of(c);CHECK(routes[i].reserved && routes[i].serial==serial);routes[i].started=true;return true;}
+void nativeNetplayConnection_ReleaseContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Watch);
+    (void)peer;(void)owner;unsigned i=index_of(c);if(routes[i].serial==serial)routes[i]=(Route){0};}
+NativeContentChannelState nativeNetplayConnection_ContentState(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner, NativeContentPurpose purpose)
+{
+    CHECK(purpose == NativeContentPurpose_Watch);
     (void)peer;(void)owner;unsigned i=index_of(c);
     if(!routes[i].reserved || routes[i].serial!=serial)return NativeContentChannel_None;
     if(!routes[i].started)return NativeContentChannel_Reserved;
@@ -42,8 +49,9 @@ static Packet* enqueue(NativeNetplayConnection* c,const uint8_t* bytes,size_t si
 }
 bool nativeNetplayConnection_SendControl(NativeNetplayConnection* c,const char* peer,const uint8_t* bytes,size_t size)
 {(void)peer;enqueue(c,bytes,size,true);return true;}
-bool nativeNetplayConnection_SendContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner,const uint8_t* bytes,size_t size)
+bool nativeNetplayConnection_SendContent(NativeNetplayConnection* c,const char* peer,uint32_t serial,bool owner, NativeContentPurpose purpose,const uint8_t* bytes,size_t size)
 {
+    CHECK(purpose == NativeContentPurpose_Watch);
     (void)peer;
     if(!memcmp(bytes,"FMWV",4) && bytes[4]==1 && lose_metadata) {
         lose_metadata=false;++dropped_metadata;return true;
@@ -102,8 +110,11 @@ int main(void)
     }
     CHECK(nativeMatchStream_Bind(&rooms[0].stream,&d,records,400));
     append(0,240);
-    CHECK(nativeNetplayRoom_WatchMatch(&rooms[1]));
-    CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1]));
+    const uint8_t other_build[32] = {2};
+    CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1], other_build));
+    CHECK(!rooms[1].watch.receive.storage);
+    CHECK(nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
+    CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
     lose_metadata=lose_records=true;
     uint64_t deadline=GetTickCount64()+5000;bool extended=false,closed_after_final=false;
     while(GetTickCount64()<deadline) {
@@ -132,9 +143,33 @@ int main(void)
     CHECK(!routes[0].reserved && !routes[1].reserved && r->storage);
     nativeNetplayRoom_StopWatching(&rooms[1]);CHECK(!r->storage && r->state==NativeRoomWatch_None);
     deliver();
+    CHECK(nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
+    r->started_ms=GetTickCount64()-90001;
+    rooms[1].watch.pump_ms=0;
+    nativeNetplayRoom_PumpWatch(&rooms[1]);
+    CHECK(r->state==NativeRoomWatch_Failed && !routes[1].reserved);
+    nativeNetplayRoom_StopWatching(&rooms[1]);deliver();
+
+    CHECK(nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
+    routes[1].reserved=false;
+    rooms[1].watch.pump_ms=0;
+    nativeNetplayRoom_PumpWatch(&rooms[1]);
+    CHECK(r->state==NativeRoomWatch_Failed);
+    nativeNetplayRoom_StopWatching(&rooms[1]);deliver();
+
+    CHECK(nativeMatchStream_Bind(&rooms[0].stream,&d,records,400));
+    CHECK(nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
+    rooms[1].watch.pump_ms=0;
+    nativeNetplayRoom_PumpWatch(&rooms[1]);deliver();
+    CHECK(rooms[0].watch.sender_count==1 && r->state==NativeRoomWatch_Receiving);
+    rooms[0].connection.presence.participants[4].active_mask=1;
+    rooms[0].watch.pump_ms=0;
+    nativeNetplayRoom_PumpWatch(&rooms[0]);deliver();
+    CHECK(!rooms[0].watch.sender_count && r->state==NativeRoomWatch_Failed);
+    nativeNetplayRoom_StopWatching(&rooms[1]);deliver();
     // Active fighters cannot request a second match-viewing role.
     rooms[1].connection.presence.participants[4].active_mask=1;
-    CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1]));
+    CHECK(!nativeNetplayRoom_WatchMatch(&rooms[1], d.match.content_digest));
     nativeNetplayRoom_ClearWatch(&rooms[0]);nativeNetplayRoom_ClearWatch(&rooms[1]);
     printf("PASS %u checks: fragmented metadata, lost/gapped/duplicate delivery, live extension, sudden death, final digest and role isolation\n",checks);
     return 0;

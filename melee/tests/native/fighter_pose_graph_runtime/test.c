@@ -10,6 +10,7 @@
 #include <melee/ef/native_model_effect.h>
 #include <melee/ft/ftdata.h>
 #include <melee/ft/ftparts.h>
+#include <melee/ft/ftanim_track_parts.h>
 #include <melee/ft/ftcharacter_assets.h>
 #include <melee/ft/ftcostume_assets.h>
 #include <melee/ft/ftanimation_bank.h>

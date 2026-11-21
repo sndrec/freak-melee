@@ -1,4 +1,5 @@
 #include "ftanimation_bank.h"
+#include "ftparts.h"
 
 #include <melee/lb/lbanim_dat.h>
 
@@ -18,6 +19,21 @@ typedef struct FtAnimationClip {
 } FtAnimationClip;
 
 enum { FT_ANIMATION_BANK_MAX_SYMBOLS = 1024 };
+
+bool ftAnimationBank_FitsRig(const struct Fighter_WaitAnimData* clip,
+                             unsigned parts, unsigned insertions)
+{
+    const FigaTree* tree = clip->x14;
+    if (!tree || parts > MAX_FT_PARTS || insertions > parts || insertions > 32)
+        return false;
+    unsigned expected = parts - insertions;
+    unsigned mask = ((u32)clip->x10_animCurrFlags >> 11) & 0x1fff;
+    for (unsigned i = 0; i < insertions; ++i)
+        expected += (mask >> i) & 1;
+    unsigned nodes = 0;
+    while (nodes < expected && tree->nodes[nodes] != -1) ++nodes;
+    return nodes == expected && tree->nodes[nodes] == -1;
+}
 
 static u32 read_be32(const u8* bytes)
 {
@@ -101,6 +117,7 @@ bool ftAnimationBank_Import(const void* bytes, size_t size,
     FtAnimationClip clips[FT_ANIMATION_BANK_MAX_SYMBOLS];
     u32 clip_count = 0;
     bool indexed = false;
+    size_t stream_bytes = 0;
     FigaTrack* scratch = arena_alloc(
         &storage, FT_ANIMATION_SCRATCH_TRACK_CAPACITY * sizeof(*scratch));
     if (scratch == NULL) {
@@ -172,6 +189,12 @@ bool ftAnimationBank_Import(const void* bytes, size_t size,
             u32 track_count = 0;
             for (u32 node = 0; node < node_count; ++node) {
                 track_count += (u8) decoded.nodes[node];
+            }
+            for (u32 track = 0; track < track_count; ++track)
+                stream_bytes += scratch[track].length;
+            if (stream_bytes > 64 * 1024 * 1024) {
+                stats->status = HSD_DAT_CAPACITY;
+                return false;
             }
             FigaTree* tree = arena_alloc(&storage, sizeof(*tree));
             FigaTrack* tracks = track_count != 0

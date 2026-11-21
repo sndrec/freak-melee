@@ -28,7 +28,7 @@ bool nativeDiscArchive_Read(const char* filename, void** bytes, size_t* size)
     size_t file_size = file.length;
     size_t padded = (file_size + 31) & ~(size_t) 31;
     void* data = file_size >= 32 &&
-                         file_size <= NATIVE_CONTENT_MAX_PACKAGE_BYTES
+                         file_size <= NATIVE_CONTENT_MAX_ASSET_BYTES
                      ? _aligned_malloc(padded, 32)
                      : NULL;
     bool ok = data != NULL &&

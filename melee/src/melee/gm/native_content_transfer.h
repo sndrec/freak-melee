@@ -10,33 +10,40 @@
 #include "native_content_store.h"
 
 enum {
-    NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY = 576,
-    NATIVE_CONTENT_TRANSFER_CHUNK_BYTES = 512,
-    NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS = 32,
+    NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY = 1067,
+    NATIVE_CONTENT_TRANSFER_CHUNK_BYTES = 1024,
+    NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS = 128,
+    NATIVE_CONTENT_TRANSFER_WINDOW_WORDS = NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS / 64,
 };
+
+typedef struct NativeContentTransferChunk {
+    uint64_t sent_ms;
+    bool acknowledged, retransmitted;
+} NativeContentTransferChunk;
 
 typedef struct NativeContentTransferSend {
     NativeContentId id;
     const uint8_t* bytes;
+    NativeContentTransferChunk chunks[NATIVE_CONTENT_TRANSFER_WINDOW_CHUNKS];
     size_t size;
     size_t acknowledged;
-    size_t next_offset;
-    size_t sent_through;
-    uint64_t last_progress_ms;
+    unsigned next_chunk, highest_ack, recovery_through;
+    unsigned in_flight, congestion_window, slow_start_threshold, increase_credit;
+    unsigned rtt_ms, rtt_variance_ms;
     uint64_t last_begin_ms;
     bool active;
     bool begin_sent;
     bool begin_acknowledged;
-    bool recovery_probe;
     bool complete;
 } NativeContentTransferSend;
 
 typedef struct NativeContentTransferReceive {
     NativeContentId id;
+    NativeContentPreview preview;
     uint8_t* bytes;
     size_t size;
     size_t received;
-    uint32_t received_window;
+    uint64_t received_window[NATIVE_CONTENT_TRANSFER_WINDOW_WORDS];
     uint64_t last_control_ms;
     uint64_t last_progress_ms;
     bool active;
@@ -61,7 +68,7 @@ typedef enum NativeContentTransferPacketType {
 NativeContentTransferPacketType nativeContentTransfer_PacketType(
     const uint8_t* packet, size_t size, NativeContentId* id);
 size_t nativeContentTransfer_Missing(const NativeContentId* id,
-                                     uint8_t packet[576]);
+                                     uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY]);
 
 bool nativeContentTransfer_StartSend(NativeContentTransferSend* send,
                                      const NativeContentId* id,
@@ -70,7 +77,7 @@ void nativeContentTransfer_SendPacket(NativeContentTransferSend* send,
                                       const uint8_t* packet, size_t size,
                                       uint64_t now_ms);
 size_t nativeContentTransfer_NextSend(NativeContentTransferSend* send,
-                                      uint64_t now_ms, uint8_t packet[576]);
+                                      uint64_t now_ms, uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY]);
 
 void nativeContentTransfer_StartReceive(NativeContentTransferReceive* receive,
                                         const NativeContentId* id);
@@ -80,7 +87,7 @@ void nativeContentTransfer_ReceivePacket(NativeContentTransferReceive* receive,
                                          uint64_t now_ms);
 size_t nativeContentTransfer_NextReceive(
     NativeContentTransferReceive* receive, uint64_t now_ms,
-    uint8_t packet[576]);
+    uint8_t packet[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY]);
 
 #endif
 #endif

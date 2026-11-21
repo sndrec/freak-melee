@@ -336,7 +336,8 @@ HSD_PObj* HSD_PObjLoadDesc(HSD_PObjDesc* pobjdesc)
         HSD_ClassInfo* info;
 
         if (!pobjdesc->class_name ||
-            !(info = hsdSearchClassInfo(pobjdesc->class_name)))
+            !(info = hsdSearchClassInfo(pobjdesc->class_name)) ||
+            !hsdIsDescendantOf(info, &hsdPObj))
         {
             pobj = HSD_PObjAlloc();
         } else {
@@ -1062,9 +1063,11 @@ static void PObjPreparePose(HSD_PObj* pobj)
             list = sets == 1 ? pobj->u.envelope_list : set ? pobj->u.matrices->textures : pobj->u.matrices->positions;
             for (index = 0; index < 10 && list;
                  ++index, list = list->next) {
+                if (set && (pobj->u.matrices->constant_mask & (1U << index)))
+                    continue;
                 HSD_Envelope* envelope = list->data;
                 HSD_JObjSetupMatrix(envelope->jobj);
-                if (envelope->weight >= (1.0f - FLT_EPSILON)) {
+                if (sets == 1 && envelope->weight >= (1.0f - FLT_EPSILON)) {
                     continue;
                 }
                 for (envelope = envelope->next; envelope;

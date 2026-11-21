@@ -12,15 +12,13 @@ bool nativeCommunity_SendReport(void* connection, bool secure, const NativeCommu
     NativeCommunityReceipt& result, NativeCommunityProgress progress, void* owner)
 {
     result = {}; std::snprintf(result.id, sizeof(result.id), "%s", upload.id);
-    FILE* files[3]{}; uint32_t lengths[3]{};
-    const char* paths[]{upload.metadata, upload.image, upload.context};
-    const uint32_t limits[]{512 * 1024, 16 * 1024 * 1024, 8 * 1024 * 1024};
+    uint32_t lengths[3]{};
+    const std::string* files[]{upload.notes_bytes.get(), upload.image_bytes.get(), upload.context_bytes.get()};
+    const uint32_t limits[]{NativeFeedbackNotesLimit, NativeFeedbackImageLimit, NativeFeedbackContextLimit};
     bool ok = true;
     for (unsigned i = 0; i < 3 && ok; ++i) {
-        files[i] = std::fopen(paths[i], "rb");
-        const __int64 size = files[i] && !_fseeki64(files[i], 0, SEEK_END) ? _ftelli64(files[i]) : -1;
-        ok = size > 0 && size <= limits[i] && !_fseeki64(files[i], 0, SEEK_SET);
-        if (ok) lengths[i] = uint32_t(size);
+        ok = files[i] && !files[i]->empty() && files[i]->size() <= limits[i];
+        if (ok) lengths[i] = uint32_t(files[i]->size());
     }
     HINTERNET request = nullptr;
     if (!ok) std::snprintf(result.error, sizeof(result.error), "A captured attachment is missing, empty, or too large. The report has been kept on this PC.");
@@ -61,17 +59,14 @@ bool nativeCommunity_SendReport(void* connection, bool secure, const NativeCommu
     };
     if (ok) ok = progress(owner, 0, total) && write(buffer.data(), 20);
     for (unsigned i = 0; i < 3 && ok; ++i) {
-        uint32_t remaining = lengths[i];
-        while (ok && remaining) {
+        uint32_t offset = 0;
+        while (ok && offset < lengths[i]) {
+            const uint32_t remaining = lengths[i] - offset;
             const DWORD count = remaining < buffer.size() ? remaining : DWORD(buffer.size());
-            ok = std::fread(buffer.data(), 1, count, files[i]) == count && write(buffer.data(), count);
-            remaining -= count;
+            ok = write(files[i]->data() + offset, count);
+            offset += count;
         }
-        // Files are finalized before publication to this worker. Reject any
-        // accidental mutation rather than extending the submitted capture.
-        if (ok) ok = std::fgetc(files[i]) == EOF && !std::ferror(files[i]);
     }
-    for (FILE* file : files) if (file) std::fclose(file);
     DWORD status = 0, size = sizeof(status);
     ok = ok && WinHttpReceiveResponse(request, nullptr) &&
         WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,

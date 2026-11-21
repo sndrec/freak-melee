@@ -6,6 +6,7 @@
 #include "fighter.h"
 #include "ftparts.h"
 #include "ftanimation_bank.h"
+#include "ftanim_track_parts.h"
 #include <melee/lb/lbanim.h>
 #include <sysdolphin/baselib/jobj.h>
 #include <math.h>
@@ -220,12 +221,7 @@ bool nativeFighterPose_Validate(Fighter_GObj* object, NativeFighterPoseOperation
         }
         while (node < node_count) {
             if (family == (unsigned)fighter->kind) {
-                while (part < count && !fighter->parts[part].flags_b1) ++part;
-                while (part < count && fighter->parts[part].flags_b2) {
-                    uint32_t mask = ftParts_8007506C(family, part);
-                    if (!mask || (mask & fighter->x594_bits)) break;
-                    ++part;
-                }
+                part = ftAnim_NextTrackPart(fighter, part, count);
             } else {
                 while (part < family_count) {
                     uint32_t mask = ftParts_8007506C(family, part);
@@ -234,7 +230,8 @@ bool nativeFighterPose_Validate(Fighter_GObj* object, NativeFighterPoseOperation
                 }
             }
             if (part >= count || part >= family_count) return false;
-            if (part != (unsigned)start && fighter->parts[part].xC <= fighter->parts[start].xC) break;
+            if (part != (unsigned)start && (family != (unsigned)fighter->kind || fighter->parts[part].flags_b1) &&
+                fighter->parts[part].xC <= fighter->parts[start].xC) break;
             if (family != (unsigned)fighter->kind && ftPartsTable[family]->joint_to_part[part] != FTPART_INVALID &&
                 ftPartsTable[family]->joint_to_part[part] >= count) return false;
             unsigned mapped = family == (unsigned)fighter->kind ? part : ftPartsRemap(fighter->kind, family, part);
@@ -252,14 +249,9 @@ bool nativeFighterPose_Validate(Fighter_GObj* object, NativeFighterPoseOperation
         if (graph != NULL || start != 0 || !clip_valid(&assets, clip, &node_count)) return false;
         unsigned i = 0;
         for (unsigned node = 0; node < node_count; ++node, ++i) {
-            while (i < count && !fighter->parts[i].flags_b1) ++i;
-            while (i < count && fighter->parts[i].flags_b2) {
-                u32 mask = ftParts_8007506C(fighter->kind, i);
-                if (mask == 0 || (mask & fighter->x594_bits)) break;
-                ++i;
-            }
+            i = ftAnim_NextTrackPart(fighter, i, count);
             if (i == count) return false;
-            if (!fighter->parts[i].flags_b0 && !fighter->parts[i].flags_b5 &&
+            if (fighter->parts[i].flags_b1 && !fighter->parts[i].flags_b0 && !fighter->parts[i].flags_b5 &&
                 !contains(target, target_count, destination ? fighter->parts[i].x4_jobj2 : fighter->parts[i].joint)) return false;
         }
         return true;

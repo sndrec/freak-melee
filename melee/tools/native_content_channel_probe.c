@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
+#include "native_probe_identity.h"
 
 #include <melee/gm/native_netplay_connection.h>
 
@@ -51,10 +52,10 @@ static bool channels_ready(void)
 {
     for (unsigned owner = 0; owner < 2; ++owner) {
         if (nativeNetplayConnection_ContentState(&clients[0], peers[4], 23,
-                                                 owner) !=
+                                                 owner, NativeContentPurpose_Cache) !=
                 NativeContentChannel_Connected ||
             nativeNetplayConnection_ContentState(&clients[4], peers[0], 23,
-                                                 owner) !=
+                                                 owner, NativeContentPurpose_Cache) !=
                 NativeContentChannel_Connected)
         {
             return false;
@@ -90,13 +91,16 @@ int main(int argc, char** argv)
         return 2;
     }
     int result = 0;
+    char guest_keys[CLIENTS][65];
     for (unsigned i = 0; i < CLIENTS; ++i) {
+        CHECK(nativeProbeGuestKey(guest_keys[i]), "create a guest identity");
         snprintf(peers[i], sizeof(peers[i]), "content_%lu_%u",
                  GetCurrentProcessId(), i);
         NativeNetplayConnectionConfig config = {
             .signaling = { .endpoint = argv[1],
                            .room_id = argv[2],
                            .peer_id = peers[i],
+                           .guest_key = guest_keys[i],
                            .name = "Local content probe",
                            .build = "native-content-channel-probe",
                            .local_players = 1 }
@@ -120,22 +124,27 @@ int main(int argc, char** argv)
           "four players have three gameplay routes; the fifth has none");
     for (unsigned owner = 0; owner < 2; ++owner) {
         CHECK(nativeNetplayConnection_ReserveContent(&clients[0], peers[4], 23,
-                                                     owner),
+                                                     owner, NativeContentPurpose_Cache),
               "reserve first endpoint");
         CHECK(nativeNetplayConnection_ReserveContent(&clients[4], peers[0], 23,
-                                                     !owner),
+                                                     !owner, NativeContentPurpose_Cache),
               "reserve other endpoint");
     }
     for (unsigned i = 2; i < NATIVE_CONTENT_CHANNELS; ++i) {
-        CHECK(nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 24 + i, true),
+        CHECK(nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 24 + i, true, NativeContentPurpose_Cache),
               "reserve the remaining bounded content slots");
     }
-    CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 100, true),
+    CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], peers[1], 100, true, NativeContentPurpose_Cache),
           "content route pool is bounded");
     for (unsigned i = 2; i < NATIVE_CONTENT_CHANNELS; ++i)
-        nativeNetplayConnection_ReleaseContent(&clients[0], peers[1], 24 + i, true);
+        nativeNetplayConnection_ReleaseContent(&clients[0], peers[1], 24 + i, true, NativeContentPurpose_Cache);
+    CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], peers[4], 23, true, NativeContentPurpose_Gift),
+          "an existing reservation has one owner");
+    nativeNetplayConnection_ReleaseContent(&clients[0], peers[4], 23, true, NativeContentPurpose_Watch);
+    CHECK(nativeNetplayConnection_ContentState(&clients[0], peers[4], 23, true, NativeContentPurpose_Cache) ==
+          NativeContentChannel_Reserved, "another transfer cannot release this reservation");
     CHECK(!nativeNetplayConnection_ReserveContent(&clients[0], "not-a-member",
-                                                  24, true),
+                                                  24, true, NativeContentPurpose_Cache),
           "require current room membership");
     CHECK(!clients[0].content.routes[0].ice.agent &&
               !clients[0].content.routes[1].ice.agent,
@@ -156,23 +165,39 @@ int main(int argc, char** argv)
         }
     }
     CHECK(got_control, "binary control arrives at the waiting peer");
-    for (unsigned i = 0; i < NATIVE_CONTENT_CONTROL_QUEUE + 3; ++i) {
-        nativeNetplayContentChannels_Control(&clients[4], peers[0], binary,
-                                             sizeof(binary));
+    for (unsigned sender = 0; sender < 4; ++sender) {
+        for (unsigned i = 0; i <= NATIVE_CONTENT_CONTROL_PER_PEER; ++i)
+            nativeNetplayContentChannels_Control(&clients[4], peers[sender], binary, sizeof(binary));
     }
-    unsigned controls = 0;
+    unsigned controls = 0, from[4] = {0};
     NativeContentControl packet;
     while (nativeNetplayConnection_PollControl(&clients[4], &packet)) {
         ++controls;
+        for (unsigned i = 0; i < 4; ++i)
+            if (!strcmp(packet.peer_id, peers[i])) ++from[i];
     }
     CHECK(controls == NATIVE_CONTENT_CONTROL_QUEUE,
           "control inbox is bounded");
+    for (unsigned i = 0; i < 4; ++i)
+        CHECK(from[i] == NATIVE_CONTENT_CONTROL_PER_PEER, "every sender has room");
+    NativeSignalingParticipant* previous = NULL;
+    for (unsigned i = 0; i < clients[4].presence.participant_count; ++i)
+        if (!strcmp(clients[4].presence.participants[i].peer_id, peers[0]))
+            previous = &clients[4].presence.participants[i];
+    CHECK(previous, "sender present");
+    nativeNetplayContentChannels_Control(&clients[4], peers[0], binary, sizeof(binary));
+    ++previous->join_order;
+    nativeNetplayContentChannels_Control(&clients[4], peers[0], binary, sizeof(binary));
+    CHECK(nativeNetplayConnection_PollControl(&clients[4], &packet) &&
+          packet.join_order == previous->join_order, "only the new membership's message survives");
+    CHECK(!nativeNetplayConnection_PollControl(&clients[4], &packet), "old message discarded");
+    --previous->join_order;
     for (unsigned owner = 0; owner < 2; ++owner) {
         CHECK(nativeNetplayConnection_StartContent(&clients[0], peers[4], 23,
-                                                   owner),
+                                                   owner, NativeContentPurpose_Cache),
               "start accepted content");
         CHECK(nativeNetplayConnection_StartContent(&clients[4], peers[0], 23,
-                                                   owner),
+                                                   owner, NativeContentPurpose_Cache),
               "start remote accepted content");
     }
     deadline = GetTickCount64() + DEADLINE_MS;
@@ -211,10 +236,10 @@ int main(int argc, char** argv)
         }
     }
     CHECK(got_game, "content polling does not consume gameplay packets");
-    CHECK(nativeNetplayConnection_SendContent(&clients[0], peers[4], 23, true,
+    CHECK(nativeNetplayConnection_SendContent(&clients[0], peers[4], 23, true, NativeContentPurpose_Cache,
                                               (const uint8_t*) "forward", 8) &&
               nativeNetplayConnection_SendContent(
-                  &clients[4], peers[0], 23, true, (const uint8_t*) "reverse",
+                  &clients[4], peers[0], 23, true, NativeContentPurpose_Cache, (const uint8_t*) "reverse",
                   8),
           "send both ways");
     CHECK(receive(4, false, "forward") && receive(0, false, "reverse"),
@@ -239,18 +264,18 @@ int main(int argc, char** argv)
     }
     CHECK(spectator && channels_ready() && gameplay_ready(),
           "role changes preserve content independently");
-    CHECK(nativeNetplayConnection_SendContent(&clients[4], peers[0], 23, false,
+    CHECK(nativeNetplayConnection_SendContent(&clients[4], peers[0], 23, false, NativeContentPurpose_Cache,
                                               (const uint8_t*) "reply", 6) &&
               receive(0, true, "reply"),
           "reply reaches the original transfer owner");
-    nativeNetplayConnection_ReleaseContent(&clients[0], peers[4], 23, true);
+    nativeNetplayConnection_ReleaseContent(&clients[0], peers[4], 23, true, NativeContentPurpose_Cache);
     CHECK(nativeNetplayConnection_ReserveContent(&clients[0], peers[4], 24,
-                                                 true),
+                                                 true, NativeContentPurpose_Cache),
           "reuse a released slot");
     nativeNetplayContentChannels_Description(&clients[0], peers[4], 23, false,
                                              (const uint8_t*) "stale", 5);
     CHECK(nativeNetplayConnection_ContentState(&clients[0], peers[4], 24,
-                                               true) ==
+                                               true, NativeContentPurpose_Cache) ==
               NativeContentChannel_Reserved,
           "late descriptions cannot start a newer transfer");
     nativeNetplayConnection_Stop(&clients[4]);
@@ -262,9 +287,9 @@ int main(int argc, char** argv)
         CHECK(pump(), "observe departing member");
     }
     CHECK(nativeNetplayConnection_ContentState(
-              &clients[0], peers[4], 24, true) == NativeContentChannel_None &&
+              &clients[0], peers[4], 24, true, NativeContentPurpose_Cache) == NativeContentChannel_None &&
               nativeNetplayConnection_ContentState(&clients[0], peers[4], 23,
-                                                   false) ==
+                                                   false, NativeContentPurpose_Cache) ==
                   NativeContentChannel_None,
           "leaving the room releases content routes");
     puts("PASS: four gameplay players plus a waiting/spectating recipient; "

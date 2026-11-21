@@ -33,7 +33,14 @@ static void check_package_bank(void)
     bytes[35] = 66;
     check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34),
           "reject out-of-range DSP sample end");
+    bytes[35] = 31;
+    bytes[104] = 0x80;
+    check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34),
+          "reject an invalid predictor in the referenced second block");
     bytes[35] = 15;
+    bank = HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34);
+    check(bank != NULL, "ignore padding outside the voice's sample range");
+    free(bank);
     bytes[39] = 1;
     check(!HSD_SfxBankReadPackage(bytes, sizeof(bytes), 34),
           "reject a start within the DSP predictor header");

@@ -27,31 +27,41 @@ int displayed = -1, reserved = -1;
 uint64_t next_frame = 0, next_capture = 0;
 bool active = false, pending = false, retain_image = false, show_backdrop = false;
 AuroraPresentedCapture capture{};
-using Path = std::array<char, 1024>;
+std::string encoded;
 Request next_request;
 
-void finish(uint64_t id, bool ok, const char* message) {
+void finish(uint64_t id, std::string bytes, const char* message) {
   std::lock_guard lock{mutex};
-  if (capture.capture_id != id) return;
-  capture.status = ok ? AURORA_CAPTURE_READY : AURORA_CAPTURE_FAILED;
+  if (!active || capture.capture_id != id) return;
+  encoded = std::move(bytes);
+  capture.status = encoded.empty() ? AURORA_CAPTURE_FAILED : AURORA_CAPTURE_READY;
   std::snprintf(capture.error, sizeof(capture.error), "%s", message ? message : "");
   pending = false;
-  if (!retain_image) { active = false; reserved = -1; }
+  if (!retain_image) reserved = -1;
 }
 
-void readback(int slot_index, uint64_t id, const Path& path, wgpu::Origin3D origin = {},
+void readback(int slot_index, uint64_t id, wgpu::Origin3D origin = {},
               wgpu::Extent3D extent = {0, 0, 1}) {
   const auto& source = slots[slot_index].image;
   const bool bgra = source.format == wgpu::TextureFormat::BGRA8Unorm ||
                     source.format == wgpu::TextureFormat::BGRA8UnormSrgb;
   if (!bgra && source.format != wgpu::TextureFormat::RGBA8Unorm &&
       source.format != wgpu::TextureFormat::RGBA8UnormSrgb) {
-    finish(id, false, "The screen uses an unsupported image format.");
+    finish(id, {}, "The screen uses an unsupported image format.");
     return;
   }
   if (!extent.width) extent = source.size;
+  if (!extent.height || uint64_t(extent.width) * extent.height > 16 * 1024 * 1024 ||
+      extent.width > (UINT32_MAX - 255) / 4) {
+    finish(id, {}, "The screen exceeds the capture size limit.");
+    return;
+  }
   const uint32_t pitch = (extent.width * 4 + 255) & ~255u;
   const uint64_t bytes = uint64_t(pitch) * extent.height;
+  if (bytes > 68 * 1024 * 1024) {
+    finish(id, {}, "The screen exceeds the readback size limit.");
+    return;
+  }
   const wgpu::BufferDescriptor descriptor{
       .label = "Presented image readback", .usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead,
       .size = bytes};
@@ -64,25 +74,20 @@ void readback(int slot_index, uint64_t id, const Path& path, wgpu::Origin3D orig
   const auto commands = encoder.Finish();
   webgpu::g_queue.Submit(1, &commands);
   buffer.MapAsync(wgpu::MapMode::Read, 0, bytes, wgpu::CallbackMode::AllowSpontaneous,
-    [buffer, bytes, extent, pitch, bgra, path, id](wgpu::MapAsyncStatus status, wgpu::StringView) {
+    [buffer, bytes, extent, pitch, bgra, id](wgpu::MapAsyncStatus status, wgpu::StringView) {
       bool wanted;
       { std::lock_guard lock{mutex}; wanted = active && capture.capture_id == id; }
       if (status != wgpu::MapAsyncStatus::Success) {
         if (wanted) Log.error("Presented screenshot GPU readback failed");
-        finish(id, false, "Could not read the captured screen from the GPU.");
+        finish(id, {}, "Could not read the captured screen from the GPU.");
         return;
       }
       const void* pixels = buffer.GetConstMappedRange(0, bytes);
-      const bool ok = wanted && pixels && write_png(path.data(), pixels, extent.width, extent.height, pitch, bgra, false);
+      std::string png;
+      const bool ok = wanted && pixels && encode_png(png, pixels, extent.width, extent.height, pitch, bgra);
       buffer.Unmap();
-      bool cancelled;
-      { std::lock_guard lock{mutex}; cancelled = !active || capture.capture_id != id; }
-      // Cancellation can arrive after the initial wanted check, while the PNG
-      // file is open. Remove it here after the writer has closed its handle.
-      if (cancelled && wanted && pixels) std::remove(path.data());
-      if (ok && !cancelled) Log.info("Saved screenshot {}", path.data());
-      else if (wanted && !cancelled) Log.error("Screenshot PNG save failed: {}", path.data());
-      finish(id, ok && !cancelled, cancelled ? "Capture cancelled." : ok ? "" : "Could not save the captured screen.");
+      if (ok) finish(id, std::move(png), "");
+      else finish(id, {}, "Could not encode the captured screen.");
     });
 }
 }
@@ -162,10 +167,10 @@ void publish(int index, const Request& request, const webgpu::Viewport& viewport
     }
   }
   if (index < 0) {
-    finish(request.id, false, "The requested frame could not be presented within the capture limits.");
+    finish(request.id, {}, "The requested frame could not be presented within the capture limits.");
     return;
   }
-  readback(index, request.id, request.path, origin, extent);
+  readback(index, request.id, origin, extent);
 }
 
 Backdrop backdrop() {
@@ -182,34 +187,30 @@ void shutdown() {
   active = pending = retain_image = show_backdrop = false;
   displayed = reserved = -1;
   capture = {}; ++next_capture;
+  std::string{}.swap(encoded);
   next_request = {};
   for (auto& slot : slots) slot = {};
 }
 }
 
-bool aurora_capture_next_frame(const char* path, bool viewport_only, AuroraPresentedCapture* info) {
+bool aurora_capture_next_frame(bool viewport_only, AuroraPresentedCapture* info) {
   using namespace aurora::gfx::presented_capture;
-  if (!path) return false;
-  const size_t length = std::strlen(path);
-  if (length < 5 || length >= Path{}.size() || std::strcmp(path + length - 4, ".png")) return false;
+  if (!info) return false;
   std::lock_guard lock{mutex};
   if (active || pending || reserved >= 0 || next_request.id) return false;
   next_request.id = ++next_capture;
   next_request.viewport_only = viewport_only;
-  std::memcpy(next_request.path.data(), path, length + 1);
   capture = {.capture_id = next_request.id, .status = AURORA_CAPTURE_PENDING};
-  active = pending = retain_image = true;
+  active = pending = true;
+  retain_image = false;
   show_backdrop = false;
   if (info) *info = capture;
   return true;
 }
 
-bool aurora_capture_presented(const char* path, bool keep, AuroraPresentedCapture* info) {
+bool aurora_capture_presented(bool keep, AuroraPresentedCapture* info) {
   using namespace aurora::gfx::presented_capture;
-  if (!path) return false;
-  const size_t length = std::strlen(path);
-  if (length < 5 || length >= Path{}.size() || std::strcmp(path + length - 4, ".png")) return false;
-  Path owned_path{}; std::memcpy(owned_path.data(), path, length + 1);
+  if (!info) return false;
   int index; uint64_t id;
   {
     std::lock_guard lock{mutex};
@@ -224,7 +225,7 @@ bool aurora_capture_presented(const char* path, bool keep, AuroraPresentedCaptur
   }
   // The reservation above precedes this enqueue. Already queued frames cannot
   // recycle the reserved slot before the readback reaches the render worker.
-  aurora::gfx::render_worker::enqueue_work([index, id, owned_path] { readback(index, id, owned_path); });
+  aurora::gfx::render_worker::enqueue_work([index, id] { readback(index, id); });
   return true;
 }
 void aurora_presented_capture_status(AuroraPresentedCapture* info) {
@@ -238,30 +239,44 @@ void aurora_presented_capture_status(AuroraPresentedCapture* info) {
   // its asynchronous readback even when there is no subsequent frame submit.
   if (info->status == AURORA_CAPTURE_PENDING) aurora::gfx::enqueue_process_events();
 }
-bool aurora_write_presented_capture(const char* path) {
+const void* aurora_presented_png(uint64_t id, size_t* size) {
   using namespace aurora::gfx::presented_capture;
-  if (!path) return false;
-  const size_t length = std::strlen(path);
-  if (length < 5 || length >= Path{}.size() || std::strcmp(path + length - 4, ".png")) return false;
-  Path owned_path{}; std::memcpy(owned_path.data(), path, length + 1);
-  int index; uint64_t id;
+  if (!size) return nullptr;
+  std::lock_guard lock{mutex};
+  *size = 0;
+  if (!active || capture.capture_id != id || capture.status != AURORA_CAPTURE_READY) return nullptr;
+  *size = encoded.size();
+  return encoded.data();
+}
+bool aurora_retry_presented_capture(uint64_t id) {
+  using namespace aurora::gfx::presented_capture;
+  int index;
   {
     std::lock_guard lock{mutex};
-    if (!active || !retain_image || reserved < 0 || pending) return false;
-    index = reserved; id = capture.capture_id;
+    if (!active || capture.capture_id != id || !retain_image || reserved < 0 || pending) return false;
+    index = reserved;
     pending = true; capture.status = AURORA_CAPTURE_PENDING; *capture.error = 0;
   }
-  aurora::gfx::render_worker::enqueue_work([index, id, owned_path] { readback(index, id, owned_path); });
+  aurora::gfx::render_worker::enqueue_work([index, id] { readback(index, id); });
   return true;
 }
 void aurora_set_capture_backdrop(bool enabled) {
   using namespace aurora::gfx::presented_capture;
   std::lock_guard lock{mutex}; show_backdrop = enabled && active && retain_image;
 }
-void aurora_release_presented_capture() {
+void aurora_release_presented_capture(uint64_t id) {
   using namespace aurora::gfx::presented_capture;
-  uint64_t id;
-  { std::lock_guard lock{mutex}; active = show_backdrop = false; id = capture.capture_id; }
+  {
+    std::lock_guard lock{mutex};
+    if (!active || capture.capture_id != id) return;
+    active = pending = show_backdrop = false;
+    if (capture.status == AURORA_CAPTURE_PENDING) {
+      capture.status = AURORA_CAPTURE_FAILED;
+      std::snprintf(capture.error, sizeof(capture.error), "Capture cancelled.");
+    }
+    next_request = {};
+    std::string{}.swap(encoded);
+  }
   // Frames already recorded with this backdrop finish before the slot can be
   // recycled. This ordering also protects cancellation during GPU readback.
   aurora::gfx::render_worker::enqueue_work([id] {

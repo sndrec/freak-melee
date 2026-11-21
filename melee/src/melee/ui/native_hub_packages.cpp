@@ -31,10 +31,10 @@ namespace {
             if (!nativeContentStore_Read(root,&ids[i],&bytes,&size)) continue;
             Package entry = {}; entry.id = ids[i];
             NativeCostumePackage outfit; NativeCostumePackageData outfit_data;
-            NativeFighterPackage fighter; NativeFighterPackageData fighter_data;
+            NativeFighterPackage fighter;
             if (nativeContentStore_ParseCostume(bytes,size,&outfit,&outfit_data)) {
                 entry.kind=NativeNetplayGift_Costume; std::snprintf(entry.title,sizeof(entry.title),"%s",outfit.title);
-            } else if (nativeContentStore_ParseFighter(bytes,size,&fighter,&fighter_data)) {
+            } else if (nativeContentStore_ParseFighter(bytes,size,&fighter,nullptr)) {
                 entry.kind=NativeNetplayGift_Fighter; std::snprintf(entry.title,sizeof(entry.title),"%s",fighter.title);
             }
             std::free(bytes); if (entry.kind) packages[count++]=entry;

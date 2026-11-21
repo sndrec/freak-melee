@@ -2,8 +2,12 @@
 #include "native_script_runtime.h"
 #include "native_source_declarations.h"
 #include "native_source_motion_policy.h"
+#include "native_source_rig_validation.h"
 #include "ftdata.h"
+#include "ftcostume_assets.h"
+#include "ftcostume_limits.h"
 #include <melee/ef/native_script_effect_actor.h>
+#include <melee/ef/efdata.h>
 #include <sysdolphin/baselib/gobj.h>
 #include <sysdolphin/baselib/gobjproc.h>
 #include <sysdolphin/baselib/dat_import.h>
@@ -75,8 +79,15 @@ static bool metadata(void* opaque,const NativeScriptSourceTree* tree,uint32_t no
     return nativeScriptItemMetadata_Validate(&package->metadata,tree,node,d);
 }
 
+typedef struct EffectModelBudget {
+    size_t arena_bytes;
+    size_t texture_bytes;
+    size_t display_bytes;
+} EffectModelBudget;
+
 static bool import_effect_model(const NativeSourceResourceEntry* resource,
-                                NativeScriptEffectProgram* effect, void** arena)
+                                NativeScriptEffectProgram* effect, void** arena,
+                                EffectModelBudget* remaining)
 {
     HSD_Dat dat;
     u32 joint, animation, material;
@@ -90,18 +101,30 @@ static bool import_effect_model(const NativeSourceResourceEntry* resource,
     size_t capacity = 64 * 1024;
     uint32_t records = 256;
     for (;;) {
+        if (capacity > remaining->arena_bytes) return false;
         *arena = malloc(capacity);
         if (!*arena) return false;
         HSD_DatImport import = {0};
         if (HSD_DatImportInit(&import, &dat, *arena, capacity, records) == HSD_DAT_OK) {
+            import.texture_byte_limit = remaining->texture_bytes;
+            import.display_list_limit = remaining->display_bytes;
             StaticModelDesc model = { .joint = HSD_DatImportGraph(&import, joint, DAT_JOINT) };
             if (model.joint && animated)
                 model.animjoint = HSD_DatImportGraph(&import, animation, DAT_ANIMJOINT);
             if (model.joint && (!animated || model.animjoint) && material_animated)
                 model.matanim_joint = HSD_DatImportGraph(&import, material, DAT_MATANIM_JOINT);
+            FtModelCounts counts;
             if (model.joint && (!animated || model.animjoint) &&
-                (!material_animated || model.matanim_joint)) {
-                effect->model = (EF_EffectDesc){ .lifetime = effect->lifetime, .model_desc = model };
+                (!material_animated || model.matanim_joint) &&
+                ftCostumeAssets_ValidateModel(model.joint, model.animjoint, model.matanim_joint,
+                                              NATIVE_MODEL_MAX_MESHES, &counts) == FT_MODEL_VALID &&
+                counts.construction_units <= EF_MODEL_UNITS_PER_TICK) {
+                effect->model = (EF_EffectDesc){ .lifetime = effect->lifetime, .model_desc = model,
+                    .model_units = counts.construction_units < EF_MODEL_MIN_UNITS ?
+                        EF_MODEL_MIN_UNITS : counts.construction_units };
+                remaining->arena_bytes -= capacity;
+                remaining->texture_bytes -= import.decoded_texture_bytes;
+                remaining->display_bytes -= import.display_list_bytes;
                 return true;
             }
         }
@@ -121,6 +144,8 @@ static bool import_effect_model(const NativeSourceResourceEntry* resource,
 
 static bool prepare_effect_models(NativeSourcePackage* package, NativeScriptDiagnostic* d)
 {
+    EffectModelBudget remaining = {FT_COSTUME_IMPORT_MAX_ARENA_SIZE,
+                                    NATIVE_MODEL_MAX_TEXTURE_BYTES, NATIVE_MODEL_MAX_DISPLAY_BYTES};
     for (unsigned i = 0; i < package->program.effects.count; ++i) {
         NativeScriptEffectProgram* effect = &package->program.effects.programs[i];
         const NativeScriptSourceSpan path = effect->model_path;
@@ -131,7 +156,7 @@ static bool prepare_effect_models(NativeSourcePackage* package, NativeScriptDiag
         name[path.length] = 0;
         const NativeSourceResourceEntry* resource =
             nativeSourceResources_Find(&package->resources, name, NativeSourceResource_Blob);
-        if (!resource || !import_effect_model(resource, effect, &package->effect_arenas[i])) {
+        if (!resource || !import_effect_model(resource, effect, &package->effect_arenas[i], &remaining)) {
             d->source = path;
             snprintf(d->message, sizeof(d->message), "Could not load effect model '%s' and its animations", name);
             return false;
@@ -170,7 +195,7 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
        !nativeSourceDeclarations_Prepare(&package->compiler.bank.tree,&facts,&facts,d)||
        !nativeSourceAssets_Import(&facts,&package->owned_input.assets,target,&package->assets,d)||
        !nativeSourceMotionPolicy_Prepare(&package->compiler.bank.tree,ftData_MotionStateList,&package->assets,d)||
-       !nativeSourceEntityAssets_Prepare(&package->entities,&package->assets,&package->owned_input.assets,
+       !nativeSourceEntityAssets_Prepare(&package->entities,&package->assets,
                                         &package->resources,&package->compiler.bank.tree,d))goto failure;
     package->metadata=(NativeScriptItemMetadataContext){.motions=&package->assets.facts.moves,.assets=package->entities.rows,.asset_count=package->entities.count,.source_facts=&package->assets.facts,.source_assets=&package->assets};
     package->parameters.fighter=(NativeScriptMetadataDat){package->owned_input.assets.fighter,package->owned_input.assets.fighter_bytes,package->assets.facts.fighter_root};
@@ -190,6 +215,7 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
     }
     if(fighters!=1||independent!=1){error(d,"Source package requires exactly one independent Fighter declaration");goto failure;}
     if(!nativeScriptFighter_PrepareProgram(target,&package->compiler.bank,&package->assets.facts.moves,&package->metadata,&package->program,d)||
+       !nativeSourceAssets_ValidateExternalParts(&package->assets,&package->program.items,d)||
        !prepare_effect_models(package,d)||
        !nativeSourceBank_Stats(&package->compiler,&package->stats)||
        !nativeSourceItemVisuals_Prepare(&package->visuals,&package->program.items,d))goto failure;

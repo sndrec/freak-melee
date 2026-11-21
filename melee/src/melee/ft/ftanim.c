@@ -3,6 +3,7 @@
 #include "native_fighter_lifetime.h"
 #endif
 #include "ftanim.h"
+#include "ftanim_track_parts.h"
 
 #include <placeholder.h>
 
@@ -88,7 +89,11 @@ void ftAnim_8006EDD0(Fighter* fp, int arg1, float arg8, float arg9)
     HSD_JObj* jobj = fp->x8AC_animSkeleton;
     ftAnim_80070758(jobj);
     ftAnim_8006FB88(fp, FtPart_TransN, fp->x108_costume_joint->child);
+#ifdef MELEE_NATIVE
+    ftAnim_8006F7C8(fp, FtPart_TopN, true, ftData_80085E50(fp, arg1));
+#else
     ftAnim_80070A10(fp, FtPart_TopN, ftData_80085E50(fp, arg1));
+#endif
     ftAnim_80070710(jobj, arg8);
     temp_ret = ftData_80085FD4(fp, arg1);
     if (temp_ret->x10_animCurrFlags & (1 << 1)) {
@@ -246,9 +251,12 @@ void ftAnim_8006F628(Fighter* fp, Fighter_Part part, bool do_blending)
     kind = fp->x597_bits;
     temp_r25 = fp->parts[part].xC;
 
+    // A partial animation can start on a receiver-only bone beyond the donor rig.
+    if ((unsigned)part >= ftPartsTable[kind]->parts_num) return;
     while (i < part) {
         temp_r3 = ftParts_8007506C(kind, i);
         if (temp_r3 == 0 || temp_r3 & x594_bits) {
+            if (*cur_node == -1) return;
             cur_track = &cur_track[*cur_node++];
         }
         i++;
@@ -261,7 +269,9 @@ void ftAnim_8006F628(Fighter* fp, Fighter_Part part, bool do_blending)
             }
             i++;
         }
-        if (fp->parts[i].xC <= temp_r25 && i != part) {
+        if ((unsigned)i >= ftPartsTable[kind]->parts_num ||
+            (unsigned)i >= ftPartsTable[fp->kind]->parts_num ||
+            (fp->parts[i].xC <= temp_r25 && i != part)) {
             break;
         }
 
@@ -294,7 +304,8 @@ void ftAnim_8006F7C8(Fighter* ft, Fighter_Part part, int arg2, FigaTree* tree)
     int r29;
     int i;
     int r27;
-    int r22;
+    unsigned count = ftPartsTable[ft->kind]->parts_num;
+    if ((unsigned)part >= count) return;
     PAD_STACK(8);
 
     nodes = tree->nodes;
@@ -305,58 +316,24 @@ void ftAnim_8006F7C8(Fighter* ft, Fighter_Part part, int arg2, FigaTree* tree)
     for (i = 0; i < part; i++) {
         u32 r3 = ftParts_8007506C(ft->kind, i);
         if (r3 == 0 || r3 & r29) {
+            if (*nodes == -1) return;
             tracks = &tracks[*nodes];
             nodes += 1;
         }
     }
 
-    r22 = i;
-
     while (*nodes != -1) {
-        FighterBone* r3 = &ft->parts[r22];
-        int r21;
-
-        while (!r3->flags_b1) {
-            r3 += 1;
-            i += 1;
-            r22 += 1;
-        }
-
-        r21 = i;
-
-        while (true) {
-            u32 r3;
-            if (!ft->parts[r21].flags_b2) {
-                break;
-            }
-
-            r3 = ftParts_8007506C(ft->kind, i);
-            if (r3 == 0 || r3 & r29) {
-                break;
-            }
-
-            r21 += 1;
-            i += 1;
-            r22 += 1;
-        }
-
-        if (ft->parts[r22].xC <= r27 && i != part) {
-            break;
-        }
-
-        if (!ft->parts[r22].flags_b0 && !ft->parts[r22].flags_b5) {
-            HSD_JObj* r3;
-            if (arg2) {
-                r3 = ft->parts[r22].x4_jobj2;
-            } else {
-                r3 = ft->parts[r22].joint;
-            }
-            lbAnim_8001E6D8(r3, tree, tracks, *nodes);
+        i = ftAnim_NextTrackPart(ft, i, count);
+        if ((unsigned)i == count) break;
+        FighterBone* bone = &ft->parts[i];
+        if (bone->flags_b1) {
+            if (bone->xC <= r27 && i != part) break;
+            if (!bone->flags_b0 && !bone->flags_b5)
+                lbAnim_8001E6D8(arg2 ? bone->x4_jobj2 : bone->joint, tree, tracks, *nodes);
         }
 
         tracks = &tracks[*nodes];
         i += 1;
-        r22 += 1;
         nodes += 1;
     }
 }
@@ -621,6 +598,7 @@ void ftAnim_80070904(Fighter* fp, Fighter_Part start, HSD_AnimJoint* animjoint)
     }
 }
 
+#ifndef MELEE_NATIVE
 void ftAnim_80070A10(Fighter* ft, Fighter_Part part, FigaTree* tree)
 {
     /// @todo inline this
@@ -690,6 +668,8 @@ void ftAnim_80070A10(Fighter* ft, Fighter_Part part, FigaTree* tree)
         nodes += 1;
     }
 }
+
+#endif
 
 void ftAnim_ApplyPartAnim(Fighter_GObj* gobj, s32 arg1, s32 arg2, f32 arg3)
 {

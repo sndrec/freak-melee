@@ -413,10 +413,13 @@ void fn_8025A310(HSD_GObj* gobj)
     }
     HSD_JObjGetTranslation(jobj, &sp1C);
 #ifdef MELEE_NATIVE
-    uint8_t shared_tile;
-    if (nativeOnlineSss_ReadCursor(&sp1C.x, &sp1C.y, &shared_tile))
-        mnStageSel_804D6CAE = shared_tile;
     bool moved = mnStageSel_804D6CAC != 0 || mnStageSel_804D6CAD != 0;
+    uint8_t shared_tile;
+    if (nativeOnlineSss_ReadCursor(&sp1C.x, &sp1C.y, &shared_tile, moved)) {
+        mnStageSel_804D6CAE = shared_tile;
+        HSD_JObjSetTranslate(jobj, &sp1C);
+        return;
+    }
 #endif
     sp1C.x = 0.03f * mnStageSel_804D6CAC + sp1C.x;
     if (-27.0F > sp1C.x) {

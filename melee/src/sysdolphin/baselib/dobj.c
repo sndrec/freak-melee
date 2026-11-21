@@ -210,7 +210,8 @@ HSD_DObj* HSD_DObjLoadDesc(HSD_DObjDesc* desc)
     }
 
     if (desc->class_name == NULL ||
-        (info = hsdSearchClassInfo(desc->class_name)) == NULL)
+        (info = hsdSearchClassInfo(desc->class_name)) == NULL ||
+        !hsdIsDescendantOf(info, &hsdDObj))
     {
         dobj = HSD_DObjAlloc();
     } else {

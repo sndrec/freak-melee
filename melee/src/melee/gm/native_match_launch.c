@@ -488,35 +488,13 @@ static bool resolve_fighter_packages(const NativeContentId packages[4],
         ids[index] = *id;
         ++count;
     }
-    char default_root[512];
-    const char* root = launch.content_root;
-    if (count != 0 && root == NULL) {
-        if (!nativeContentStore_DefaultRoot(default_root,
-                                            sizeof(default_root)))
-        {
-            return false;
-        }
-        root = default_root;
-    }
-    if (stage) {
-        if (!nativeFighterRuntime_StageCached(ids, count, root,
-                                              require_installed)) {
-            fputs("Selected custom fighter could not be prepared.\n", stderr);
-            return false;
-        }
-    } else {
-        for (unsigned index = 0; index < count; ++index) {
-            const NativeContentId* id = &ids[index];
-            if ((require_installed &&
-                 !nativeContentStore_IsInstalled(root, id)) ||
-                !nativeFighterRuntime_ValidateCached(id, root))
-            {
-                fprintf(stderr,
-                        "Custom fighter %u is missing or incompatible.\n",
-                        index + 1);
-                return false;
-            }
-        }
+    // Direct launches assign slots before opening the disc, so replay and
+    // peers agree on the signature. Match preparation checks the packages
+    // against the mounted disc when it stages them.
+    if (stage && !nativeFighterRuntime_StageCached(
+                     ids, count, launch.content_root, require_installed)) {
+        fputs("Selected custom fighter could not be prepared.\n", stderr);
+        return false;
     }
     for (unsigned port = 0; port < 4; ++port) {
         for (unsigned index = 0; index < count; ++index) {
@@ -570,6 +548,10 @@ static bool resolve_direct_fighters(void)
     }
     for (unsigned port = 0; port < 4; ++port) {
         if (launch.fighter_package_explicit[port]) {
+            if (kinds[port] == ChKind_None) {
+                fprintf(stderr, "P%u needs a nonzero fighter package ID.\n", port + 1);
+                return false;
+            }
             launch.slots[port].character = kinds[port];
         }
     }
@@ -1256,29 +1238,6 @@ int nativeMatchLaunch_Parse(int argc, char** argv, const char** iso_path)
                     port + 1);
             return -1;
         }
-        uint8_t color = launch.teams
-                            ? team_costume(launch.slots[port].character,
-                                           launch.slots[port].team)
-                            : launch.slots[port].color;
-        const NativeContentId empty_id = { 0 };
-        bool custom = memcmp(&launch.fighter_packages[port], &empty_id,
-                             sizeof(empty_id)) != 0;
-        bool loaded = custom
-            ? nativeCostumeRuntime_LoadCustom(
-                  port, &launch.costume_packages[port],
-                  &launch.fighter_packages[port],
-                  Ft_Kind_CustomFirst +
-                      (launch.slots[port].character - ChKind_CustomFirst) * NATIVE_FIGHTER_FAMILY_MEMBERS,
-                  launch.content_root, true)
-            : nativeCostumeRuntime_LoadInstalled(
-                  port, &launch.costume_packages[port],
-                  launch.slots[port].character, color, launch.content_root);
-        if (!loaded) {
-            fprintf(stderr,
-                    "P%u skin is missing, not installed, or incompatible "
-                    "with the selected fighter/color.\n", port + 1);
-            return -1;
-        }
     }
     if ((launch.script_kind!=NULL)!=(launch.script_source!=NULL) ||
         (launch.script_source && (!launch.direct || launch.netplay.enabled))) {
@@ -1308,6 +1267,29 @@ bool nativeMatchLaunch_PrepareDirectFighters(void)
         fputs("Could not prepare selected custom fighters.\n", stderr);
         launch.direct_prepare_failed = true;
         return false;
+    }
+    for (unsigned port = 0; port < 4; ++port) {
+        if (!launch.costume_package_explicit[port]) continue;
+        const NativeMatchSlot* slot = &launch.slots[port];
+        bool loaded;
+        if (launch.fighter_package_explicit[port]) {
+            const int kind = Ft_Kind_CustomFirst +
+                (slot->character - ChKind_CustomFirst) * NATIVE_FIGHTER_FAMILY_MEMBERS;
+            loaded = nativeCostumeRuntime_LoadCustom(
+                port, &launch.costume_packages[port], &launch.fighter_packages[port],
+                kind, launch.content_root, true);
+        } else {
+            const uint8_t color = launch.teams ? team_costume(slot->character, slot->team) : slot->color;
+            loaded = nativeCostumeRuntime_LoadInstalled(port, &launch.costume_packages[port],
+                                                        slot->character, color, launch.content_root);
+        }
+        if (!loaded) {
+            fprintf(stderr, "P%u skin is missing, not installed, or incompatible with the selected fighter/color.\n",
+                    port + 1);
+            nativeCostumeRuntime_Clear();
+            launch.direct_prepare_failed = true;
+            return false;
+        }
     }
     launch.direct_prepared = true;
     return true;

@@ -15,6 +15,7 @@ static void test_effect_controls(void)
     efLib_AnimCount=2;efLib_AnimQueue[0]=models[0];efLib_AnimQueue[1]=models[1];
     efLib_AnimQueue[31]=(void*)1; // dormant drain tail is never followed
     efLib_LoadKind=0;efLib_EffectCount=2;efLib_AllocationSerial=991;
+    efLib_Usage=(EF_EffectUsage){.model_units_this_tick=128,.requests_this_tick=2,.live_model_units=256};
     efLib_SetParamAlpha(objects[0],120);efLib_SetParamGfxId(objects[0],1017);
     efLib_SetParamAlpha(objects[1],200);efLib_SetParamGfxId(objects[1],1019);
     nativeEffectControl_BeginScene();
@@ -24,10 +25,14 @@ static void test_effect_controls(void)
     CHECK(nativeClass_Save(stage_graph_saved,sizeof(stage_graph_saved),&cb));
     for(unsigned pass=0;pass<2;++pass) {
         CHECK(nativeEffectControl_Load(&saved,sizeof(saved)));
+        CHECK(efLib_Usage.model_units_this_tick==128 && efLib_Usage.live_model_units==256);
+        CHECK(efLib_Usage.requests_this_tick==2);
         for(unsigned frame=0;frame<16;++frame) {
             efLib_SetParamAlpha(objects[frame%2],(u8)(frame*7));
             efLib_SetParamGfxId(objects[frame%2],1000+frame);
             efLib_LoadKind=frame%2;++efLib_AllocationSerial;efLib_EffectCount+=frame;
+            efLib_Usage.model_units_this_tick+=frame;efLib_Usage.live_model_units+=frame;
+            ++efLib_Usage.requests_this_tick;
         }
         CHECK(nativeEffectControl_Save(pass ? &repeat : &end,sizeof(end),&bytes));
     }
@@ -36,6 +41,9 @@ static void test_effect_controls(void)
     CHECK(!nativeEffectControl_Load(&bad,sizeof(bad)));CHECK(nativeEffectControl_Save(&after,sizeof(after),&bytes)); \
     CHECK(!memcmp(&after,&saved,sizeof(saved)));++effect_control_refusals;}while(0)
     REJECT(++bad.epoch);REJECT(bad.load_kind=2);REJECT(bad.animation_count=-1);REJECT(bad.animation_count=33);
+    REJECT(bad.usage.model_units_this_tick=EF_MODEL_UNITS_PER_TICK+1);
+    REJECT(bad.usage.requests_this_tick=EF_MAX_QUEUED_EFFECTS+1);
+    REJECT(bad.usage.live_model_units=EF_MODEL_LIVE_UNITS+1);
     REJECT(bad.parameters[1].gobj=(void*)1);REJECT(bad.objects[1].generation=0);
     REJECT(bad.animations[1]=(void*)1);REJECT(++bad.joints[1].offset);
     REJECT(bad.joint_types[1]=&test_class);REJECT(bad.joint_types[31]=&stage_joint_class);

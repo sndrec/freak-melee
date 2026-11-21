@@ -39,7 +39,7 @@ static bool import_scripts(HSD_DatImport* import, u32 table,
         u32 end;
         if (!local(import, table + index * 4, &source)) return false;
         at = source;
-        end = HSD_DatNextTarget(import->dat, source);
+        end = HSD_DatImportNextTarget(import, source);
         bool terminated = false;
         while (at < end) {
             const u8* command = HSD_DatBytes(import->dat, at, 1);
@@ -79,7 +79,7 @@ static bool import_attacks(HSD_DatImport* import, u32 table,
     for (u32 fighter = 0; fighter < FT_CPU_FIGHTER_COUNT; ++fighter) {
         u32 source;
         if (!local(import, table + fighter * 4, &source)) return false;
-        u32 end = HSD_DatNextTarget(import->dat, source);
+        u32 end = HSD_DatImportNextTarget(import, source);
         u32 count;
         for (count = 0; count <= FT_CPU_ATTACK_MAX_ENTRIES; ++count) {
             if (source > end ||
@@ -121,7 +121,7 @@ bool ftCpuData_Import(HSD_DatImport* import, u32 source, FtCpuData* output)
     if (output == NULL || (source & 3) != 0 ||
         source > import->dat->data_size ||
         import->dat->data_size - source < 48 ||
-        HSD_DatNextTarget(import->dat, source) - source != 48)
+        HSD_DatImportNextTarget(import, source) - source != 48)
         return fail(import, HSD_DAT_DESCRIPTOR, source);
     memset(output, 0, sizeof(*output));
     u32 tail0, tail1;
@@ -135,7 +135,7 @@ bool ftCpuData_Import(HSD_DatImport* import, u32 source, FtCpuData* output)
                             : i == 9 ? 6 * 4
                                      : FT_CPU_FIGHTER_COUNT * 4;
         if (!local(import, source + i * 4, &tables[i]) ||
-            HSD_DatNextTarget(import->dat, tables[i]) - tables[i] !=
+            HSD_DatImportNextTarget(import, tables[i]) - tables[i] !=
                 expected_size)
             return fail(import, HSD_DAT_DESCRIPTOR, source + i * 4);
     }

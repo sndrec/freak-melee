@@ -1,6 +1,7 @@
 import { env, exports } from "cloudflare:workers";
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
+import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { Buffer } from "node:buffer";
 import { accountKey, type KeyChallenge } from "./account-key";
 import { secret } from "../src/account-protocol";
 
@@ -33,6 +34,34 @@ function fixture() {
 }
 
 describe("persistent account-key accounts", () => {
+  it("stores sign-up data only for a valid request and retires abandoned registrations", async () => {
+    const f = fixture(), key = accountKey();
+    const hasTables = () => runInDurableObject(f.stub, (_instance, state) =>
+      state.storage.sql.exec("SELECT name FROM sqlite_schema WHERE name='account'").toArray().length !== 0);
+    async function status(promise: Promise<Response>) {
+      const response = await promise;
+      await response.arrayBuffer();
+      return response.status;
+    }
+    expect(await status(f.request("profile"))).toBe(404);
+    expect(await f.stub.lookupProfile()).toBeNull();
+    expect(await status(f.request("login/options", {public_key:key.publicKey}))).toBe(404);
+    expect(await status(f.request("register/options", {public_key:"invalid"}))).toBe(400);
+    expect(await hasTables()).toBe(false);
+    await f.challenge("register", key);
+    expect(await hasTables()).toBe(true);
+    await evictDurableObject(f.stub);
+    await runDurableObjectAlarm(f.stub);
+    expect(await hasTables()).toBe(true);
+    await runInDurableObject(f.stub, (_instance, state) => state.storage.sql.exec("UPDATE key_challenges SET expires=0").toArray());
+    await runDurableObjectAlarm(f.stub);
+    expect(await hasTables()).toBe(false);
+    const { grant } = await f.create();
+    await evictDurableObject(f.stub);
+    await runDurableObjectAlarm(f.stub);
+    expect((await f.request("me", undefined, grant.token)).status).toBe(200);
+    expect((await f.stub.lookupProfile())?.id).toBe(grant.profile.id);
+  });
   it("registers and signs in with real Ed25519 proofs, persisting public identity and public keys", async () => {
     const f = fixture(), { key, grant } = await f.create();
     expect(grant.profile).toMatchObject({ handle: f.handle, name: f.handle, bio: "" });
@@ -89,6 +118,42 @@ describe("persistent account-key accounts", () => {
     expect((await f.request("login/options", { public_key: key.publicKey })).status).toBe(401);
     expect((await f.login(replacement)).profile.id).toBe(grant.profile.id);
   });
+  it("cancels a removed key's outstanding proofs, including after the same key is enrolled again", async () => {
+    const f = fixture(), { key, grant } = await f.create(), retained = accountKey(), another = accountKey();
+    await f.finish("add", retained, await f.challenge("add", retained, {}, grant.token), grant.token);
+    const active = await f.login(retained);
+    const login = await f.challenge("login", key);
+    const add = await f.challenge("add", another, {}, grant.token);
+    const keptLogin = await f.challenge("login", retained);
+    expect((await f.request("keys/remove", {id: key.publicKey}, active.token)).status).toBe(200);
+    await f.finish("add", key, await f.challenge("add", key, {}, active.token), active.token);
+    expect((await f.request("login/finish", key.proof(f.handle, login))).status).toBe(400);
+    expect((await f.request("add/finish", another.proof(f.handle, add), active.token)).status).toBe(400);
+    expect((await f.finish("login", retained, keptLogin)).profile.id).toBe(grant.profile.id);
+    expect((await f.login(key)).profile.id).toBe(grant.profile.id);
+  });
+  it("keeps key management and recovery available when public login slots fill", async () => {
+    const f = fixture(), { key, grant } = await f.create(), replacement = accountKey();
+    for (let i=0; i<16; ++i) await f.challenge("login", key);
+    expect((await f.request("login/options", {public_key:key.publicKey})).status).toBe(429);
+    for (let i=0; i<4; ++i) await f.challenge("reauth", key, {}, grant.token);
+    expect((await f.request("reauth/options", {public_key:key.publicKey}, grant.token)).status).toBe(429);
+    const recovery = {recovery_code:grant.recovery_code};
+    const first = await f.challenge("recover", replacement, recovery);
+    await f.challenge("recover", replacement, recovery);
+    expect((await f.request("recover/options", {...recovery,public_key:replacement.publicKey})).status).toBe(429);
+    const restored = await f.finish("recover", replacement, first);
+    // Previous versions stored Web Crypto's SHA-256 digest, encoded as unpadded base64url.
+    const hash = async (value: string) => Buffer.from(await crypto.subtle.digest("SHA-256",
+      new TextEncoder().encode(value))).toString("base64url");
+    const stored = await runInDurableObject(f.stub, (_instance,state) => ({
+      recovery: state.storage.sql.exec("SELECT recovery_hash FROM account").one().recovery_hash,
+      session: state.storage.sql.exec("SELECT hash FROM sessions").one().hash,
+    }));
+    expect(stored).toEqual({recovery: await hash(restored.recovery_code), session: await hash(restored.token)});
+    expect((await f.request("me", undefined, grant.token)).status).toBe(401);
+    expect((await f.login(replacement)).profile.id).toBe(grant.profile.id);
+  });
   it("rejects expired attempts/sessions and bounds untrusted JSON and key material", async () => {
     const f = fixture(), key = accountKey(), attempt = await f.challenge("register", key);
     await runInDurableObject(f.stub, (_instance, state) => { state.storage.sql.exec("UPDATE key_challenges SET expires=0"); });
@@ -131,6 +196,10 @@ describe("persistent account-key accounts", () => {
   it("revokes devices and rotates recovery codes while keeping identity", async () => {
     const f = fixture(), { key, grant } = await f.create(), second = await f.login(key);
     const me = await (await f.request("me", undefined, grant.token)).json<{ sessions: {id: string; current: boolean}[] }>();
+    await runInDurableObject(f.stub, (_instance, state) => { state.storage.sql.exec("UPDATE sessions SET verified=0"); });
+    expect((await f.request("sessions/revoke", { id: me.sessions.find(session => !session.current)!.id }, grant.token)).status).toBe(403);
+    expect((await f.request("me", undefined, second.token)).status).toBe(200);
+    await f.finish("reauth", key, await f.challenge("reauth", key, {}, grant.token), grant.token);
     expect((await f.request("sessions/revoke", { id: me.sessions.find(session => !session.current)!.id }, grant.token)).status).toBe(200);
     expect((await f.request("me", undefined, second.token)).status).toBe(401);
     const rotated = await (await f.request("recovery/rotate", {}, grant.token)).json<{ recovery_code: string }>();

@@ -204,7 +204,7 @@ static bool parse_color(const char* text, long* color)
     return *text != '\0' && *end == '\0' && *color >= 0 && *color <= 255;
 }
 
-static bool read_file(const char* path, uint8_t** bytes, size_t* size)
+static bool read_file(const char* path, uint8_t** bytes, size_t* size, size_t limit)
 {
     FILE* file = fopen(path, "rb");
     if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
@@ -214,7 +214,7 @@ static bool read_file(const char* path, uint8_t** bytes, size_t* size)
         return false;
     }
     long length = ftell(file);
-    if (length < 0 || length > NATIVE_CONTENT_MAX_PACKAGE_BYTES ||
+    if (length < 0 || (size_t)length > limit ||
         fseek(file, 0, SEEK_SET) != 0) {
         fclose(file);
         return false;
@@ -260,7 +260,7 @@ static int inspect_fighter(const char* path, const char* root_name,
     }
     uint8_t* bytes = NULL;
     size_t size = 0;
-    if (!read_file(path, &bytes, &size)) {
+    if (!read_file(path, &bytes, &size, NATIVE_CONTENT_MAX_ASSET_BYTES)) {
         fprintf(stderr, "Could not read fighter DAT: %s\n", path);
         return 1;
     }
@@ -300,7 +300,7 @@ static int inspect_fighter(const char* path, const char* root_name,
         void* animation_arena = malloc(FT_ANIMATION_IMPORT_ARENA_SIZE);
         FtAnimationBankStats stats = { 0 };
         bool readable = read_file(animation_path, &animation_bytes,
-                                  &animation_size);
+                                  &animation_size, NATIVE_CONTENT_MAX_ASSET_BYTES);
         bool imported = readable && animation_arena != NULL &&
                 ftAnimationBank_Import(
                     animation_bytes, animation_size,
@@ -346,7 +346,7 @@ static int inspect_costume(const char* path, const char* joint_name,
 {
     uint8_t* bytes = NULL;
     size_t size = 0;
-    if (!read_file(path, &bytes, &size)) {
+    if (!read_file(path, &bytes, &size, NATIVE_CONTENT_MAX_ASSET_BYTES)) {
         fprintf(stderr, "Could not read costume DAT: %s\n", path);
         return 1;
     }
@@ -355,12 +355,14 @@ static int inspect_costume(const char* path, const char* joint_name,
         bytes, size, joint_name, matanim_name, assets);
     if (valid) {
         printf("Costume DAT imported: %lu records, %zu arena bytes, "
-               "%u joints, root scale %.4f %.4f %.4f\n",
+               "%u joints, root scale %.4f %.4f %.4f, "
+               "%zu decoded texture bytes, %zu display-list bytes\n",
                (unsigned long) assets->import.record_count,
                assets->import.arena_used,
                (unsigned) assets->joint_count,
                assets->joint->scale.x, assets->joint->scale.y,
-               assets->joint->scale.z);
+               assets->joint->scale.z, assets->import.decoded_texture_bytes,
+               assets->import.display_list_bytes);
     } else if (assets != NULL) {
         fprintf(stderr,
                 "Costume DAT import failed: status=%d offset=0x%lx "
@@ -391,9 +393,7 @@ static bool valid_package(const char* root, const uint8_t* package, size_t size,
                                              validation);
     }
     NativeFighterPackage fighter;
-    NativeFighterPackageData fighter_data;
-    return nativeContentStore_ParseFighter(package, size, &fighter,
-                                           &fighter_data);
+    return nativeContentStore_ParseFighter(package, size, &fighter, NULL);
 }
 
 static int import_costume(const char* root, const char* path,
@@ -409,7 +409,7 @@ static int import_costume(const char* root, const char* path,
     }
     uint8_t* dat = NULL;
     size_t dat_size = 0;
-    if (!read_file(path, &dat, &dat_size)) {
+    if (!read_file(path, &dat, &dat_size, NATIVE_CONTENT_MAX_PACKAGE_BYTES)) {
         fprintf(stderr, "Could not read costume DAT: %s\n", path);
         return 1;
     }
@@ -465,9 +465,8 @@ static int import_custom_costume(const char* root, const char* path,
     uint8_t* parent = NULL;
     size_t parent_size = 0;
     NativeFighterPackage family;
-    NativeFighterPackageData family_data;
     if (!nativeContentStore_Read(root, &metadata.fighter_id, &parent, &parent_size) ||
-        !nativeContentStore_ParseFighter(parent, parent_size, &family, &family_data)) {
+        !nativeContentStore_ParseFighter(parent, parent_size, &family, NULL)) {
         free(parent);
         fputs("Could not read the parent fighter family.\n", stderr);
         return 1;
@@ -489,7 +488,8 @@ static int import_custom_costume(const char* root, const char* path,
         int length = directory ? snprintf(filename, sizeof(filename), "%s/%s.dat", path, family.members[m].key)
                                : snprintf(filename, sizeof(filename), "%s", path);
         ok = length > 0 && length < sizeof(filename) &&
-             read_file(filename, &owned[m], &data.members[m].size);
+             read_file(filename, &owned[m], &data.members[m].size,
+                       NATIVE_CONTENT_MAX_PACKAGE_BYTES);
         data.members[m].dat = owned[m];
         if (!ok) fprintf(stderr, "Could not read outfit model for member %s.\n", family.members[m].key);
     }
@@ -1594,7 +1594,7 @@ static int cache_package(const char* root, const char* path)
 {
     uint8_t* package = NULL;
     size_t size = 0;
-    if (!read_file(path, &package, &size)) {
+    if (!read_file(path, &package, &size, NATIVE_CONTENT_MAX_PACKAGE_BYTES)) {
         fprintf(stderr, "Could not read package: %s\n", path);
         return 1;
     }
@@ -1634,9 +1634,7 @@ static int accept_package(const char* root, const char* hex)
         return 1;
     }
     NativeFighterPackage fighter;
-    NativeFighterPackageData fighter_data;
-    if (nativeContentStore_ParseFighter(package, size, &fighter,
-                                        &fighter_data)) {
+    if (nativeContentStore_ParseFighter(package, size, &fighter, NULL)) {
         free(package);
         if (nativeSourceContentTool_Verify(root,hex) != 0 || !nativeContentStore_Install(root,&id)) {
             fputs("Source fighter validation or installation failed.\n",stderr);return 1;
@@ -1693,7 +1691,6 @@ static int list_packages(const char* root)
         NativeCostumePackage costume;
     NativeCostumePackageData costume_data;
         NativeFighterPackage fighter;
-        NativeFighterPackageData fighter_data;
         if (!nativeContentStore_Read(root, &ids[i], &package, &size)) {
             free(package);
             continue;
@@ -1716,8 +1713,7 @@ static int list_packages(const char* root)
                 printf("%s  %s  %s (base color %u)\n", hex,
                        costume.title, character, costume.base_costume);
             }
-        } else if (nativeContentStore_ParseFighter(package, size, &fighter,
-                                                   &fighter_data)) {
+        } else if (nativeContentStore_ParseFighter(package, size, &fighter, NULL)) {
             printf("%s  %s  fighter family (%u member%s)\n", hex, fighter.title,
                    fighter.member_count, fighter.member_count == 1 ? "" : "s");
             for (unsigned member = 0; member < fighter.member_count; ++member)

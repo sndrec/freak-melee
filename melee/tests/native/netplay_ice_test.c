@@ -102,12 +102,15 @@ int main(void)
     require(wait_for_connection(&first, &second),
             "two local ICE agents select a candidate pair");
 
-    static const uint8_t first_message[] = { 0x46, 0x4D, 0x49, 0x31, 0xA5 };
+    uint8_t first_message[NATIVE_CONTENT_TRANSFER_PACKET_CAPACITY];
+    for (size_t i = 0; i < sizeof(first_message); ++i) {
+        first_message[i] = (uint8_t)(37 * i);
+    }
     static const uint8_t second_message[] = { 0x46, 0x4D, 0x49, 0x31, 0x5A };
     require(
-        nativeNetplayIce_Send(&first, first_message, sizeof(first_message)) &&
+        nativeNetplayIce_Send(&first, first_message, sizeof(first_message)) == NativeNetplayIceSend_Sent &&
             nativeNetplayIce_Send(&second, second_message,
-                                  sizeof(second_message)),
+                                 sizeof(second_message)) == NativeNetplayIceSend_Sent,
         "send datagrams through the selected ICE pair");
     NativeNetplayIceDatagram first_received;
     NativeNetplayIceDatagram second_received;
@@ -120,7 +123,7 @@ int main(void)
                 second_received.size == sizeof(first_message) &&
                 memcmp(second_received.bytes, first_message,
                        sizeof(first_message)) == 0,
-            "ICE preserves opaque rollback datagrams in both directions");
+            "ICE preserves full-size fighter datagrams and small input datagrams");
 
     char first_local[NATIVE_NETPLAY_ICE_ADDRESS_CAPACITY];
     char first_remote[NATIVE_NETPLAY_ICE_ADDRESS_CAPACITY];

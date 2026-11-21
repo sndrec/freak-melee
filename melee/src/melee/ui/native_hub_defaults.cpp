@@ -61,9 +61,9 @@ namespace {
         if (!root) return false;
         NativeContentId& baseline = defaults.baseline[kind];
         uint8_t* packet = nullptr; size_t bytes = 0;
-        NativeFighterPackage metadata{}; NativeFighterPackageData spans{};
+        NativeFighterPackage metadata{};
         bool cached = nativeContentStore_Read(root, &baseline, &packet, &bytes) &&
-            nativeContentStore_ParseFighter(packet, bytes, &metadata, &spans);
+            nativeContentStore_ParseFighter(packet, bytes, &metadata, nullptr);
         if (cached) {
             for (unsigned i = 0; i < nativeHubFighterCount; ++i) {
                 const auto& fighter = nativeHubFighters[i]; NativeFighterFamilyProjectInfo info{};

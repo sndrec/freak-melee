@@ -18,6 +18,7 @@ export async function requireAdmin(request: Request, env: CloudflareBindings): P
   try {
     const { payload } = await jwtVerify(token, set, {
       issuer: `https://${domain}`, audience: env.ACCESS_AUDIENCE,
+      requiredClaims: ["exp"],
       algorithms: ["RS256"],
     });
     if (typeof payload.email !== "string" ||

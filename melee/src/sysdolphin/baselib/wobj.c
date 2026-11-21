@@ -134,7 +134,8 @@ HSD_WObj* HSD_WObjLoadDesc(HSD_WObjDesc* desc)
         HSD_WObj* wobj;
         HSD_ClassInfo* info;
         if (desc->class_name == NULL ||
-            !(info = hsdSearchClassInfo(desc->class_name)))
+            !(info = hsdSearchClassInfo(desc->class_name)) ||
+            !hsdIsDescendantOf(info, &hsdWObj))
         {
             wobj = HSD_WObjAlloc();
         } else {

@@ -108,7 +108,14 @@ Limits are 512 KiB of metadata, a 16 MiB PNG, an 8 MiB diagnostic capture,
 content returns the original receipt; reusing an ID with different content
 returns a conflict. Capture time belongs to the client's original F2 press.
 
-Attachments are stored before the completed report is committed. A scheduled
-scan checks 100 objects every ten minutes and removes unreferenced objects
-older than one day. Completed reports remain until an administrator deletes
-them. The report list includes the number of reports and their stored size.
+The inbox holds up to 4,096 reports and 2 GiB of screenshots and diagnostic
+captures. Each upload reserves a slot and its attachment bytes for 15 minutes.
+Saving the completed report converts the reservation to stored usage. Deleting a
+report frees that space. A full inbox accepts retries of reports it already holds.
+Apply the community D1 migrations before deploying the Worker.
+
+Completed reports stay in the inbox until an administrator deletes them.
+A scheduled scan checks 100 objects every ten minutes and removes unreferenced
+objects older than one day. This covers uploads that lost their database
+acknowledgment. The admin page previews the first 64 KiB of diagnostics and
+offers the full capture as a download.

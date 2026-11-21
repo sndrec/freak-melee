@@ -17,6 +17,8 @@ HSD_JObj* nativeModelJoint_Resolve(HSD_JObj* root, const char* path);
 // Missing joints read zero except scale and quaternion W, which read one.
 float nativeModelJoint_Read(HSD_JObj* joint, unsigned channel);
 void nativeModelJoint_Write(HSD_JObj* joint, unsigned channel, float value);
+// Place an effect at the requested Z angle, retaining its authored X/Y angles.
+void nativeModelJoint_SetRoll(HSD_JObj* joint, float radians);
 #endif
 
 #endif

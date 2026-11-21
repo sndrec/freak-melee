@@ -65,10 +65,10 @@ static bool depth_valid(unsigned color,unsigned depth)
     if(color==3)return depth==1||depth==2||depth==4||depth==8;
     return (color==2||color==4||color==6)&&(depth==8||depth==16);
 }
-static bool png(const uint8_t* data,size_t size,uint16_t* width,uint16_t* height)
+bool nativePng_Inspect(const uint8_t* data,size_t size,size_t byte_limit,uint16_t* width,uint16_t* height)
 {
     static const uint8_t signature[8]={137,80,78,71,13,10,26,10};
-    if(!data||size<57||size>NATIVE_SOURCE_RESOURCE_PNG_BYTES||memcmp(data,signature,8))return false;
+    if(!data||!width||!height||size<57||size>byte_limit||size>UINT32_MAX||memcmp(data,signature,8))return false;
     size_t at=8;uint32_t w=0,h=0,idat_bytes=0;unsigned color=0,depth=0,palette=0;
     bool header=false,image=false,image_end=false,transparency=false;
     while(at<size) {
@@ -111,7 +111,8 @@ bool nativeSourceResources_PNG(const void* bytes,size_t size,uint16_t* width,uin
     if(overlap(d,dn,bytes,size)||overlap(d,dn,width,sizeof(*width))||overlap(d,dn,height,sizeof(*height)))return false;
     uint16_t w,h;
     if(!width||!height||overlap(width,sizeof(*width),height,sizeof(*height))||
-       overlap(width,sizeof(*width),bytes,size)||overlap(height,sizeof(*height),bytes,size)||!png(bytes,size,&w,&h))
+       overlap(width,sizeof(*width),bytes,size)||overlap(height,sizeof(*height),bytes,size)||
+       !nativePng_Inspect(bytes,size,NATIVE_SOURCE_RESOURCE_PNG_BYTES,&w,&h))
         return error(d,dn,"Resource PNG framing, CRC, ordering or image dimensions are invalid");
     *width=w;*height=h;return true;
 }
@@ -133,7 +134,7 @@ static bool collect(const NativeSourceResourceInput* input,uint32_t count,uint8_
         if(!nativeSourceResources_NameValid(entry->name)||!entry->bytes||!entry->size)
             return error(d,dn,"Resource requires a canonical relative name and nonempty owned bytes");
         if((entry->kind==NativeSourceResource_Blob&&entry->size>NATIVE_SOURCE_RESOURCE_BLOB_BYTES)||
-           (entry->kind==NativeSourceResource_PNG&&!png(entry->bytes,entry->size,&w,&h))||
+           (entry->kind==NativeSourceResource_PNG&&!nativePng_Inspect(entry->bytes,entry->size,NATIVE_SOURCE_RESOURCE_PNG_BYTES,&w,&h))||
            (entry->kind!=NativeSourceResource_Blob&&entry->kind!=NativeSourceResource_PNG))
             return error(d,dn,"Resource kind, size or PNG structure is unsupported");
         if(entry->size>NATIVE_SOURCE_RESOURCE_BUNDLE_BYTES-total)return error(d,dn,"Resource bundle exceeds its reserved byte bound");
@@ -193,7 +194,7 @@ bool nativeSourceResources_Read(const void* bytes,size_t size,NativeSourceResour
         uint32_t kind=le32(row+128),offset=le32(row+132),length=le32(row+136);uint16_t w=0,h=0;
         if(offset!=at||!length||length>size-at)return error(d,dn,"Resource payload must be tightly packed and bounded");
         if((kind==NativeSourceResource_Blob&&length>NATIVE_SOURCE_RESOURCE_BLOB_BYTES)||
-           (kind==NativeSourceResource_PNG&&!png(data+at,length,&w,&h))||
+           (kind==NativeSourceResource_PNG&&!nativePng_Inspect(data+at,length,NATIVE_SOURCE_RESOURCE_PNG_BYTES,&w,&h))||
            (kind!=NativeSourceResource_Blob&&kind!=NativeSourceResource_PNG))return error(d,dn,"Resource payload kind, size or PNG structure is invalid");
         view.entries[i]=(NativeSourceResourceEntry){name,data+at,length,(NativeSourceResourceKind)kind,w,h};at+=length;
     }

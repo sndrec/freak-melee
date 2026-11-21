@@ -164,6 +164,9 @@ void efLib_Init(void)
     HSD_ObjAllocInit(&efLib_AllocData, sizeof(EF_Effect), 4U);
 
     efLib_EffectCount = 0;
+#ifdef MELEE_NATIVE
+    efLib_Usage = (EF_EffectUsage){0};
+#endif
 
     for (i = 0; i < 50; ++i) {
         efAsync_DatEntries[i].data = NULL;
@@ -385,6 +388,21 @@ void efLib_remove_user_data(void* user_data)
     EF_Effect* effect_2;
     effect = effect_2 = user_data;
 #ifdef MELEE_NATIVE
+    // A later member of the same spawn can retire an earlier one before the
+    // dispatcher evaluates its first animation frame.
+    for (s32 i = 0; i < efLib_AnimCount; ++i) {
+        if (efLib_AnimQueue[i] == effect->gobj->hsd_obj) {
+            --efLib_AnimCount;
+            memmove(&efLib_AnimQueue[i], &efLib_AnimQueue[i + 1],
+                    (efLib_AnimCount - i) * sizeof(efLib_AnimQueue[0]));
+            efLib_AnimQueue[efLib_AnimCount] = NULL;
+            break;
+        }
+    }
+    if (effect->native_model_units) {
+        efLib_Usage.live_model_units -= effect->native_model_units;
+        effect->native_model_units = 0;
+    }
     nativeScriptEffect_Detach(effect->gobj);
     nativeModelEffect_Remove(effect);
 #endif
@@ -422,7 +440,9 @@ void efLib_RemoveLast(void)
             if (efLib_EffectCount < 64) return;
         }
     }
+#ifndef MELEE_NATIVE
     HSD_ASSERTREPORT(77, 0, "can't remove no force effect!\n");
+#endif
 }
 
 void efLib_Update(HSD_GObj* gobj)
@@ -514,9 +534,22 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
     }
 
     const u8 load_kind = owned ? EF_LOADKIND_SYNC : efLib_LoadKind;
+#ifdef MELEE_NATIVE
+    const bool animated = desc->model_desc.animjoint || desc->model_desc.matanim_joint ||
+                          desc->model_desc.shapeanim_joint;
+    if (!owned && animated && (u32)efLib_AnimCount >= ARRAY_SIZE(efLib_AnimQueue)) return NULL;
+    const u32 units = owned ? owned->model_units : EF_MODEL_MIN_UNITS;
+    if (units < EF_MODEL_MIN_UNITS ||
+        units > EF_MODEL_UNITS_PER_TICK - efLib_Usage.model_units_this_tick ||
+        units > EF_MODEL_LIVE_UNITS - efLib_Usage.live_model_units) return NULL;
+    efLib_Usage.model_units_this_tick += units;
+#endif
     if (load_kind == EF_LOADKIND_ASYNC) {
         if (efLib_EffectCount >= 64) {
             efLib_RemoveLast();
+#ifdef MELEE_NATIVE
+            if (efLib_EffectCount >= 64) return NULL;
+#endif
         }
 
         efLib_EffectCount += 1;
@@ -541,6 +574,7 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
                 ++efLib_AllocationSerial;
             }
             new_effect->native_generation = efLib_AllocationSerial;
+            new_effect->native_model_units = units;
             new_effect->native_creator_generation = 0;
             new_effect->native_author = NULL;
             new_effect->native_policy = NULL;
@@ -579,6 +613,9 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
     }
     GObj_SetupGXLink(effect->gobj, HSD_GObj_JObjCallback, 7, 1);
     GObj_InitUserData(effect->gobj, 8, efLib_remove_user_data, effect);
+#ifdef MELEE_NATIVE
+    efLib_Usage.live_model_units += units;
+#endif
     {
         HSD_JObj* jobj = HSD_JObjLoadJoint(desc->model_desc.joint);
         if (jobj == NULL) {
@@ -614,10 +651,10 @@ EF_Effect* efLib_Create(int gfx_id, HSD_GObj* parent_gobj,
                     efLib_AnimQueue[temp_r5_2] = jobj;
 #else
                     ((HSD_JObj**) efLib_AnimQueue)[temp_r5_2] = jobj;
-#endif
                     if (efLib_AnimCount >= 32) {
                         HSD_ASSERTREPORT(224, 0, "Over Anime Call\n");
                     }
+#endif
                 }
             }
         }

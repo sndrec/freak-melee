@@ -1,12 +1,13 @@
 import { guestHeaders } from "./guest";
 import { env, exports } from "cloudflare:workers";
 import { evictDurableObject } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { MAX_MESSAGE_BYTES, RotationPolicy } from "../src/protocol";
 import { type TurnBindings, turnCredentialsResponse } from "../src/turn";
 import {
   ServerMessageType,
+  type CssPointers,
   type ServerMessage,
   decodeServerMessage,
   encodeRequestPresence,
@@ -22,6 +23,15 @@ import {
 } from "../src/wire";
 
 const worker = exports.default as unknown as Fetcher;
+const connections = new Map<WebSocket, Promise<void>>();
+
+afterEach(async () => {
+  for (const socket of connections.keys()) {
+    if (socket.readyState === WebSocket.OPEN) socket.close(1000, "Test complete");
+  }
+  await Promise.all(connections.values());
+  connections.clear();
+});
 
 interface DecodedTurnConfiguration {
   hasTurn: boolean;
@@ -123,6 +133,7 @@ async function connect(
   expect(response.status).toBe(101);
   expect(response.webSocket).not.toBeNull();
   const socket = response.webSocket!;
+  connections.set(socket, new Promise(resolve => socket.addEventListener("close", () => resolve(), { once: true })));
   socket.accept();
   return socket;
 }
@@ -144,6 +155,26 @@ describe("signaling worker", () => {
       expect(await received).toEqual({
         type: ServerMessageType.CssPointers, peerId: "hand_spec", pointers,
       });
+      const poses: CssPointers[] = [];
+      owner.binaryType = "arraybuffer";
+      const burst = new Promise<void>(resolve => {
+        const listen = (event: MessageEvent) => {
+          const packet = decodeServerMessage(event.data as ArrayBuffer);
+          if (packet.type !== ServerMessageType.CssPointers) return;
+          poses.push(packet.pointers);
+          if (poses.length === 3) {
+            owner.removeEventListener("message", listen);
+            resolve();
+          }
+        };
+        owner.addEventListener("message", listen);
+      });
+      const released = { ...pointers, held: 0 };
+      const moved = { ...released, points: [[-300, 4000], ...pointers.points.slice(1)] as [number, number][] };
+      const hidden = { ...moved, visible: 0 };
+      for (const pose of [released, moved, hidden]) spectator.send(encodeCssPointers(pose));
+      await burst;
+      expect(poses).toEqual([released, moved, hidden]);
     } finally {
       owner.close(1000, "test complete");
       spectator.close(1000, "test complete");

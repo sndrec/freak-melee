@@ -19,8 +19,8 @@ static struct NativeOnlineSssState {
     bool stage_submitted;
     bool fonts, dirty;
     uint64_t sent_ms;
-    uint32_t sequence, received_sequence;
-    char received_peer[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
+    uint32_t sequence, ignored_sequence;
+    char ignored_peer[NATIVE_SIGNALING_MAX_PEER_ID_BYTES + 1];
     NativeStageCursor sent;
 } online_sss;
 
@@ -98,7 +98,7 @@ NativeOnlineSssAction nativeOnlineSss_Pump(SSSData* sss,
             return NativeOnlineSssAction_Failed;
         online_sss.stage_submitted = true;
     } else if (nativeOnlineSession_IsOwner() && !online_sss.match_submitted) {
-        if (!nativeHome_PublishRoomMatch(presence->stage))
+        if (!nativeOnlineSession_StartLobbyMatch())
             return NativeOnlineSssAction_Failed;
         online_sss.match_submitted = true;
     }
@@ -111,17 +111,19 @@ void nativeOnlineSss_Reset(void)
     memset(&online_sss, 0, sizeof(online_sss));
 }
 
-bool nativeOnlineSss_ReadCursor(float* x, float* y, uint8_t* tile)
+bool nativeOnlineSss_ReadCursor(float* x, float* y, uint8_t* tile, bool local_moved)
 {
     const NativeStageCursor* cursor = nativeOnlineSession_StageCursor();
-    if (!online_sss.active || !cursor ||
-        (cursor->sequence == online_sss.received_sequence &&
-         !strcmp(cursor->peer_id, online_sss.received_peer))) return false;
-    online_sss.received_sequence = cursor->sequence;
-    snprintf(online_sss.received_peer, sizeof(online_sss.received_peer), "%s", cursor->peer_id);
-    if (!strcmp(cursor->peer_id, nativeOnlineSession_LocalPeerId())) return false;
-    *x = cursor->x / 256.0f;
-    *y = cursor->y / 256.0f;
+    if (!online_sss.active || !cursor) return false;
+    if (local_moved) {
+        online_sss.ignored_sequence = cursor->sequence;
+        memcpy(online_sss.ignored_peer, cursor->peer_id, sizeof(online_sss.ignored_peer));
+        return false;
+    }
+    if (!strcmp(cursor->peer_id, nativeOnlineSession_LocalPeerId()) ||
+        (cursor->sequence == online_sss.ignored_sequence &&
+         !strcmp(cursor->peer_id, online_sss.ignored_peer))) return false;
+    nativeOnlineSession_SampleStageCursor(SDL_GetTicks(), x, y);
     *tile = cursor->tile;
     online_sss.dirty = false;
     return true;
@@ -137,7 +139,7 @@ void nativeOnlineSss_WriteCursor(float x, float y, uint8_t tile, bool moved)
     // moving player, including when the policy allows any active player.
     if (!online_sss.sequence && !nativeOnlineSession_StageCursor()) online_sss.dirty = true;
     uint64_t now = SDL_GetTicks();
-    if (!online_sss.dirty || now - online_sss.sent_ms < 50) return;
+    if (!online_sss.dirty || now - online_sss.sent_ms < NATIVE_CURSOR_SEND_MS) return;
     NativeStageCursor cursor = { 0 };
     cursor.x = qx; cursor.y = qy; cursor.tile = tile;
     cursor.sequence = ++online_sss.sequence;

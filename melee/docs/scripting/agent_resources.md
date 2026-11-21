@@ -54,9 +54,10 @@ blueprint blobs also pass native model and command-graph admission. Other blobs
 retain their exact bytes; their consuming script or asset loader determines
 their meaning. A resource name by itself does not activate an asset.
 
-The current limits are 64 entries, 127 bytes per name, 8 MiB per collection,
-4 MiB per blob, and 256 KiB per PNG. Each PNG dimension can be at most 1024.
-Inspection reports these same native limits.
+Each member can own up to 64 entries. Names can use up to 127 bytes. The complete
+collection, including its directory, must fit in 8 MiB after the edit. A blob
+can use up to 4 MiB. A PNG can use up to 256 KiB and measure up to 1024 pixels
+on each side. `resources.read` reports these limits.
 
 For live editing, call `session.resources.edit` with `instance`, `revision`,
 `summary` and `changes`. It uses the current workspace's Undo history and leaves

@@ -2,6 +2,7 @@
 #define HSD_PARTICLE_STATE_INTERNAL_H
 #include "particle.h"
 #include "generator.h"
+#include "native_particle_limits.h"
 
 extern u32 particle_float_bits;
 extern int (**particle_callbacks)(HSD_Particle*);

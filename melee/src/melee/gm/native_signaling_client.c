@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <SDL3/SDL_timer.h>
 
 enum {
     CONNECT_TIMEOUT_MS = 5000,
@@ -389,6 +390,23 @@ static DWORD dispatch_message(NativeSignalingClient* client, uint8_t* buffer, si
         return ERROR_INVALID_DATA;
     }
     atomic_store_explicit(&client->last_receive_ms, GetTickCount64(), memory_order_release);
+    if (event.message.type == NativeSignalingServerMessage_StageCursor ||
+        event.message.type == NativeSignalingServerMessage_CssPointers) {
+        // Cursor bursts have their own bounded queue. A stalled renderer's
+        // backlog must never fill the queue for lobby control messages.
+        NativeSignalingMotionQueue* queue = &client->motion;
+        uint32_t write = atomic_load_explicit(&queue->write, memory_order_relaxed);
+        uint32_t read = atomic_load_explicit(&queue->read, memory_order_acquire);
+        if (write - read < NATIVE_SIGNALING_MOTION_CAPACITY) {
+            NativeSignalingMotion* motion = &queue->slots[write % NATIVE_SIGNALING_MOTION_CAPACITY];
+            motion->received_ms = SDL_GetTicks();
+            motion->is_stage = event.message.type == NativeSignalingServerMessage_StageCursor;
+            if (motion->is_stage) motion->data.stage = event.message.data.stage_cursor;
+            else motion->data.css = event.message.data.css_pointers;
+            atomic_store_explicit(&queue->write, write + 1, memory_order_release);
+        }
+        return ERROR_SUCCESS;
+    }
     if (event.message.type == NativeSignalingServerMessage_Chat) {
         NativeSignalingChatQueue* queue = &client->chat;
         uint32_t write = atomic_load_explicit(&queue->write, memory_order_relaxed);
@@ -549,6 +567,7 @@ bool nativeSignalingClient_Start(NativeSignalingClient* client,
     memset(&client->commands, 0, sizeof(client->commands));
     memset(&client->events, 0, sizeof(client->events));
     memset(&client->chat, 0, sizeof(client->chat));
+    memset(&client->motion, 0, sizeof(client->motion));
     client->local_players = config->local_players;
     client->directory = config->directory;
     if (client->directory) client->room_id[0] = client->peer_id[0] = 0;
@@ -739,6 +758,17 @@ bool nativeSignalingClient_ReportMatch(NativeSignalingClient* client,
     return queued;
 }
 
+bool nativeSignalingClient_StartLobbyMatch(NativeSignalingClient* client,
+                                          uint64_t epoch, const uint8_t digest[32])
+{
+    uint8_t bytes[50];
+    size_t size = nativeSignalingWire_EncodeStartLobbyMatch(epoch, digest, bytes, sizeof(bytes));
+    bool queued = client && size && nativeSignalingClient_IsRunning(client) &&
+        command_push(&client->commands, bytes, size);
+    if (queued) SetEvent((HANDLE) client->wake_event);
+    return queued;
+}
+
 bool nativeSignalingClient_PickLobbyStage(NativeSignalingClient* client,
                                           uint64_t epoch, uint8_t seat,
                                           uint8_t stage)
@@ -863,6 +893,17 @@ bool nativeSignalingClient_Poll(NativeSignalingClient* client,
                                 NativeSignalingClientEvent* event)
 {
     return client != NULL && event != NULL && event_pop(&client->events, event);
+}
+
+bool nativeSignalingClient_PollMotion(NativeSignalingClient* client, NativeSignalingMotion* motion)
+{
+    NativeSignalingMotionQueue* queue = &client->motion;
+    uint32_t read = atomic_load_explicit(&queue->read, memory_order_relaxed);
+    uint32_t write = atomic_load_explicit(&queue->write, memory_order_acquire);
+    if (read == write) return false;
+    *motion = queue->slots[read % NATIVE_SIGNALING_MOTION_CAPACITY];
+    atomic_store_explicit(&queue->read, read + 1, memory_order_release);
+    return true;
 }
 
 bool nativeSignalingClient_IsRunning(const NativeSignalingClient* client)

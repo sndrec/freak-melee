@@ -26,6 +26,9 @@ typedef struct NativeSourceImportedAssets {
     const MotionState* common_motions;
     ItemKind article_kinds[NATIVE_SOURCE_ARTICLES];
     FighterPartsTable parts;
+    bool external_hitbox_parts[MAX_FT_PARTS];
+    // Donor ordinals that can be instantiated as one joint in both fighter poses.
+    uint32_t detachable_joints[FT_CHARACTER_ITEM_CAPACITY][8];
     u8 joint_to_part[MAX_FT_PARTS],part_to_joint[FT_COMMON_PART_COUNT];
     struct Fighter_804D6540_t omissions;
     struct Fighter_804D6540_x0_t omission_rows[NATIVE_SOURCE_OMISSIONS];

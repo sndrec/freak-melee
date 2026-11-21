@@ -1,4 +1,5 @@
 #include <melee/ft/native_source_assets.h>
+#include <melee/ft/native_source_rig_validation.h>
 #include <melee/ft/native_fighter_project.h>
 #include <melee/ft/native_source_package.h>
 #include <melee/ft/ftdata.h>
@@ -106,6 +107,32 @@ int main(int argc,char** argv)
     CHECK(accepted.parts.part_to_joint==accepted.part_to_joint&&accepted.parts.joint_to_part==accepted.joint_to_part);
     CHECK(accepted.demos.result_filename==accepted.facts.demos[0]);
     CHECK(nativeSourceAssets_Import(&facts,&input,Ft_Kind_Mario,&original,&diagnostic));
+    const unsigned external = MAX_FT_PARTS - 1;
+    CHECK(external >= original.parts.parts_num);
+    original.external_hitbox_parts[external] = true;
+    CHECK(!nativeSourceAssets_ValidateExternalParts(&original, &no_program.items, &diagnostic));
+    no_program.items.count = 1;
+    no_program.items.programs[0].resource_reserved_part = external;
+    CHECK(nativeSourceAssets_ValidateExternalParts(&original, &no_program.items, &diagnostic));
+    no_program.items.programs[0].resource_reserved_part = external - 1;
+    CHECK(!nativeSourceAssets_ValidateExternalParts(&original, &no_program.items, &diagnostic));
+    memset(&no_program.items, 0, sizeof(no_program.items));
+    const int camera_joint = original.character.common_attributes.camera_zoom_target_bone;
+    original.character.common_attributes.camera_zoom_target_bone = original.parts.parts_num;
+    CHECK(!nativeSourceAssets_ValidateRig(&original, &diagnostic));
+    CHECK(strstr(diagnostic.message, "Camera") != NULL);
+    // A slot for a future attachment is in range but empty when the camera starts.
+    CHECK(original.facts.omission_count == 0 && original.parts.parts_num < MAX_FT_PARTS);
+    original.facts.omissions[0].joint = original.parts.parts_num;
+    original.facts.omission_count = 1;
+    ++original.parts.parts_num;
+    CHECK(!nativeSourceAssets_ValidateRig(&original, &diagnostic));
+    CHECK(strstr(diagnostic.message, "Camera") != NULL);
+    --original.parts.parts_num;
+    original.facts.omission_count = 0;
+    original.character.common_attributes.camera_zoom_target_bone = camera_joint;
+    CHECK(nativeSourceAssets_ValidateRig(&original, &diagnostic));
+    ++cases;
     struct Fighter_WaitAnimData* stock_banks[]={original.character.data.xC,original.character.data.x14};
     struct Fighter_WaitAnimData* custom_banks[]={accepted.character.data.xC,accepted.character.data.x14};
     const unsigned bank_counts[]={facts.actions,facts.demo_count};

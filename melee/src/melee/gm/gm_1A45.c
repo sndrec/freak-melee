@@ -37,6 +37,7 @@
 #include <melee/gr/native_stage_generator_snapshot.h>
 #include <melee/lb/native_dynamics_snapshot.h>
 #include <melee/ef/native_effect_control_snapshot.h>
+#include <melee/ef/efdata.h>
 #include <sysdolphin/baselib/native_particle_control_snapshot.h>
 #include <aurora/aurora.h>
 #include <aurora/event.h>
@@ -60,6 +61,7 @@
 #include <sysdolphin/baselib/native_gobj_pool_storage.h>
 #include <sysdolphin/baselib/native_random_snapshot.h>
 #include <sysdolphin/baselib/native_render_phase.h>
+#include <sysdolphin/baselib/native_particle_limits.h>
 #include <sysdolphin/baselib/native_callback_profile.h>
 #include <sysdolphin/baselib/pobj.h>
 #include <sysdolphin/baselib/hsd_3924.h>
@@ -547,6 +549,9 @@ void gm_801A4D34(void (*on_frame)(void), UNUSED GameSceneInfo* info)
         }
 
         for (i = 0; i < pad_queue_count; i++) {
+            efLib_Usage.model_units_this_tick = 0;
+            efLib_Usage.requests_this_tick = 0;
+            particle_work_this_tick = (HSD_ParticleWork){0};
             if (rollback_census) {
                 nativeRollbackCensus_BeginSimulation();
             }

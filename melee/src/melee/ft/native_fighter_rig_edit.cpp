@@ -44,7 +44,7 @@ bool pointer(const HSD_Dat& dat,uint32_t slot,uint32_t* output,bool optional=tru
 }
 bool copy_bytes(const void* source,size_t size,uint8_t** output)
 {
-    if(!source||!size||size>NATIVE_CONTENT_MAX_PACKAGE_BYTES)return false;
+    if(!source||!size||size>NATIVE_CONTENT_MAX_ASSET_BYTES)return false;
     *output=(uint8_t*)std::malloc(size);if(!*output)return false;
     std::memcpy(*output,source,size);return true;
 }
@@ -52,7 +52,7 @@ bool reservations(const NativeFighterProject& project,const NativeFighterRig& ri
                    bool used[MAX_FT_PARTS],char* error,size_t capacity)
 {
     if(!project.script_size)return true;
-    if(!project.script_text||project.script_size>NATIVE_CONTENT_MAX_PACKAGE_BYTES)
+    if(!project.script_text||project.script_size>NATIVE_CONTENT_MAX_ASSET_BYTES)
         return fail(error,capacity,"The fighter's script source is unavailable.");
     // The syntax tree has at most two nodes per source line. This authoring
     // allocation does not compile callbacks or require valid expressions.
