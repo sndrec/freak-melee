@@ -366,6 +366,14 @@ bool nativeScriptBindingCombat_Invoke(NativeScriptRuntimeContext* context,uint32
             return error(diagnostic,"Self damage cannot delegate boss stamina behavior.");
         nativeFighterDamage_Self(object,values[0].as.f32);break;
     case NativeScriptBinding_DamageHeal:nativeFighterDamage_Heal(object,values[0].as.f32);break;
+    case NativeScriptBinding_DamageQuietKO: {
+        Fighter* fp = GET_FIGHTER(object);
+        if (!fp->x222A_b1 && !fp->x2228_b5 && !fp->is_sandbag &&
+            !fp->x2219_b2 && !fp->x2219_b1 && !fp->native_constructing &&
+            fp->kind != Ft_Kind_MasterH && fp->kind != Ft_Kind_CrezyH)
+            fp->native_quiet_ko_pending = true;
+        break;
+    }
     case NativeScriptBinding_HurtboxesSetAll:case NativeScriptBinding_HurtboxesSetBodyStatus: {
         if(values[0].as.i64<HurtCapsule_Enabled||values[0].as.i64>HurtCapsule_Intangible)
             return error(diagnostic,"Hurt status must be normal, invincible or intangible.");

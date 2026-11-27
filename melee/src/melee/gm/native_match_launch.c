@@ -98,7 +98,7 @@ typedef struct NativeMatchLaunch {
     NativeMatchSlot slots[4];
     NativeContentId costume_packages[4];
     NativeContentId fighter_packages[4];
-    NativeContentId fighter_ids[4];
+    NativeContentId fighter_ids[5];
     uint8_t fighter_count;
     NativeLobbyMatch agreed_match;
     bool has_agreed_match;
@@ -459,9 +459,11 @@ static u8 team_costume(u8 character, u8 team)
 
 static bool resolve_fighter_packages(const NativeContentId packages[4],
                                      uint8_t kinds[4], bool require_installed,
-                                     bool stage)
+                                     bool stage,
+                                     const NativeContentId* practice_opponent,
+                                     uint8_t* opponent_kind)
 {
-    NativeContentId ids[4] = { 0 };
+    NativeContentId ids[ARRAY_SIZE(launch.fighter_ids)] = { 0 };
     unsigned count = 0;
     for (unsigned port = 0; port < 4; ++port) {
         kinds[port] = ChKind_None;
@@ -487,6 +489,15 @@ static bool resolve_fighter_packages(const NativeContentId packages[4],
                 (count - index) * sizeof(*id));
         ids[index] = *id;
         ++count;
+    }
+    if (practice_opponent != NULL) {
+        // Keep the player mappings stable if they also enter an online match.
+        unsigned index = 0;
+        while (index < count &&
+               memcmp(&ids[index], practice_opponent, sizeof(*practice_opponent)))
+            ++index;
+        if (index == count) ids[count++] = *practice_opponent;
+        *opponent_kind = ChKind_CustomFirst + index;
     }
     // Direct launches assign slots before opening the disc, so replay and
     // peers agree on the signature. Match preparation checks the packages
@@ -516,13 +527,15 @@ static bool resolve_fighter_packages(const NativeContentId packages[4],
 }
 
 bool nativeMatchLaunch_ConfigureLocalFighters(
-    const NativeContentId packages[4], uint8_t kinds[4], bool preview)
+    const NativeContentId packages[4], uint8_t kinds[4], bool preview,
+    const NativeContentId* practice_opponent, uint8_t* opponent_kind)
 {
     if (packages == NULL || kinds == NULL || launch.direct ||
         launch.netplay.enabled) {
         return false;
     }
-    if (!resolve_fighter_packages(packages, kinds, !preview, true)) {
+    if (!resolve_fighter_packages(packages, kinds, !preview, true,
+                                  practice_opponent, opponent_kind)) {
         return false;
     }
     launch.local_preview = preview;
@@ -543,7 +556,7 @@ static bool resolve_direct_fighters(void)
     }
     uint8_t kinds[4];
     if (!resolve_fighter_packages(launch.fighter_packages, kinds, true,
-                                  false)) {
+                                  false, NULL, NULL)) {
         return false;
     }
     for (unsigned port = 0; port < 4; ++port) {
@@ -1601,7 +1614,7 @@ static bool prepare_match(const NativeLobbyMatch* match)
     }
     uint8_t custom_kinds[4];
     if (!resolve_fighter_packages(fighter_packages, custom_kinds, false,
-                                  true)) {
+                                  true, NULL, NULL)) {
         return false;
     }
     NativeMatchSlot slots[4] = { 0 };
@@ -1840,7 +1853,7 @@ void nativeMatchLaunch_Apply(void)
         }
     }
     if (launch.stage == St_Kind_Practice) {
-        preload->game_cache.entries[NATIVE_PRACTICE_SANDBAG_SLOT] =
+        preload->game_cache.entries[NATIVE_PRACTICE_OPPONENT_SLOT] =
             (PreloadCacheSceneEntry){ ChKind_Sandbag, 0, 1 };
     }
     lbDvd_80018254();

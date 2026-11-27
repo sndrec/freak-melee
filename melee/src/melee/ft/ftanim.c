@@ -64,10 +64,12 @@ void ftAnim_8006EBA4(Fighter_GObj* gobj)
 #endif
 #ifdef MELEE_NATIVE
     nativeHitboxLifetime_BeginStep(gobj->user_data, ((Fighter*)gobj->user_data)->frame_speed_mul);
+    const u32 motion_sequence = GET_FIGHTER(gobj)->native_motion_sequence;
 #endif
     ftAction_80073240(gobj);
 #ifdef MELEE_NATIVE
-    if (!nativeFighterLifetime_Current(&lifetime)) {
+    if (!nativeFighterLifetime_Current(&lifetime) ||
+        GET_FIGHTER(gobj)->native_motion_sequence != motion_sequence) {
         return;
     }
 #endif

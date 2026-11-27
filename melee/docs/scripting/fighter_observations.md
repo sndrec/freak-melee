@@ -1,5 +1,15 @@
 # Fighter observations and action statistics
 
+## `damage.quiet_ko()`
+
+Take a stock from the fighter running this script. The fighter disappears in
+place and respawns after the usual KO delay if it has stocks remaining. The
+match records the KO and updates the score as usual. No blast effect, camera
+quake, camera chase, KO sound or star-KO animation plays.
+
+The engine applies the request during the fighter's next KO check. Repeated
+calls before that check take one stock. This command applies to active fighters.
+
 ## `damage.interrupt_cleanup()`
 
 Run shared interruption cleanup before forcing a new action. This stops the

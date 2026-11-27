@@ -117,7 +117,7 @@ void nativeWorkshopPractice_EnterScene(void)
 void nativeWorkshopPractice_Dummy(StartMeleeData* start)
 {
     if (!practice.armed) return;
-    PlayerInitData* sandbag = &start->players[NATIVE_PRACTICE_SANDBAG_SLOT];
+    PlayerInitData* sandbag = &start->players[NATIVE_PRACTICE_OPPONENT_SLOT];
     if (practice.config.sandbag) sandbag->damage = practice.config.sandbag_damage;
     else gm_SetupPlayerDefaults(sandbag);
 }

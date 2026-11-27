@@ -779,6 +779,11 @@ class WorkshopEvents final : public Rml::EventListener {
                 if (value == "0" || value == "1") nativeShellWorkshop_SelectMember(unsigned(value[0] - '0'), true);
             } else if (id == "workshop-action-search") {
                 nativeShellWorkshopEditor_FilterActions();
+            } else if (id == "workshop-bank-search") {
+                nativeShellWorkshopEditor_FilterSounds();
+            } else if (id == "workshop-execute-function" && event.GetType() == "change") {
+                const auto value = static_cast<Rml::ElementFormControlSelect*>(target)->GetValue();
+                nativeShellWorkshopEditor_ApplyExecuteFunction(value.c_str());
             } else if (id == "workshop-animation-search") {
                 nativeShellWorkshopEditor_FilterClips();
             } else if (id == "workshop-script-source") {
@@ -992,6 +997,12 @@ void nativeShellWorkshop_Init(Rml::ElementDocument* shell)
         ->AddEventListener("change", &events);
     document->GetElementById("workshop-action-search")
         ->AddEventListener("input", &events);
+    document->GetElementById("workshop-bank-search")
+        ->AddEventListener("change", &events);
+    document->GetElementById("workshop-bank-search")
+        ->AddEventListener("input", &events);
+    document->GetElementById("workshop-execute-function")
+        ->AddEventListener("change", &events);
     document->GetElementById("workshop-animation-search")
         ->AddEventListener("change", &events);
     document->GetElementById("workshop-animation-search")

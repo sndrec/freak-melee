@@ -12,6 +12,9 @@
 #include "random.h"
 #include "native_random_snapshot.h"
 #include "wobj.h"
+#ifdef MELEE_NATIVE
+#include <melee/ef/native_workshop_effects.h>
+#endif
 
 /* 4D0E5C */
 
@@ -1086,6 +1089,10 @@ HSD_Generator* hsd_8039F05C(s32 linkNo, s32 bank, s32 idx)
 {
     HSD_Generator* gen;
 
+#ifdef MELEE_NATIVE
+    if (nativeWorkshopEffects_Advancing && (u32) linkNo < NativeWorkshopEffect_LinkCount)
+        linkNo += NativeWorkshopEffect_LinkFirst;
+#endif
     if ((u32)bank >= 0x41) {
         return NULL;
     }

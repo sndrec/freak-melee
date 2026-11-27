@@ -25,6 +25,37 @@
 
 namespace {
     constexpr uint32_t gold = 0xE5C361FF, muted = 0xA6A1AFFF;
+    void practice_opponent()
+    {
+        const NativeContentId* current = nativeHome_PracticeOpponent();
+        nativeHub_Button("opponent-sandbag", "Sandbag", 178, 100, 426, 30,
+                         HubAction::PracticeOpponent, -1, current == nullptr);
+        int installed = 0;
+        constexpr int page_size = 12;
+        for (unsigned i = 0; i < nativeHubFighterCount; ++i) {
+            const auto& fighter = nativeHubFighters[i];
+            if (!fighter.installed) continue;
+            const int row = installed++ - hub.first_practice_opponent;
+            if (row < 0 || row >= page_size) continue;
+            const bool active = current && !std::memcmp(current, &fighter.id, sizeof(*current));
+            char id[40];
+            std::snprintf(id, sizeof(id), "opponent-%u", i);
+            nativeHub_Button(id, fighter.title, 178 + 215 * (row % 2),
+                             140 + 36 * (row / 2), 211, 31,
+                             HubAction::PracticeOpponent, int(i), active);
+        }
+        if (hub.first_practice_opponent > 0)
+            nativeHub_Button("opponent-prev", "< Previous", 178, 374, 108, 24,
+                             HubAction::PracticeOpponentPage,
+                             hub.first_practice_opponent - page_size);
+        if (installed > hub.first_practice_opponent + page_size)
+            nativeHub_Button("opponent-next", "Next >", 496, 374, 108, 24,
+                             HubAction::PracticeOpponentPage,
+                             hub.first_practice_opponent + page_size);
+        if (nativeHome_IsPractice())
+            nativeMenuPaint_Text("Changing the opponent returns to character select.",
+                                 178, 353, 426, 10, muted);
+    }
     void fighter_tile(unsigned index, float x, float y)
     {
         const NativeHubFighter& f = nativeHubFighters[index];
@@ -354,6 +385,8 @@ namespace {
 void nativeHub_RenderPage(NativeHubPage page)
 {
     switch (page) {
+    case NativeHubPage_PracticeOpponent:
+        practice_opponent(); break;
     case NativeHubPage_MatchRules:
     case NativeHubPage_ItemSwitch:
     case NativeHubPage_AdditionalRules:

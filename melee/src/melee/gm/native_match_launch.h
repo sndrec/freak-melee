@@ -79,7 +79,8 @@ bool nativeMatchLaunch_RegisterFighters(void);
 // Resolve the installed fighter bundles selected on the home CSS into stable
 // runtime character kinds. Empty IDs leave the corresponding output kind None.
 bool nativeMatchLaunch_ConfigureLocalFighters(
-    const NativeContentId packages[4], uint8_t kinds[4], bool preview);
+    const NativeContentId packages[4], uint8_t kinds[4], bool preview,
+    const NativeContentId* practice_opponent, uint8_t* opponent_kind);
 bool nativeMatchLaunch_ApplyProfiles(void);
 const char* nativeMatchLaunch_ReplayPath(void);
 bool nativeMatchLaunch_ReplayPlayback(void);

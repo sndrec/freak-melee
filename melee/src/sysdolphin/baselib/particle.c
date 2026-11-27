@@ -34,6 +34,9 @@ typedef struct {
 #include "random.h"
 #include <dolphin/gx.h>
 #include <dolphin/os.h>
+#ifdef MELEE_NATIVE
+#include <melee/ef/native_workshop_effects.h>
+#endif
 
 
 typedef struct PSNode {
@@ -379,6 +382,8 @@ HSD_Particle* psGenerateParticle0(HSD_Particle** head, int linkNo, int bank,
     s16 cmd_wait;
 
 #ifdef MELEE_NATIVE
+    if (nativeWorkshopEffects_Advancing && (u32) linkNo < NativeWorkshopEffect_LinkCount)
+        linkNo += NativeWorkshopEffect_LinkFirst;
     if ((u32)linkNo >= ARRAY_SIZE(hsd_804D0908) || (u32)bank >= ARRAY_SIZE(psCmdListArray) ||
         particle_count >= HSD_PARTICLES_LIVE ||
         particle_work_this_tick.particles >= HSD_PARTICLES_PER_TICK) return NULL;
@@ -3097,3 +3102,26 @@ void hsd_8039D0A0(HSD_Generator* gen)
         prt = next;
     }
 }
+#ifdef MELEE_NATIVE
+void psClearLinks(u32 links)
+{
+    for (unsigned i = 0; i < ARRAY_SIZE(hsd_804D0908); ++i) {
+        if (!(links & (1u << i))) continue;
+        // Remove particles with their usual lifetime cleanup, including
+        // generator references. A paused particle can be retired as well.
+        while (hsd_804D0908[i] != NULL) {
+            HSD_Particle* particle = hsd_804D0908[i];
+            if (particle->gen != NULL && particle->gen->userfunc != NULL &&
+                particle->gen->userfunc->hookDelete != NULL)
+                particle->gen->userfunc->hookDelete(particle);
+            hsd_804D0908[i] = particle->next;
+            if (particle->gen != NULL) --particle->gen->numChild;
+            if (particle->appsrt != NULL) psRemoveParticleAppSRT(particle);
+            hsd_8039D048(particle);
+            HSD_ObjFree(&hsd_804D0F60.alloc_data, particle);
+            --particle_count;
+        }
+        particle_sort_frames[i] = 0;
+    }
+}
+#endif

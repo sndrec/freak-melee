@@ -23,6 +23,8 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* proje
 bool nativeShellWorkshopEditor_Select(unsigned member);
 void nativeShellWorkshopEditor_Close();
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift = false);
+void nativeShellWorkshopEditor_FilterSounds();
+void nativeShellWorkshopEditor_ApplyExecuteFunction(const char* function);
 bool nativeShellWorkshopEditor_ScrubTimeline(const char* id, int mouse_x);
 bool nativeShellWorkshopEditor_Shortcut(int key_identifier);
 void nativeShellWorkshopEditor_FilterActions();

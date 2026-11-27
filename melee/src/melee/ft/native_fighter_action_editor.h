@@ -5,6 +5,7 @@
 
 #include "native_fighter_project.h"
 #include "native_hitbox_lifetime.h"
+#include "ftaction_codec.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,6 +50,7 @@ typedef enum NativeFighterActionEventKind {
     NativeFighterActionEvent_ReverseFacing,
     NativeFighterActionEvent_SetAirborneState,
     NativeFighterActionEvent_Command,
+    NativeFighterActionEvent_ExecuteScript,
 } NativeFighterActionEventKind;
 
 typedef struct NativeFighterActionEvent {
@@ -254,6 +256,12 @@ bool nativeFighterAction_GetSpawnEffect(const NativeFighterProject* project,
 bool nativeFighterAction_SetSpawnEffect(NativeFighterProject* project,
                                         unsigned action, uint32_t source_offset,
                                         const NativeFighterSpawnEffect* effect);
+bool nativeFighterAction_GetScript(const NativeFighterProject* project,
+                                  unsigned action, uint32_t source_offset,
+                                  char name[FT_ACTION_SCRIPT_NAME_MAX + 1]);
+bool nativeFighterAction_SetScript(NativeFighterProject* project,
+                                  unsigned action, uint32_t source_offset,
+                                  const char* name, uint32_t* updated_offset);
 
 #ifdef __cplusplus
 }

@@ -19,6 +19,7 @@
 #ifdef MELEE_NATIVE
 #include "native_model_effect.h"
 #include "native_script_effect_actor.h"
+#include "native_workshop_effects.h"
 #include <melee/ft/native_callback_lifetime.h>
 #endif
 #include <dolphin/mtx.h>
@@ -449,6 +450,8 @@ void efLib_Update(HSD_GObj* gobj)
 {
     EF_Effect* effect = GET_EFFECT(gobj);
 #ifdef MELEE_NATIVE
+    if (nativeWorkshopEffects_Holds(effect->parent_gobj) &&
+        !nativeWorkshopEffects_Advancing) return;
     const uint32_t generation = effect->native_generation;
     if (nativeModelEffect_Resolve(gobj, generation) == NULL) {
         nativeModelEffect_Cancel(effect);
@@ -787,24 +790,32 @@ void efLib_render_callback(HSD_GObj* gobj, int code)
         return;
     }
     HSD_StateSetColorUpdate(1);
-    if (gobj->gx_link == 7) {
-        psDispParticles(PTCL_RENDER_LINKNO_0 | PTCL_RENDER_LINKNO_2,
-                        particles_code);
-        return;
-    }
-    psDispParticles(PTCL_RENDER_LINKNO_1, particles_code);
+    u32 links = gobj->gx_link == 7 ? PTCL_RENDER_LINKNO_0 | PTCL_RENDER_LINKNO_2
+                                  : PTCL_RENDER_LINKNO_1;
+#ifdef MELEE_NATIVE
+    links |= links << NativeWorkshopEffect_LinkFirst;
+#endif
+    psDispParticles(links, particles_code);
 }
 
 void efLib_particles_proc_main(HSD_GObj* gobj)
 {
-    hsd_8039CEAC(PTCL_SKIP_LINKNO_1 | PTCL_SKIP_LINKNO_2);
-    hsd_8039EE24(PTCL_SKIP_LINKNO_1 | PTCL_SKIP_LINKNO_2);
+    u32 skip = PTCL_SKIP_LINKNO_1 | PTCL_SKIP_LINKNO_2;
+#ifdef MELEE_NATIVE
+    skip |= NativeWorkshopEffect_Mask;
+#endif
+    hsd_8039CEAC(skip);
+    hsd_8039EE24(skip);
 }
 
 void efLib_particles_proc_aux(HSD_GObj* gobj)
 {
-    hsd_8039CEAC(PTCL_SKIP_LINKNO_0);
-    hsd_8039EE24(PTCL_SKIP_LINKNO_0);
+    u32 skip = PTCL_SKIP_LINKNO_0;
+#ifdef MELEE_NATIVE
+    skip |= NativeWorkshopEffect_Mask;
+#endif
+    hsd_8039CEAC(skip);
+    hsd_8039EE24(skip);
 }
 
 HSD_Generator* efLib_CreateGenerator(s32 gfx_id, Vec3* pos)

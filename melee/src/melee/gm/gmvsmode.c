@@ -291,7 +291,7 @@ void onEnterVs(GameModeState* state)
 #ifdef MELEE_NATIVE
     StartMeleeData* start = gm_GetGameModeStateEnterData(state);
     if (start->rules.stkind == St_Kind_Practice) {
-        nativePractice_Configure(start, -1, St_Kind_Practice);
+        nativePractice_Configure(start, -1, St_Kind_Practice, ChKind_Sandbag);
     }
 #endif
 }

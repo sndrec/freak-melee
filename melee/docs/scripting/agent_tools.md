@@ -351,6 +351,20 @@ change. Finish with Save/Build as appropriate, then refresh the preview to run
 the edited fighter. `session.actions.select` selects an action and optional
 frame without changing its data.
 
+### Run a function from the timeline
+
+Define a fighter function that takes no arguments. In the Action Editor, move
+the playhead to the desired frame and choose **Add event → Scripting**. Select
+the function from the list. The Function field changes the function associated
+with an existing event. For terminal or MCP edits, use `kind: "execute_script"`
+and `properties: {"function": "your_function"}`.
+
+The function runs on the fighter when the action reaches the event. A loop runs
+it once per occurrence. Entering an action at a later frame skips calls at
+earlier frames. The event uses the function’s name, so reordering function
+declarations keeps the reference. Update the event when renaming a function.
+Save and build the fighter before testing the call in gameplay.
+
 ## Edit animations
 
 The [animation authoring guide](agent_animation.md) covers clip and bone

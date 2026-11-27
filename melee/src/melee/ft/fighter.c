@@ -616,6 +616,10 @@ bool Fighter_UnkProcessDeath_80068354(Fighter_GObj* gobj)
     Fighter* fp = GET_FIGHTER(gobj);
 
     Fighter_UnkInitReset_80067C98(fp);
+#ifdef MELEE_NATIVE
+    fp->native_quiet_ko_pending = false;
+    fp->native_quiet_ko_active = false;
+#endif
     // Reset starts a new life; callbacks below belong to that new generation.
     const uint32_t callback_generation = (uint32_t)fp->x8_spawnNum;
 #ifdef MELEE_NATIVE
@@ -1185,6 +1189,9 @@ void Fighter_ChangeMotionState(Fighter_GObj* gobj, FtMotionId msid,
     bool animflags_bool;
     union Struct2070 x2070;
 
+#ifdef MELEE_NATIVE
+    const u32 motion_sequence = ++fp->native_motion_sequence;
+#endif
     fp->motion_id = msid;
     fp->aerial_landing_interrupt_frame = 0.0f;
     if (fp->action_buffer.checking) {
@@ -1616,11 +1623,19 @@ void Fighter_ChangeMotionState(Fighter_GObj* gobj, FtMotionId msid,
                 }
                 if ((flags & Ft_MF_UpdateCmd) != 0) {
                     ftAction_8007349C(gobj);
-                } else if (anim_start) {
+                } else if (anim_start
+#ifdef MELEE_NATIVE
+                           || nativeAction_PoseSamplingActor == gobj
+#endif
+                ) {
                     ftAction_80073354(gobj);
                 } else {
                     ftCo_800C0408(gobj);
                     ftAction_80073240(gobj);
+#ifdef MELEE_NATIVE
+                    if (!nativeCallbackSource_Alive(gobj, callback_generation, NativeCallbackSource_Fighter) ||
+                        fp->native_motion_sequence != motion_sequence) return;
+#endif
                 }
             } else {
                 fp->anim_id = -1;

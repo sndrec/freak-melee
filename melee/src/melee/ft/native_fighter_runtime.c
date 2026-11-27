@@ -65,7 +65,8 @@
 #include <melee/lb/lbanim.h>
 
 enum {
-    NATIVE_FIGHTER_FAMILY_CAPACITY = 4,
+    // Four player seats plus the optional local practice opponent.
+    NATIVE_FIGHTER_FAMILY_CAPACITY = 5,
     NATIVE_FIGHTER_ACTOR_CAPACITY =
         NATIVE_FIGHTER_FAMILY_CAPACITY * NATIVE_FIGHTER_FAMILY_MEMBERS
 };

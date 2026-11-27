@@ -17,6 +17,57 @@
 
 static bool error(NativeScriptDiagnostic* d,const char* text)
 {if(d)snprintf(d->message,sizeof(d->message),"%s",text);return false;}
+
+static bool bind_action_functions(NativeSourcePackage* package,
+                                  NativeScriptDiagnostic* diagnostic)
+{
+    FtCharacterAssets* fighter = &package->assets.character;
+    FtActionDataStats* table = &fighter->action_stats;
+    const NativeScriptProgramIndex* index = &package->compiler.bank.declarations;
+    for (u32 word = 0; word < table->word_count;) {
+        union CmdUnion* command = &table->commands[word];
+        const unsigned opcode = command->Command_00.code;
+        if (opcode == 0) {
+            ++word; // The importer's zeroed holes and End words.
+            continue;
+        }
+        const u32 offset = table->source_begin + word * 4;
+        u32 raw;
+        if (!HSD_DatReadU32(&fighter->dat, offset, &raw))
+            return error(diagnostic, "Invalid fighter action command offset.");
+        const unsigned width = ftActionData_SourceCommandWidth(raw);
+        if (!width || width > table->word_count - word)
+            return error(diagnostic, "Invalid fighter action command width.");
+        word += width;
+        if (ftAction_SourceOpcode(raw) != FT_ACTION_SCRIPT_OPCODE) continue;
+
+        u32 words[FT_ACTION_MAX_WORDS] = { raw };
+        for (unsigned i = 1; i < width; ++i)
+            if (!HSD_DatReadU32(&fighter->dat, offset + i * 4, &words[i]))
+                return error(diagnostic, "Truncated Execute Script event.");
+        char name[FT_ACTION_SCRIPT_NAME_MAX + 1];
+        if (!ftActionData_DecodeScript(words, width, name))
+            return error(diagnostic, "Invalid Execute Script function name.");
+
+        unsigned function = 0;
+        for (; function < index->function_count; ++function) {
+            const NativeScriptFunctionDeclaration* candidate = &index->functions[function];
+            if (!candidate->owner && !candidate->callback && candidate->signature_resolved &&
+                !candidate->parameter_count &&
+                nativeScriptSource_SpanEquals(index->tree, candidate->name, name)) break;
+        }
+        if (function == index->function_count) {
+            snprintf(diagnostic->message, sizeof(diagnostic->message),
+                     "Execute Script at action offset 0x%X needs a root function '%s' that takes no arguments.",
+                     (unsigned) offset, name);
+            return false;
+        }
+        memcpy(command + 1, &function, sizeof(function));
+        command->Command_00.value |= FT_ACTION_SCRIPT_BOUND;
+    }
+    return true;
+}
+
 static bool overlap(const void* a,size_t an,const void* b,size_t bn)
 {uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return an>UINTPTR_MAX-x||bn>UINTPTR_MAX-y||(x<y+bn&&y<x+an);}
 static bool quiescent(void)
@@ -215,6 +266,7 @@ bool nativeSourcePackage_Prepare(NativeSourcePackage* package,const NativeSource
     }
     if(fighters!=1||independent!=1){error(d,"Source package requires exactly one independent Fighter declaration");goto failure;}
     if(!nativeScriptFighter_PrepareProgram(target,&package->compiler.bank,&package->assets.facts.moves,&package->metadata,&package->program,d)||
+       !bind_action_functions(package,d)||
        !nativeSourceAssets_ValidateExternalParts(&package->assets,&package->program.items,d)||
        !prepare_effect_models(package,d)||
        !nativeSourceBank_Stats(&package->compiler,&package->stats)||

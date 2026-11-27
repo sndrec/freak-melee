@@ -71,7 +71,11 @@ void ftCo_800BFD9C(Fighter_GObj* gobj)
     if (fp->x2222_b5) {
         HSD_GObj* pl_gobj = Player_GetEntityAtIndex(fp->player_id, 1);
         if (pl_gobj != NULL) {
+#ifdef MELEE_NATIVE
+            ftCo_800D4F24(pl_gobj, !fp->native_quiet_ko_active);
+#else
             ftCo_800D4F24(pl_gobj, 1);
+#endif
 #ifdef MELEE_NATIVE
             if (!nativeFighterLifetime_Current(&lifetime)) return;
 #endif

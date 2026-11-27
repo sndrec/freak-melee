@@ -213,7 +213,7 @@ static bool collect_action(const NativeFighterProject* project,
                 visited[index + word] = 2;
             }
             if (!ok) break;
-            u32 opcode = raw >> 26;
+            u32 opcode = ftAction_SourceOpcode(raw);
             if (command_count != NULL) {
                 if (commands != NULL && *command_count == command_capacity) {
                     ok = false;
@@ -280,7 +280,8 @@ static bool collect_action(const NativeFighterProject* project,
                              : opcode == 15 || opcode == 16 ||
                                opcode == 23 || opcode == 24 ? 0
                                             : raw & 0x3FFFFFF;
-                event->kind = opcode == 1 ? NativeFighterActionEvent_SyncTimer
+                event->kind = opcode == FT_ACTION_SCRIPT_OPCODE ? NativeFighterActionEvent_ExecuteScript
+                            : opcode == 1 ? NativeFighterActionEvent_SyncTimer
                             : opcode == 2 ? NativeFighterActionEvent_AsyncTimer
                             : opcode == 10 ? NativeFighterActionEvent_SpawnEffect
                             : nativeHitbox_IsCreate(opcode) ? NativeFighterActionEvent_CreateHitbox
@@ -376,7 +377,7 @@ bool nativeFighterAction_Timeline(const NativeFighterProject* project,
         u32 raw;
         if ((at & 3) != 0 || at >= table ||
             !HSD_DatReadU32(&dat, at, &raw)) return false;
-        const u32 opcode = raw >> 26;
+        const u32 opcode = ftAction_SourceOpcode(raw);
         const u32 width = ftActionData_SourceCommandWidth(raw);
         if (width == 0 || width > (table - at) / 4) return false;
         if (opcode == 1) frame += raw & 0x3FFFFFF;
@@ -825,7 +826,7 @@ static bool insert_at_frame(NativeFighterProject* project, unsigned action,
         if (at->frame == frame || terminal) { anchor = at->source_offset; break; }
     }
     if (anchor == UINT32_MAX || previous_frame > frame) return false;
-    u8 payload[(NATIVE_HITBOX_MAX_WORDS + 1) * 4]; u32 offset = 0;
+    u8 payload[(FT_ACTION_MAX_WORDS + 1) * 4]; u32 offset = 0;
     if (frame > previous_frame) { write_be32(payload, (1u << 26) | (frame - previous_frame)); offset = 4; }
     memcpy(payload + offset, event_bytes, width * 4);
     return rewrite_action_command(project, action, anchor, ActionRewrite_Insert,
@@ -844,13 +845,13 @@ bool nativeFighterAction_InsertAtFrame(NativeFighterProject* project,
     if (frame > 1000 || !nativeFighterAction_OpenTable(project, &dat, &table) ||
         !HSD_DatReadU32(&dat, template_offset, &raw)) return false;
     u32 width = ftActionData_SourceCommandWidth(raw);
-    if (!width || width > NATIVE_HITBOX_MAX_WORDS || template_offset + width * 4 > table) return false;
+    if (!width || width > FT_ACTION_MAX_WORDS || template_offset + width * 4 > table) return false;
     if (action >= project->action_count || (raw >> 26) == 0 || ((raw >> 26) >= 3 && (raw >> 26) <= 8)) return false;
     NativeFighterActionCommand templates[512]; size_t template_count; bool found = false;
     if (!nativeFighterAction_Commands(project, template_action, templates, 512, &template_count)) return false;
     for (size_t i = 0; i < template_count; ++i) found |= templates[i].source_offset == template_offset;
     if (!found) return false;
-    u8 event_bytes[NATIVE_HITBOX_MAX_WORDS * 4];
+    u8 event_bytes[FT_ACTION_MAX_WORDS * 4];
     memcpy(event_bytes, project->fighter_dat + 32 + template_offset, width * 4);
     if (nativeHitbox_IsCreate(raw >> 26) && !nativeHitbox_IsTimed(raw >> 26)) {
         u32 flags = raw;
@@ -868,11 +869,17 @@ bool nativeFighterAction_CreateEvent(NativeFighterProject* project, unsigned act
                                     unsigned frame, const uint32_t* words,
                                     size_t count, uint32_t* inserted)
 {
-    if (!project || !words || !count || count > NATIVE_HITBOX_MAX_WORDS || !inserted) return false;
-    const unsigned opcode = words[0] >> 26;
+    if (!project || !words || !count || count > FT_ACTION_MAX_WORDS || !inserted) return false;
+    const unsigned opcode = ftAction_SourceOpcode(words[0]);
     if (!opcode || (opcode >= 3 && opcode <= 8) ||
         ftActionData_SourceCommandWidth(words[0]) != count) return false;
-    u8 bytes[NATIVE_HITBOX_MAX_WORDS * 4];
+    if (ftAction_IsScript(words[0] >> 26, words[0] & 0x3ffffff)) {
+        u32 encoded[FT_ACTION_MAX_WORDS];
+        for (size_t i = 0; i < count; ++i) encoded[i] = words[i];
+        char name[FT_ACTION_SCRIPT_NAME_MAX + 1];
+        if (!ftActionData_DecodeScript(encoded, (unsigned) count, name)) return false;
+    }
+    u8 bytes[FT_ACTION_MAX_WORDS * 4];
     for (size_t i = 0; i < count; ++i) write_be32(bytes + i * 4, words[i]);
     return insert_at_frame(project, action, frame, bytes, (u32)count, false, inserted);
 }
@@ -916,6 +923,7 @@ bool nativeFighterAction_SetValue(NativeFighterProject* project,
             event->kind == NativeFighterActionEvent_ClearHitbox ||
             event->kind == NativeFighterActionEvent_ClearAllHitboxes ||
             event->kind == NativeFighterActionEvent_SoundEffect ||
+            event->kind == NativeFighterActionEvent_ExecuteScript ||
             event->kind == NativeFighterActionEvent_SpawnEffect) return false;
         if (event->value == value) return true;
         unsigned users;
@@ -1377,6 +1385,46 @@ bool nativeFighterAction_SetSpawnEffect(NativeFighterProject* project,
     return true;
 }
 
+bool nativeFighterAction_GetScript(const NativeFighterProject* project,
+                                  unsigned action, uint32_t source_offset,
+                                  char name[FT_ACTION_SCRIPT_NAME_MAX + 1])
+{
+    NativeFighterActionCommand commands[512];
+    size_t count;
+    if (!nativeFighterAction_Commands(project, action, commands, 512, &count)) return false;
+    for (size_t i = 0; i < count; ++i) {
+        const NativeFighterActionCommand* command = &commands[i];
+        if (command->source_offset != source_offset) continue;
+        if (command->opcode != FT_ACTION_SCRIPT_OPCODE || command->words > FT_ACTION_MAX_WORDS)
+            return false;
+        HSD_Dat dat;
+        if (HSD_DatOpen(&dat, project->fighter_dat, project->fighter_size) != HSD_DAT_OK) return false;
+        u32 words[FT_ACTION_MAX_WORDS];
+        for (unsigned word = 0; word < command->words; ++word)
+            if (!HSD_DatReadU32(&dat, source_offset + word * 4, &words[word])) return false;
+        return ftActionData_DecodeScript(words, command->words, name);
+    }
+    return false;
+}
+
+bool nativeFighterAction_SetScript(NativeFighterProject* project,
+                                  unsigned action, uint32_t source_offset,
+                                  const char* name, uint32_t* updated_offset)
+{
+    char original[FT_ACTION_SCRIPT_NAME_MAX + 1];
+    uint32_t words[FT_ACTION_MAX_WORDS];
+    const unsigned count = ftActionData_EncodeScript(name, words);
+    if (!count || !nativeFighterAction_GetScript(project, action, source_offset, original)) return false;
+    if (!strcmp(original, name)) {
+        if (updated_offset) *updated_offset = source_offset;
+        return true;
+    }
+    u8 bytes[FT_ACTION_MAX_WORDS * 4];
+    for (unsigned word = 0; word < count; ++word) write_be32(bytes + word * 4, words[word]);
+    return rewrite_action_command(project, action, source_offset, ActionRewrite_Replace,
+                                  0, 0, updated_offset, bytes, count * 4, 0, 1, UINT32_MAX, false);
+}
+
 bool nativeFighterAction_Fields(const NativeFighterProject* project, unsigned action,
                                 uint32_t source, NativeFighterActionField* fields,
                                 size_t capacity, size_t* count)
@@ -1386,7 +1434,7 @@ bool nativeFighterAction_Fields(const NativeFighterProject* project, unsigned ac
     if (!count || !nativeFighterAction_Commands(project, action, commands, 512, &n)) return false;
     const NativeFighterActionCommand* command = NULL;
     for (size_t i = 0; i < n; ++i) if (commands[i].source_offset == source) command = commands + i;
-    if (!command || command->opcode < 9) return false;
+    if (!command || command->opcode < 9 || command->opcode == FT_ACTION_SCRIPT_OPCODE) return false;
     HSD_Dat dat;
     if (HSD_DatOpen(&dat, project->fighter_dat, project->fighter_size) != HSD_DAT_OK) return false;
     *count = 0;
@@ -1465,7 +1513,9 @@ bool nativeFighterAction_SetField(NativeFighterProject* project, unsigned action
     if (value != (u32) value) return false;
     u8* p = project->fighter_dat + 32 + source + field->word * 4;
     const u32 raw = ((u32) p[0] << 24) | ((u32) p[1] << 16) | ((u32) p[2] << 8) | p[3];
-    write_be32(p, (raw & ~(mask << field->shift)) | ((u32) value << field->shift));
+    const u32 updated = (raw & ~(mask << field->shift)) | ((u32) value << field->shift);
+    if (field->word == 0 && ftAction_IsScript(updated >> 26, updated & 0x3ffffff)) return false;
+    write_be32(p, updated);
     return true;
 }
 

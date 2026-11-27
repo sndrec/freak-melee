@@ -675,6 +675,7 @@ typedef enum NativeScriptBindingID {
     NativeScriptBinding_CaptureArmed,
     NativeScriptBinding_AnimationHipRootCompensation,
     NativeScriptBinding_DamageForceTopBlastKO,
+    NativeScriptBinding_DamageQuietKO,
     NativeScriptBinding_Attachments,NativeScriptBinding_AttachmentsHasRoot,
     NativeScriptBinding_AttachmentsLoad,NativeScriptBinding_AttachmentsAddDynamics,
     NativeScriptBinding_AttachmentsClearAll,

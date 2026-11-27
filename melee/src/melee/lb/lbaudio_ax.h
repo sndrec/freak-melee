@@ -30,6 +30,9 @@ bool lbAudioAx_80023710(int);
 bool lbAudioAx_80023730(void);
 int lbAudioAx_800237A8(enum_t sfx_id, int sfx_vol, int sfx_pan);
 int lbAudioAx_80023870(int, int, int, int);
+#ifdef MELEE_NATIVE
+const char* nativeAudio_LoadedSoundBank(unsigned bank, int* first, int* last);
+#endif
 void lbAudioAx_8002392C(void);
 int lbAudioAx_80023968(int);
 int lbAudioAx_80023A44(int, int);

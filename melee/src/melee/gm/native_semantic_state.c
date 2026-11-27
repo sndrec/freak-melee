@@ -1243,6 +1243,8 @@ uint64_t nativeSemanticState_AddFighter(uint64_t hash, const Fighter* fighter,
     if (trace != NULL) trace->collision = hash;
     hash = add_float(hash, fighter->cur_anim_frame);
     hash = add_float(hash, fighter->aerial_landing_interrupt_frame);
+    hash = nativeSemanticState_AddU32(hash, fighter->native_quiet_ko_pending |
+                                     (fighter->native_quiet_ko_active << 1));
     hash = add_float(hash, fighter->x898_unk);
     hash = add_float(hash, fighter->frame_speed_mul);
     hash = add_float(hash, fighter->x8A0_unk);

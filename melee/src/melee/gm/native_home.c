@@ -1,6 +1,8 @@
 #include <melee/ui/native_hub.h>
 #include <melee/ui/native_hub_hand.h>
 #include "native_home.h"
+#include <melee/ef/native_workshop_effects.h>
+#include <melee/ft/ftaction.h>
 #include <melee/mn/native_css_interaction.h>
 #include <melee/mn/native_menu_scene.h>
 #include <sysdolphin/baselib/native_workshop_gizmo.h>
@@ -32,6 +34,7 @@
 #include <melee/ft/ftanim.h>
 #include <melee/ft/ftanimation_bank.h>
 #include <melee/ft/ftcharacter_assets.h>
+#include <melee/ft/ft_0877.h>
 #include <melee/ft/ftcoll.h>
 #include <melee/ft/ftdata.h>
 #include <melee/ft/ftparts.h>
@@ -78,6 +81,8 @@ static struct {
     bool enter_match_setup;
     bool local_practice_stage_select;
     unsigned local_practice_stage;
+    NativeContentId practice_opponent;
+    uint8_t practice_opponent_kind;
     bool online_match;
     bool watch_results;
     bool authoring;
@@ -512,6 +517,7 @@ static bool workshop_pose_tree_valid(Fighter_GObj* object,
 
 void nativeHome_WorkshopPoseRelease(bool resume_gameplay)
 {
+    nativeWorkshopEffects_Clear();
     if (home.workshop_companion_lifetime.object && nativeHome_IsPractice() &&
         nativeFighterLifetime_Current(&home.workshop_companion_lifetime)) {
         for (unsigned i = 0; i < home.workshop_companion_proc_count; ++i) {
@@ -814,6 +820,25 @@ bool nativeHome_WorkshopCameraSet(const NativeHomeWorkshopCamera* camera)
     return true;
 }
 
+int nativeHome_WorkshopSound(unsigned id, bool package_clip, unsigned channel)
+{
+    Fighter_GObj* gobj = workshop_preview_actor(false);
+    if (!gobj || !home.authoring || !home.preview_active || home.preview_live_test)
+        return -1;
+    Fighter* fp = GET_FIGHTER(gobj);
+    if (package_clip) return nativeFighterRuntime_SoundClip(fp->kind, id, channel);
+    if (id >= 0x83D60) return -1;
+    return ft_80087D0C(fp, (int) id);
+}
+
+int nativeHome_WorkshopFirstMotion(unsigned action)
+{
+    Fighter_GObj* actor = workshop_preview_actor(false);
+    FtMotionId motion;
+    return actor && workshop_motion_for_action(GET_FIGHTER(actor), action, &motion)
+        ? motion : -1;
+}
+
 void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox hitboxes[4],
                                         unsigned active_mask)
 {
@@ -1001,10 +1026,13 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
             workshop_draft.loading_fighter = fighter;
             workshop_draft.loading_animation = (int) clip.index;
         }
+        nativeAction_PoseSamplingActor = gobj;
         Fighter_ChangeMotionState(gobj, motion,
                               Ft_MF_SkipAnimVel | Ft_MF_SkipAttackCount |
-                                  Ft_MF_SkipRumble,
+                                  Ft_MF_SkipRumble |
+                                  (nativeWorkshopEffects_Holds(gobj) ? Ft_MF_KeepGfx : 0),
                                   frame, 0.0f, 0.0f, NULL);
+        nativeAction_PoseSamplingActor = NULL;
         workshop_draft.loading_fighter = NULL;
     } else {
         // The demo tree changes only the paused live rig. Gameplay action,
@@ -1032,6 +1060,18 @@ bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
     if (fighter->x590 == &workshop_draft.tree)
         ftData_80085CD8(fighter, fighter, fighter->anim_id);
     return true;
+}
+
+void nativeHome_WorkshopPreviewEffects(unsigned frame,
+    const NativeFighterActionOccurrence* events, size_t count)
+{
+    if (events == NULL || home.workshop_pose_clip.bank != NativeFighterAnimation_Action ||
+        !nativeFighterLifetime_Current(&home.workshop_pose_lifetime)) {
+        nativeWorkshopEffects_Clear();
+        return;
+    }
+    nativeWorkshopEffects_Seek(home.workshop_pose_gobj, home.workshop_pose_project,
+        home.workshop_pose_clip, home.workshop_pose_frame, frame, events, count);
 }
 
 bool nativeHome_WorkshopBoneScreen(unsigned joint,
@@ -1313,6 +1353,7 @@ bool nativeHome_WorkshopRay(float x, float y, float origin[3],
 
 void nativeHome_WorkshopPoseInvalidate(void)
 {
+    nativeWorkshopEffects_Clear();
     home.workshop_pose_clip.index = UINT_MAX;
     home.workshop_pose_tree = NULL;
     home.workshop_pose_frame = -1.0f;
@@ -1503,8 +1544,10 @@ static void prepare_preload(const VsModeData* vs, bool practice)
         }
     }
     if (practice) {
-        cache->entries[NATIVE_PRACTICE_SANDBAG_SLOT] =
-            (PreloadCacheSceneEntry){ ChKind_Sandbag, 0, 1 };
+        unsigned opponent = home.preview_active ? ChKind_Sandbag : home.practice_opponent_kind;
+        cache->entries[NATIVE_PRACTICE_OPPONENT_SLOT] = (PreloadCacheSceneEntry){
+            opponent >= ChKind_CustomFirst ? ChKind_None : opponent, 0, 1
+        };
     }
     lbDvd_80018254();
 }
@@ -1771,6 +1814,20 @@ bool nativeHome_ReturnToSelection(void)
     return true;
 }
 
+const NativeContentId* nativeHome_PracticeOpponent(void)
+{
+    return has_package_id(&home.practice_opponent) ? &home.practice_opponent : NULL;
+}
+
+bool nativeHome_SetPracticeOpponent(const NativeContentId* package)
+{
+    if (home.authoring || home.preview_active ||
+        (!nativeHome_IsSelection() && !nativeHome_IsPractice())) return false;
+    if (nativeHome_IsPractice() && !nativeHome_ReturnToSelection()) return false;
+    home.practice_opponent = package ? *package : (NativeContentId){ 0 };
+    return true;
+}
+
 void nativeHome_EnterSelection(CSSData* css)
 {
     if (nativeSpectatorMatch_State() >= NativeSpectator_Queued)
@@ -1828,7 +1885,8 @@ bool nativeHome_LockSelection(CSSData* css)
             port = 0;
             memcpy(packages, controlled_packages, sizeof(packages));
         }
-        if (!nativeMatchLaunch_ConfigureLocalFighters(packages, kinds, true)) {
+        if (!nativeMatchLaunch_ConfigureLocalFighters(packages, kinds, true,
+                                                      NULL, NULL)) {
             if (controlled) nativeWorkshopPractice_CancelStart("Could not load the selected practice fighter packages.");
             if (has_package_id(&home.preview_previous_candidate)) {
                 home.preview_candidate = home.preview_previous_candidate;
@@ -1883,11 +1941,19 @@ bool nativeHome_LockSelection(CSSData* css)
         }
     }
     uint8_t custom_kinds[GM_MAX_PLAYERS];
+    home.practice_opponent_kind = ChKind_Sandbag;
+    const NativeContentId* opponent = nativeHome_PracticeOpponent();
     if (!nativeMatchLaunch_ConfigureLocalFighters(home.fighter_packages,
-                                                   custom_kinds,
-                                                   false)) {
-        nativeHub_Notice("Selected fighter could not load.");
-        return false;
+            custom_kinds, false, opponent, &home.practice_opponent_kind)) {
+        if (opponent == NULL ||
+            !nativeMatchLaunch_ConfigureLocalFighters(home.fighter_packages,
+                custom_kinds, false, NULL, NULL)) {
+            nativeHub_Notice("Selected fighter could not load.");
+            return false;
+        }
+        home.practice_opponent = (NativeContentId){ 0 };
+        home.practice_opponent_kind = ChKind_Sandbag;
+        nativeHub_Notice("Practice opponent could not load. Using Sandbag.");
     }
     for (unsigned port = 0; port < GM_MAX_PLAYERS; ++port) {
         if (has_package_id(&home.fighter_packages[port])) {
@@ -2025,10 +2091,9 @@ void nativeHome_EnterPractice(StartMeleeData* start)
     const unsigned stage = home.local_practice_stage && !home.preview_active
         ? home.local_practice_stage : St_Kind_Practice;
     home.local_practice_stage = 0;
-    nativePractice_Configure(start, editor_port, stage);
-    if (editor_port < 0 && !home.preview_active &&
-        nativeOnlineSession_State() == NativeLobbySessionState_Disconnected &&
-        !nativeOnlineSession_Quick()) {
+    nativePractice_Configure(start, editor_port, stage, home.preview_active
+        ? ChKind_Sandbag : home.practice_opponent_kind);
+    if (editor_port < 0 && !home.preview_active) {
         start->rules.on_frame_start = gmTraining_UpdateLocalMenu;
         start->rules.disable_pausing = true;
     }

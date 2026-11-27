@@ -9,6 +9,7 @@
 #include <melee/ft/forward.h>
 
 typedef struct NativeFighterHitbox NativeFighterHitbox;
+typedef struct NativeFighterActionOccurrence NativeFighterActionOccurrence;
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,8 @@ unsigned nativeHome_WorkshopInitialMember(unsigned port);
 // Holds its fighter processes while the original renderer draws its pose.
 bool nativeHome_WorkshopPose(NativeFighterAnimationClip clip, float frame,
                              const NativeFighterProject* draft);
+int nativeHome_WorkshopSound(unsigned id, bool package_clip, unsigned channel);
+int nativeHome_WorkshopFirstMotion(unsigned action);
 FigaTree* nativeHome_WorkshopAnimationOverride(const Fighter* fighter,
                                                int animation);
 void nativeHome_WorkshopSceneStarted(void);
@@ -65,6 +68,8 @@ bool nativeHome_WorkshopCameraSet(const NativeHomeWorkshopCamera*);
 // active hitboxes. The caller supplies at most four slots, indexed by ID.
 void nativeHome_WorkshopPreviewHitboxes(const NativeFighterHitbox* hitboxes,
                                         unsigned active_mask);
+void nativeHome_WorkshopPreviewEffects(unsigned frame,
+    const NativeFighterActionOccurrence* events, size_t count);
 typedef struct NativeHomeWorkshopBoneScreen {
     float x;
     float y;
@@ -130,6 +135,8 @@ bool nativeHome_RoomRosterReady(bool* owner_requested,
 void nativeHome_RequestStartMatch(void);
 void nativeHome_CancelStartMatch(void);
 bool nativeHome_ReturnToSelection(void);
+const NativeContentId* nativeHome_PracticeOpponent(void);
+bool nativeHome_SetPracticeOpponent(const NativeContentId* package);
 void nativeHome_EnterSelection(CSSData* css);
 bool nativeHome_CssPlayer(unsigned port, uint8_t* character, uint8_t* color);
 const NativeContentId* nativeHome_CostumePackage(unsigned port);

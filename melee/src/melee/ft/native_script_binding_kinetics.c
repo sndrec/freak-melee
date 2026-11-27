@@ -120,16 +120,19 @@ bool nativeScriptBindingKinetics_Invoke(NativeScriptRuntimeContext* context,uint
         nativeFighterRuntime_SourcePackage(fighter->kind)!=NULL;
     if(guarded && !nativeScriptBindings_SourceFighterLayout(context,diagnostic))return false;
     switch(semantic) {
-    case NativeScriptBinding_AnimationStart:
+    case NativeScriptBinding_AnimationStart: {
         // Original ftAnim_8006EBA4 order, with continuation barriers between
         // stages that can execute subaction/animation callbacks.
         ftAnim_8006E9B4(object);
         if(!nativeScriptBindings_SourceAlive(context) || (guarded && !nativeScriptBindings_SourceFighterLayout(context,diagnostic)))return error(diagnostic,"Animation source retired during pose update.");
+        const u32 motion_sequence = fighter->native_motion_sequence;
         ftAction_80073240(object);
         if(!nativeScriptBindings_SourceAlive(context) || (guarded && !nativeScriptBindings_SourceFighterLayout(context,diagnostic)))return error(diagnostic,"Animation source retired during subactions.");
+        if (fighter->native_motion_sequence != motion_sequence) break;
         ftAnim_800707B0(object);
         if(!nativeScriptBindings_SourceAlive(context) || (guarded && !nativeScriptBindings_SourceFighterLayout(context,diagnostic)))return error(diagnostic,"Animation source retired during material update.");
         ftCo_800DB500(object);break;
+    }
     case NativeScriptBinding_AnimationSetRate:ftAnim_SetAnimRate(object,arguments[0].as.f32);break;
     case NativeScriptBinding_AnimationSetTimer:fighter->cur_anim_frame=arguments[0].as.f32;break;
     case NativeScriptBinding_AnimationClearMotionSamples:

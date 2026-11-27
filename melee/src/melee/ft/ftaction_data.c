@@ -59,9 +59,47 @@ static const u8 action_widths[49] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 2, 1, 4,
 };
 
+static bool identifier_byte(unsigned char c, unsigned index)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' ||
+           (index && c >= '0' && c <= '9');
+}
+
+unsigned ftActionData_EncodeScript(const char* name, uint32_t words[FT_ACTION_MAX_WORDS])
+{
+    const size_t length = strlen(name);
+    if (!length || length > FT_ACTION_SCRIPT_NAME_MAX) return 0;
+    for (unsigned i = 0; i < length; ++i)
+        if (!identifier_byte((unsigned char) name[i], i)) return 0;
+    words[0] = (16u << 26) | FT_ACTION_SCRIPT_TAG | (u32) length;
+    const unsigned count = ftAction_ScriptWords(words[0]);
+    memset(words + 1, 0, (count - 1) * sizeof(*words));
+    for (unsigned i = 0; i < length; ++i)
+        words[1 + i / 4] |= (u32) (unsigned char) name[i] << (24 - i % 4 * 8);
+    return count;
+}
+
+bool ftActionData_DecodeScript(const u32* words, unsigned count,
+                               char name[FT_ACTION_SCRIPT_NAME_MAX + 1])
+{
+    if (count < 2 || count > FT_ACTION_MAX_WORDS ||
+        ftAction_SourceOpcode(words[0]) != FT_ACTION_SCRIPT_OPCODE ||
+        count != ftAction_ScriptWords(words[0])) return false;
+    const unsigned length = words[0] & FT_ACTION_SCRIPT_NAME_MAX;
+    for (unsigned i = 0; i < (count - 1) * 4; ++i) {
+        const unsigned char c = (unsigned char) (words[1 + i / 4] >> (24 - i % 4 * 8));
+        if (i < length ? !identifier_byte(c, i) : c != 0) return false;
+        if (i < length) name[i] = (char) c;
+    }
+    name[length] = '\0';
+    return true;
+}
+
 u32 ftActionData_SourceCommandWidth(u32 source_word)
 {
-    u32 opcode = source_word >> 26;
+    u32 opcode = ftAction_SourceOpcode(source_word);
+    if (opcode == FT_ACTION_SCRIPT_OPCODE)
+        return (source_word & FT_ACTION_SCRIPT_NAME_MAX) ? ftAction_ScriptWords(source_word) : 0;
     if (opcode < 10) {
         return (opcode == 5 || opcode == 7) ? 2 : 1;
     }
@@ -158,8 +196,9 @@ unsigned ftActionData_SourceFieldWidths(unsigned opcode, unsigned word, u8 width
     return layout->count;
 }
 
-static u32 transcode_word(u32 source, const FieldLayout* layout)
+u32 ftActionData_NativeWord(unsigned opcode, unsigned word, u32 source)
 {
+    const FieldLayout* layout = word_layout(opcode, word);
     if (layout == NULL) return source;
     u32 result = 0;
     u32 source_shift = 32;
@@ -271,6 +310,16 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
             if (width == 0 || width > (wait_source - at) / 4) {
                 fail(import, HSD_DAT_DESCRIPTOR, at);
                 goto cleanup;
+            }
+            if (ftAction_IsScript(opcode, raw & 0x3ffffff)) {
+                u32 words[FT_ACTION_MAX_WORDS] = { raw };
+                char name[FT_ACTION_SCRIPT_NAME_MAX + 1];
+                for (unsigned i = 1; i < width; ++i)
+                    HSD_DatReadU32(import->dat, at + i * 4, &words[i]);
+                if (!ftActionData_DecodeScript(words, width, name)) {
+                    fail(import, HSD_DAT_DESCRIPTOR, at);
+                    goto cleanup;
+                }
             }
             const bool timed = nativeHitbox_IsTimed(opcode);
             const bool extended = nativeHitbox_IsExtended(opcode);
@@ -384,7 +433,7 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
         HSD_DatReadU32(import->dat, at, &raw);
         u32 opcode = raw >> 26;
         u32 width = ftActionData_SourceCommandWidth(raw);
-        u32 native = transcode_word(raw, word_layout(opcode, 0));
+        u32 native = ftActionData_NativeWord(opcode, 0, raw);
         memcpy(&commands[(at - source_begin) / 4], &native, 4);
         for (u32 word = 1; word < width; ++word) {
             u32 value;
@@ -400,7 +449,7 @@ bool ftActionData_Import(HSD_DatImport* import, u32 wait_source,
                 break;
             }
             HSD_DatReadU32(import->dat, at + word * 4, &value);
-            value = transcode_word(value, word_layout(opcode, word));
+            value = ftActionData_NativeWord(opcode, word, value);
             memcpy(&commands[(at + word * 4 - source_begin) / 4], &value, 4);
         }
     }

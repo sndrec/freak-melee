@@ -604,6 +604,9 @@ namespace NativeActionProperties {
                           op, 1 });
                 }
             }
+            result.push_back({ "execute_script", "Execute Script",
+                NativeFighterActionLabels::command_description(FT_ACTION_SCRIPT_OPCODE),
+                FT_ACTION_SCRIPT_OPCODE, 0 });
             return result;
         }();
         return values;
@@ -654,14 +657,33 @@ namespace NativeActionProperties {
                                        "clear_hitboxes",
                                        "release_throw",
                                        "reverse_facing",
-                                       "ground_air" };
-        return kind < std::size(names) ? type(names[kind]) : nullptr;
+                                       "ground_air", nullptr, "execute_script" };
+        return kind < std::size(names) && names[kind] ? type(names[kind]) : nullptr;
+    }
+
+    static void script_properties(Reply& r, yyjson_mut_val* out, const char* name)
+    {
+        auto* props = yyjson_mut_obj(r.document);
+        auto* fields = yyjson_mut_obj(r.document);
+        auto* function = yyjson_mut_obj(r.document);
+        add_string(r, props, "function", name);
+        add_string(r, function, "type", "string");
+        add_string(r, function, "description", "Name of a fighter script function that takes no arguments.");
+        yyjson_mut_obj_add_val(r.document, fields, "function", function);
+        yyjson_mut_obj_add_val(r.document, out, "properties", props);
+        yyjson_mut_obj_add_val(r.document, out, "fields", fields);
     }
 
     void inspect(const NativeFighterProject& p, unsigned action,
                  const NativeFighterActionCommand& cmd, Reply& r,
                  yyjson_mut_val* out)
     {
+        if (cmd.opcode == FT_ACTION_SCRIPT_OPCODE) {
+            char name[FT_ACTION_SCRIPT_NAME_MAX + 1];
+            if (nativeFighterAction_GetScript(&p, action, cmd.source_offset, name))
+                script_properties(r, out, name);
+            return;
+        }
         NativeFighterHitbox h;
         NativeFighterSoundEffect sound;
         NativeFighterSpawnEffect effect;
@@ -772,6 +794,16 @@ namespace NativeActionProperties {
                    nativeFighterAction_SetSpawnEffect(&p, action, source,
                                                       &effect);
         }
+        char old_function[FT_ACTION_SCRIPT_NAME_MAX + 1];
+        if (nativeFighterAction_GetScript(&p, action, source, old_function)) {
+            if (!yyjson_obj_size(props)) return true;
+            auto* value = yyjson_obj_get(props, "function");
+            const char* name = yyjson_get_str(value);
+            if (yyjson_obj_size(props) == 1 && name && std::strlen(name) == yyjson_get_len(value) &&
+                nativeFighterAction_SetScript(&p, action, source, name, &source)) return true;
+            error = "Choose a valid fighter script function name.";
+            return false;
+        }
         size_t n = 0;
         if (!nativeFighterAction_Commands(&p, action, nullptr, 0, &n)) {
             return false;
@@ -852,6 +884,19 @@ namespace NativeActionProperties {
                 const Type& t, yyjson_val* props, uint32_t& source,
                 std::string& error)
     {
+        if (t.opcode == FT_ACTION_SCRIPT_OPCODE) {
+            auto* value = yyjson_obj_get(props, "function");
+            const char* name = yyjson_get_str(value);
+            uint32_t words[FT_ACTION_MAX_WORDS];
+            const unsigned count = yyjson_obj_size(props) == 1 && name &&
+                    std::strlen(name) == yyjson_get_len(value)
+                ? ftActionData_EncodeScript(name, words) : 0;
+            if (!count) {
+                error = "Choose a valid fighter script function name.";
+                return false;
+            }
+            return nativeFighterAction_CreateEvent(&p, action, frame, words, count, &source);
+        }
         uint32_t words[NATIVE_HITBOX_MAX_WORDS]{};
         words[0] = t.opcode << 26 | t.selector;
         size_t width = ftActionData_SourceCommandWidth(words[0]);
@@ -899,6 +944,10 @@ namespace NativeActionProperties {
     void defaults(const NativeFighterProject& p, const Type& t, Reply& r,
                   yyjson_mut_val* out)
     {
+        if (t.opcode == FT_ACTION_SCRIPT_OPCODE) {
+            script_properties(r, out, "");
+            return;
+        }
         if (t.opcode == 59) {
             auto h = initial_hitbox();
             describe(&h, hitbox_fields, std::size(hitbox_fields), r, out,
@@ -1011,6 +1060,9 @@ namespace NativeActionProperties {
             yyjson_mut_obj_remove_str(fields, name);
             yyjson_mut_obj_add_val(doc, fields, name, row);
         }
+        auto* function = yyjson_mut_obj(doc);
+        add_string(r, function, "type", "string");
+        yyjson_mut_obj_add_val(doc, fields, "function", function);
         for (const auto& t : types()) {
             unsigned field = 0;
             for (unsigned word = 0;

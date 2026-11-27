@@ -1853,6 +1853,9 @@ struct Fighter {
     float aerial_landing_interrupt_frame;
     S8Vec2 ucf_stick[3];
     u8 ucf_shield_drop_frames;
+    u32 native_motion_sequence;
+    bool native_quiet_ko_pending;
+    bool native_quiet_ko_active;
     NativeActionBuffer action_buffer;
     NativeHitboxLifetime native_hitbox_lifetimes[4];
     Vec2 native_contact_launch;

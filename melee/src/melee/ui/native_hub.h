@@ -32,7 +32,7 @@ typedef enum NativeHubPage {
     NativeHubPage_PlayerProfiles, NativeHubPage_ControllerCalibration,
     NativeHubPage_MatchRules, NativeHubPage_ItemSwitch, NativeHubPage_Costumes,
     NativeHubPage_Packages, NativeHubPage_PackageRecipient, NativeHubPage_AdditionalRules, NativeHubPage_LobbyRules,
-    NativeHubPage_ControllerPicker
+    NativeHubPage_ControllerPicker, NativeHubPage_PracticeOpponent
 } NativeHubPage;
 void nativeHub_Tick(void);
 void nativeHub_Draw(void);

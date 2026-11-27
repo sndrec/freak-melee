@@ -703,6 +703,7 @@ static const NativeScriptBindingDescriptor catalog[NativeScriptBinding_Count] = 
     PROP(NativeScriptBinding_CaptureArmed,"armed",NativeScriptBinding_Capture,F,NativeScriptType_Bool,W|NativeScriptFlag_SourceOnly),
     PROP(NativeScriptBinding_AnimationHipRootCompensation,"hip_root_compensation",NativeScriptBinding_Animation,F,NativeScriptType_Bool,W|NativeScriptFlag_SourceOnly),
     PROP(NativeScriptBinding_DamageForceTopBlastKO,"force_top_blast_ko",NativeScriptBinding_Damage,F,NativeScriptType_Bool,W|NativeScriptFlag_SourceOnly),
+    K0(NativeScriptBinding_DamageQuietKO,"quiet_ko",NativeScriptBinding_Damage,NativeScriptType_Void,NativeScriptFlag_SourceOnly),
     PROP(NativeScriptBinding_AirTerminalVelocity,"terminal_velocity",NativeScriptBinding_Air,F,NativeScriptType_F32,R|NativeScriptFlag_Pure),
     PROP(NativeScriptBinding_ControlsStickSmoothing,"stick_smoothing",NativeScriptBinding_Controls,F,NativeScriptType_F32,R|NativeScriptFlag_Pure),
     PROP(NativeScriptBinding_ControlsAerialJumpReverseThreshold,"aerial_jump_reverse_threshold",NativeScriptBinding_Controls,F,NativeScriptType_F32,R|NativeScriptFlag_Pure),
@@ -2014,7 +2015,7 @@ bool nativeScriptBindings_Invoke(NativeScriptRuntimeContext* context,uint32_t se
             if(!nativeScriptBindingLedge_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if((semantic&NATIVE_SCRIPT_SPAWN_DOMAIN_MASK)==NATIVE_SCRIPT_SPAWN_DOMAIN) {
             if(!nativeScriptBindingSpawn_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
-        } else if(semantic==NativeScriptBinding_DamageUpdateTimer || semantic==NativeScriptBinding_PhysicsDamageMotion ||
+        } else if(semantic==NativeScriptBinding_DamageQuietKO || semantic==NativeScriptBinding_DamageUpdateTimer || semantic==NativeScriptBinding_PhysicsDamageMotion ||
                   semantic==NativeScriptBinding_DamageInterruptCleanup) {
             if(!nativeScriptBindingCombat_Invoke(context,semantic,inputs,count,&value,diagnostic))return false;
         } else if(semantic>=NativeScriptBinding_CPU) {

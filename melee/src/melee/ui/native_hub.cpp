@@ -62,7 +62,7 @@ namespace {
                                  "Friends",     "Inbox",   "Workshop",
                                  "Settings",    "Profile", "Clone fighter",
                                  "Send fighter", "Lobby chat", "Stage select", "Create lobby", "Account",
-                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package", "Additional Rules", "Lobby settings", "Choose controller" };
+                                 "Letter", "Write a letter", "Player profile", "First startup", "Portrait & CSS tile", "News", "Controls", "Video", "Audio", "Game", "Online", "Player profiles", "Controller calibration", "Match rules", "Item switch", "Costumes", "Installed packages", "Send package", "Additional Rules", "Lobby settings", "Choose controller", "Practice opponent" };
     SDL_Window* text_window;
     bool wants_text;
     bool hand_cursor_hidden;
@@ -610,7 +610,8 @@ void nativeHub_Activate(HubAction action, int value)
             hub.send_from_css = false;
             hub.dismissed = true;
             hub.visible = false;
-        } else if (hub.page == NativeHubPage_QuickStage) {
+        } else if (hub.page == NativeHubPage_QuickStage ||
+                   hub.page == NativeHubPage_PracticeOpponent) {
             hub.dismissed = true;
             hub.visible = false;
         } else if (hub.page == NativeHubPage_Letter || hub.page == NativeHubPage_ComposeLetter) {
@@ -763,6 +764,21 @@ void nativeHub_Activate(HubAction action, int value)
         hub.visible = false;
         nativeHub_Focus(nullptr, 0);
         break;
+    case HubAction::PracticeOpponentPage:
+        hub.first_practice_opponent = std::max(0, value);
+        break;
+    case HubAction::PracticeOpponent: {
+        if (value < -1 || (value >= 0 && (unsigned(value) >= nativeHubFighterCount ||
+            !nativeHubFighters[value].installed))) break;
+        const auto* package = value < 0 ? nullptr : &nativeHubFighters[value].id;
+        if (!nativeHome_SetPracticeOpponent(package)) {
+            nativeHub_Notice("Could not change the practice opponent.");
+            break;
+        }
+        hub.dismissed = true;
+        hub.visible = false;
+        break;
+    }
     case HubAction::EditLayout:
         nativeShellCssOriginal_Open();
         hub.returning_from_tool = nativeShellCssOriginal_IsEditing();
@@ -1583,8 +1599,13 @@ extern "C" void nativeHub_Event(const SDL_Event* event)
 extern "C" void nativeHub_Open(NativeHubPage page)
 {
     if ((!nativeHome_IsSelection() && !nativeHome_IsPractice()) ||
-        page > NativeHubPage_PackageRecipient || nativeHubStartup.active) {
+        (page > NativeHubPage_PackageRecipient && page != NativeHubPage_PracticeOpponent) ||
+        nativeHubStartup.active) {
         return;
+    }
+    if (page == NativeHubPage_PracticeOpponent) {
+        reload_catalog();
+        hub.first_practice_opponent = 0;
     }
     hub.opened_from_play = true;
     show();

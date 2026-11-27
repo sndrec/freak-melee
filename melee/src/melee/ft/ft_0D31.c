@@ -45,6 +45,14 @@ bool ftCo_800D3158(Fighter_GObj* gobj)
     if (fp->x2219_b1) {
         return false;
     }
+#ifdef MELEE_NATIVE
+    // Script requests run at the same point as normal blast-zone KOs, after
+    // the current fighter callbacks have returned.
+    if (fp->native_quiet_ko_pending) {
+        ftCo_800D3BC8(gobj);
+        return true;
+    }
+#endif
     if (fp->cur_pos.x > Stage_GetBlastZoneRightOffset()) {
         ftCo_800D3950(gobj);
         return true;
@@ -443,9 +451,20 @@ void ftCo_800D3BC8(Fighter_GObj* gobj)
     u8 _[24];
 
     temp_r31 = (temp_r27 = gobj->user_data);
+#ifdef MELEE_NATIVE
+    const bool quiet = temp_r31->native_quiet_ko_pending;
+    temp_r31->native_quiet_ko_pending = false;
+    const uint32_t generation = temp_r31->x8_spawnNum;
+#endif
     ftCo_800D331C(gobj);
+#ifdef MELEE_NATIVE
+    if (!nativeCallbackSource_Alive(gobj, generation, NativeCallbackSource_Fighter)) return;
+#endif
     temp_r27->mv.co.unk_800D3680.x40 = p_ftCommonData->x500;
     Fighter_ChangeMotionState(gobj, 0, 0U, 0.0F, 1.0F, 0.0F, NULL);
+#ifdef MELEE_NATIVE
+    if (!nativeCallbackSource_Alive(gobj, generation, NativeCallbackSource_Fighter)) return;
+#endif
     temp_r28 = (new_var = gobj)->user_data;
     if (temp_r28->x221D_b6) {
         ft_800880D8(temp_r28);
@@ -460,6 +479,16 @@ void ftCo_800D3BC8(Fighter_GObj* gobj)
     temp_r28_2 = temp_r27_2->ft_data->x4C_sfx;
     temp_r27_2->invisible = true;
     temp_r27_2->x221F_b1 = 1;
+#ifdef MELEE_NATIVE
+    if (quiet) {
+        temp_r31->x890_cameraBox->state = CmSubjectState_Inactive;
+        temp_r31->native_quiet_ko_active = true;
+        ftCo_800D34E0(gobj);
+        ft_80088C5C(gobj);
+        ftCo_800D4E50(temp_r31, &temp_r31->cur_pos, 0, 1.5707964f);
+        return;
+    }
+#endif
     Camera_RequestQuake(QuakeKind_Large, &temp_r27_2->cur_pos);
     ftCo_800D35FC(temp_r27_2);
     ftCo_800D34E0(gobj);

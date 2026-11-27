@@ -14,7 +14,8 @@ namespace NativeFighterActionLabels {
             "Define throw values",  "Allow interrupt",
             "Neutral cue",          "Clear hitbox",
             "Clear all hitboxes",   "Release throw",
-            "Reverse facing",       "Set grounded / airborne"
+            "Reverse facing",       "Set grounded / airborne",
+            "Original command",     "Execute Script"
         };
         return kind < sizeof(labels) / sizeof(labels[0]) ? labels[kind]
                                                          : "Original command";
@@ -22,6 +23,7 @@ namespace NativeFighterActionLabels {
 
     std::string command(unsigned opcode)
     {
+        if (opcode == FT_ACTION_SCRIPT_OPCODE) return "Execute Script";
         if (opcode == FT_ACTION_THROW_FRACTIONAL_OPCODE) {
             opcode = FT_ACTION_THROW_OPCODE;
         }
@@ -104,6 +106,8 @@ namespace NativeFighterActionLabels {
     const char* command_description(unsigned opcode)
     {
         switch (opcode) {
+        case FT_ACTION_SCRIPT_OPCODE:
+            return "Runs a fighter script function at this frame.";
         case 0:
             return "Stops this action's event script.";
         case 1:

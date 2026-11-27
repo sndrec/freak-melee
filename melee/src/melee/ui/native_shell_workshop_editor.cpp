@@ -313,6 +313,7 @@ void select_mode(WorkshopMode next)
         update_timeline_cursor();
     }
     session->mode = next;
+    if (next != WorkshopMode::Action) close_sound_picker();
     if (next == WorkshopMode::Animation || next == WorkshopMode::Action) {
         auto* model = (NativeFighterModelEditor*) std::malloc(
             sizeof(NativeFighterModelEditor));
@@ -420,6 +421,8 @@ void select_mode(WorkshopMode next)
         set_text("workshop-action-detail", std::string(session->animation_clip.bank == NativeFighterAnimation_Demo
             ? "Owned demo clip " : "Animation clip for action ") + number(session->animation_clip.index));
     }
+    document->GetElementById("workshop-jump-script")->SetProperty("display",
+        session->mode == WorkshopMode::Action ? "block" : "none");
     if (session->mode == WorkshopMode::Model) {
         set_text("workshop-context-action", "Model");
         set_text("workshop-context-phase", "Default costume");
@@ -625,6 +628,7 @@ void nativeShellWorkshopEditor_Open(unsigned member, NativeFighterProject* fight
 
 void nativeShellWorkshopEditor_Close()
 {
+    if (document) close_sound_picker();
     cancel_session_gestures();
     nativeWorkshopPose_Clear();
     nativeShellWorkshopModel_Close();
@@ -794,6 +798,7 @@ bool WorkshopEditor::edit_action_label(bool rename)
 
 bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
 {
+    if (sound_picker_click(id)) return true;
     if (std::strcmp(id, "workshop-delete-confirm") == 0) {
         confirm_delete();
         return true;
@@ -963,6 +968,16 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         select_mode(WorkshopMode::Animation);
         return true;
     }
+    if (std::strcmp(id, "workshop-jump-script") == 0) {
+        const int action = session->selected_action;
+        if (action >= 0) {
+            const int motion = nativeHome_WorkshopFirstMotion((unsigned) action);
+            const std::string name = WorkshopLabels::action(session->actions[action].name);
+            select_mode(WorkshopMode::Script);
+            show_action_script(motion, name);
+        }
+        return true;
+    }
     if (parse_row(id, "workshop-script-file-", &index)) {
         select_script_file(index);
         return true;
@@ -1100,10 +1115,6 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
         select_mode(WorkshopMode::Animation);
         return true;
     }
-    if (std::strcmp(id, "workshop-jump-script") == 0) {
-        select_mode(WorkshopMode::Script);
-        return true;
-    }
     if (parse_row(id, "workshop-action-", &index)) {
         select_action(index);
         return true;
@@ -1207,6 +1218,21 @@ bool nativeShellWorkshopEditor_Click(const char* id, bool shift)
     }
     if (std::strcmp(id, "workshop-add-event") == 0) {
         toggle_add_event_menu();
+        return true;
+    }
+    if (std::strcmp(id, "workshop-event-categories") == 0) {
+        show_add_event_category(-1);
+        return true;
+    }
+    if (parse_row(id, "workshop-event-category-", &index)) {
+        show_add_event_category((int) index);
+        return true;
+    }
+    constexpr char execute_prefix[] = "workshop-execute-create-";
+    if (std::strncmp(id, execute_prefix, sizeof(execute_prefix) - 1) == 0) {
+        session->add_event_menu_open = false;
+        document->GetElementById("workshop-add-event-menu")->SetProperty("display", "none");
+        create_action_event("execute_script", id + sizeof(execute_prefix) - 1);
         return true;
     }
     if (std::strcmp(id, "workshop-delete-event") == 0) {
@@ -1413,7 +1439,7 @@ void nativeShellWorkshopEditor_Update()
             set_text("workshop-preview-state",
                 std::string(preview_name) + " · frame " +
                 number((unsigned) frame) + " · playing");
-            // Keep posing below: editor playback advances animation only.
+            // Keep posing below so playback and scrubbing share the preview.
         } else {
             stop_action_preview();
         }
@@ -1428,6 +1454,9 @@ void nativeShellWorkshopEditor_Update()
                          std::max(0.0f,
                              preview_frames - 1.0f)), session->project)) {
             pose_ready = true;
+            nativeHome_WorkshopPreviewEffects(unsigned(frame),
+                session->mode == WorkshopMode::Action ? session->timeline_occurrences : nullptr,
+                session->timeline_occurrence_count);
             if (session->mode == WorkshopMode::Action &&
                 (session->preview_hitbox_cached_frame != session->timeline_frame ||
                  session->preview_hitbox_cached_action != session->selected_action)) {

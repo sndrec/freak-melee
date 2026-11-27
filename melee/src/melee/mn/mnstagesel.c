@@ -770,15 +770,6 @@ void mnStageSel_Scene_OnEnter(void* arg0)
                 break;
             default:
                 temp_r22_7 = mnStageSel_803F06D0[i + 13].x9 - 0x16;
-#ifdef MELEE_NATIVE
-                // The native texture animation lists Dream Land before
-                // Battlefield and Final Destination. Keep the stage IDs and
-                // names unchanged; select the matching thumbnail frame.
-                {
-                    static const s8 special_icon_frames[5] = { 3, 4, 2, 5, 6 };
-                    temp_r22_7 = special_icon_frames[i - 0xB];
-                }
-#endif
                 do_anim(temp_r23_3, temp_r22_7);
                 break;
             }

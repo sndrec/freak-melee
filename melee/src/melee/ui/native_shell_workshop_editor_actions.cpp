@@ -115,6 +115,7 @@ constexpr HitboxToggle hitbox_toggles[] = {
 
 void show_event()
 {
+    close_sound_picker();
     const ActionInspectorRefresh refresh;
     document->GetElementById("workshop-command-fields")->SetProperty("display", "none");
     document->GetElementById("workshop-delete-event")
@@ -124,6 +125,7 @@ void show_event()
     Rml::Element* value_inspector = document->GetElementById("workshop-value-fields");
     value_inspector->SetProperty("display", "none");
     document->GetElementById("workshop-sound-fields")->SetProperty("display", "none");
+    document->GetElementById("workshop-execute-script-fields")->SetProperty("display", "none");
     document->GetElementById("workshop-effect-fields")->SetProperty("display", "none");
     document->GetElementById("workshop-action-playback")->SetProperty("display",
         session->selected_event < 0 && session->selected_command < 0 ? "block" : "none");
@@ -145,6 +147,10 @@ void show_event()
     document->GetElementById("workshop-delete-event")
         ->SetProperty("display", "block");
     set_text("workshop-action-title", event_name(event));
+    if (event.kind == NativeFighterActionEvent_ExecuteScript) {
+        show_execute_script_fields(event.source_offset);
+        return;
+    }
     if (event.kind == NativeFighterActionEvent_Command) {
         set_text("workshop-action-title", event_name(event));
         set_text("workshop-action-detail", NativeFighterActionLabels::command_description(event.opcode));
@@ -175,7 +181,8 @@ void show_event()
         field("workshop-sound-pan")->SetValue(number(sound.panning));
         for (const char* id : { "workshop-sound-package", "workshop-sound-id",
                                 "workshop-sound-channel", "workshop-sound-volume",
-                                "workshop-sound-pan" }) {
+                                "workshop-sound-pan", "workshop-browse-sounds",
+                                "workshop-play-sound" }) {
             if (sound.behavior > 6) field(id)->SetAttribute("disabled", "");
             else field(id)->RemoveAttribute("disabled");
         }
@@ -391,14 +398,13 @@ void show_commands()
 void show_action_timeline()
 {
     session->preview_hitbox_cached_frame = -1;
-    session->timeline_end_frame = 48;
+    session->timeline_end_frame = 1;
     NativeFighterAnimationInfo action_clip = {};
     const bool has_clip = session->project != nullptr && session->selected_action >= 0 &&
         nativeFighterAnimation_Info(session->project, NativeFighterAnimationClip{ NativeFighterAnimation_Action, (unsigned) session->selected_action },
                                     &action_clip);
     if (has_clip && std::isfinite(action_clip.frames))
-        session->timeline_end_frame = std::max(session->timeline_end_frame,
-            std::clamp((int) std::ceil(action_clip.frames), 1, 1000));
+        session->timeline_end_frame = (int) std::clamp(std::ceil(action_clip.frames), 1.0f, 1000.0f);
     for (size_t i = 0; i < session->event_count; ++i) session->event_frames[i] = -1;
     for (size_t i = 0; i < session->command_count; ++i) session->command_frames[i] = -1;
     session->timeline_event_count = 0;
@@ -414,10 +420,7 @@ void show_action_timeline()
          ++occurrence) {
         const auto& current = session->timeline_occurrences[occurrence];
         const int frame = current.frame;
-        session->timeline_end_frame = std::max(session->timeline_end_frame, frame + 3);
-        for (size_t e = 0; e < session->event_count; ++e)
-            if (session->events[e].source_offset == current.source_offset && session->events[e].duration256)
-                session->timeline_end_frame = std::max(session->timeline_end_frame, frame + (int)((session->events[e].duration256 + 255) / 256));
+        session->timeline_end_frame = std::max(session->timeline_end_frame, frame);
         for (size_t command = 0; command < session->command_count; ++command)
             if (session->commands[command].source_offset == current.source_offset) {
                 if (session->command_frames[command] < 0) session->command_frames[command] = frame;
@@ -425,6 +428,9 @@ void show_action_timeline()
             }
         for (size_t event = 0; event < session->event_count; ++event) {
             if (session->events[event].source_offset != current.source_offset) continue;
+            const unsigned duration = session->events[event].duration256;
+            const int end = frame + (int) (duration / 256 + (duration % 256 != 0));
+            session->timeline_end_frame = std::max(session->timeline_end_frame, end);
             if (session->event_frames[event] < 0) session->event_frames[event] = frame;
             if (session->timeline_event_count < std::size(session->timeline_events))
                 session->timeline_events[session->timeline_event_count++] = {
@@ -517,10 +523,13 @@ void show_action_timeline()
                       std::string(hitbox_id >= 0 ? " hitbox subtrack" : "") +
                       "'>" + name + "</div>";
         lanes += "<div class='workshop-timeline-lane'>";
-        if (lane == 0 && has_clip)
-            lanes += "<span class='workshop-animation-span'>" +
-                     Rml::StringUtilities::EncodeRml(session->actions[session->selected_action].name) +
-                     "</span>";
+        if (lane == 0 && has_clip && std::isfinite(action_clip.frames)) {
+            char width[32];
+            std::snprintf(width, sizeof(width), "%.2f%%", std::clamp(
+                action_clip.frames * 92.0 / session->timeline_end_frame, 0.0, 92.0));
+            lanes += std::string("<span class='workshop-animation-span' style='width:") + width + "'>" +
+                     Rml::StringUtilities::EncodeRml(session->actions[session->selected_action].name) + "</span>";
+        }
         if (lane == 1 && hitbox_count != 0) {
             int first = session->timeline_end_frame;
             float last = 0;
@@ -574,6 +583,7 @@ void show_action_timeline()
                 event.kind == NativeFighterActionEvent_SetHitboxFlag ||
                 event.kind == NativeFighterActionEvent_SetCommandVar ||
                 event.kind == NativeFighterActionEvent_NeutralCue ||
+                event.kind == NativeFighterActionEvent_ExecuteScript ||
                 event.kind == NativeFighterActionEvent_Command;
             if (!belongs) continue;
             const float left = std::clamp(frame * 92.0f / session->timeline_end_frame, 0.0f, 92.0f);
@@ -783,9 +793,12 @@ void toggle_add_event_menu()
         menu->SetProperty("display", "none");
         return;
     }
-    std::string markup;
-    if (session->selected_event >= 0)
-        markup = "<button id='workshop-add-copy'>Copy selected event</button>";
+    show_add_event_category(-1);
+}
+
+void show_add_event_category(int selected)
+{
+    if (!session->add_event_menu_open) return;
     static const unsigned kinds[] = {
         NativeFighterActionEvent_CreateHitbox,
         NativeFighterActionEvent_SpawnEffect,
@@ -803,24 +816,75 @@ void toggle_add_event_menu()
         NativeFighterActionEvent_ReleaseThrow,
         NativeFighterActionEvent_ReverseFacing,
         NativeFighterActionEvent_SetAirborneState,
+        NativeFighterActionEvent_ExecuteScript,
     };
-    bool offered[61] = {};
+    enum Category { Attacks, Effects, Audio, Timing, Movement, Visibility, Scripting, Other, CategoryCount };
+    const auto category = [](unsigned opcode, unsigned selector) {
+        switch (opcode) {
+        case 12: case 13: case 14: case 15: case 16: case 21: case 22:
+        case 27: case 28: case 34: case 51: case 59:
+            return Attacks;
+        case 20:
+            return selector ? Movement : Attacks;
+        case 9: case 10: case 46: case 47: case 49: case 57: case 58:
+            return Effects;
+        case 17: case 18: case 38: case 39: case 54: case 55:
+            return Audio;
+        case 1: case 2: case 23: case 24: case 29: case 30: case 56:
+            return Timing;
+        case 25: case 26: case 50: case 52:
+            return Movement;
+        case 31: case 32: case 33: case 35: case 36: case 37:
+        case 40: case 41: case 42: case 45: case 48: case 53:
+            return Visibility;
+        case FT_ACTION_SCRIPT_OPCODE:
+            return Scripting;
+        default:
+            return Other;
+        }
+    };
+    std::string groups[CategoryCount];
+    bool offered[FT_ACTION_SCRIPT_OPCODE + 1] = {};
     for (unsigned kind : kinds) {
         if (!session->show_event_list && (kind == NativeFighterActionEvent_SyncTimer || kind == NativeFighterActionEvent_AsyncTimer ||
             kind == NativeFighterActionEvent_ClearHitbox || kind == NativeFighterActionEvent_ClearAllHitboxes)) continue;
         const auto* type = NativeActionProperties::type_for_event(kind);
         if (!type) continue;
         offered[type->opcode] = true;
-        markup += "<button id='workshop-add-kind-" + number(kind) +
-                  "'>" + NativeFighterActionLabels::event(kind) + "</button>";
+        groups[category(type->opcode, type->selector)] +=
+            "<button id='workshop-add-kind-" + number(kind) +
+            "'>" + NativeFighterActionLabels::event(kind) + "</button>";
     }
     for (const auto& type : NativeActionProperties::types()) {
         if (type.opcode < 9 || offered[type.opcode] || type.opcode == 59) continue;
-        markup += "<button id='workshop-add-command-" + number(type.opcode) + "'>" +
-                  type.label + "</button>";
+        groups[category(type.opcode, type.selector)] +=
+            "<button id='workshop-add-command-" + number(type.opcode) + "'>" +
+            type.label + "</button>";
     }
+    static const char* headings[] = { "Hitboxes and throws", "Visual effects", "Sound",
+                                      "Timing", "Movement and collision", "Model and visibility",
+                                      "Scripting", "Other" };
+    std::string markup;
+    if (selected >= 0 && selected < CategoryCount) {
+        if (selected == Scripting && !groups[selected].empty()) {
+            show_execute_script_picker();
+            return;
+        }
+        markup = "<button id='workshop-event-categories'>‹ Categories</button>";
+        markup += std::string("<div class='event-category'>") + headings[selected] + "</div>" + groups[selected];
+    } else {
+        if (session->selected_event >= 0)
+            markup = "<button id='workshop-add-copy'>Copy selected event</button>";
+        for (unsigned i = 0; i < CategoryCount; ++i) {
+            if (!groups[i].empty())
+                markup += "<button id='workshop-event-category-" + number(i) +
+                          "'>" + headings[i] + " ›</button>";
+        }
+    }
+    auto* menu = document->GetElementById("workshop-add-event-menu");
     menu->SetInnerRML(markup);
     menu->SetProperty("display", "block");
+    menu->SetScrollTop(0);
 }
 
 void insert_selected_event(unsigned template_action, uint32_t template_offset)

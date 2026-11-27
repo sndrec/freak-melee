@@ -1,5 +1,6 @@
 #ifdef MELEE_NATIVE
 #include "native_hitbox_lifetime.h"
+#include "native_script_fighter.h"
 #endif
 #include "ftaction.h"
 #include "ftaction_codec.h"
@@ -1423,6 +1424,10 @@ void ftAction_8007320C(Fighter_GObj* gobj, CommandInfo* cmd)
     SKIP_CMD(cmd, 4);
 }
 
+#ifdef MELEE_NATIVE
+const Fighter_GObj* nativeAction_PoseSamplingActor;
+#endif
+
 void ftAction_80073240(Fighter_GObj* fighter_gobj)
 {
     Fighter* fp = fighter_gobj->user_data;
@@ -1453,6 +1458,24 @@ void ftAction_80073240(Fighter_GObj* fighter_gobj)
 #endif
             eventCode =
                 gmScriptEventCast(ftCommand->u, gmScriptEventDefault)->opcode;
+#ifdef MELEE_NATIVE
+            const u32 value = ftCommand->u->Command_00.value;
+            if (ftAction_IsScript(eventCode, value)) {
+                u32 function;
+                memcpy(&function, ftCommand->u + 1, sizeof(function));
+                ftCommand->u += ftAction_ScriptWords(value);
+                if (value & FT_ACTION_SCRIPT_BOUND) {
+                    const u32 generation = fp->x8_spawnNum;
+                    const u32 motion_sequence = fp->native_motion_sequence;
+                    const union CmdUnion* next = ftCommand->u;
+                    if (nativeScriptFighter_Helper(fighter_gobj, generation, function,
+                                                   NULL, 0, NULL, NULL) != NativeScriptVM_Ok ||
+                        !nativeCallbackSource_Alive(fighter_gobj, generation, NativeCallbackSource_Fighter) ||
+                        fp->native_motion_sequence != motion_sequence || ftCommand->u != next) return;
+                }
+                continue;
+            }
+#endif
             if (Command_Execute(ftCommand, eventCode) == false) {
                 eventCode -= 0xA;
                 ftAction_803C06E8[eventCode](fighter_gobj, ftCommand);
@@ -1495,6 +1518,12 @@ void ftAction_80073354(Fighter_GObj* gobj)
                 float timer = cmd->timer;
                 eventCode =
                     gmScriptEventCast(cmd->u, gmScriptEventDefault)->opcode;
+#ifdef MELEE_NATIVE
+                if (ftAction_IsScript(eventCode, cmd->u->Command_00.value)) {
+                    cmd->u += ftAction_ScriptWords(cmd->u->Command_00.value);
+                    continue;
+                }
+#endif
                 if (Command_Execute(cmd, eventCode) == false) {
                     eventCode -= 0xA;
                     ftAction_803C07AC[eventCode](gobj, cmd);
@@ -1541,7 +1570,9 @@ void ftAction_8007349C(Fighter_GObj* gobj)
             u32 id = cmd->u->Command_09.id;
             if (!Command_Execute(cmd, id)) {
 #ifdef MELEE_NATIVE
-                if (nativeHitbox_IsExtended(id)) {
+                if (ftAction_IsScript(id, cmd->u->Command_00.value)) {
+                    cmd->u += ftAction_ScriptWords(cmd->u->Command_00.value);
+                } else if (nativeHitbox_IsExtended(id)) {
                     cmd->u += nativeHitbox_ExtendedWidth(cmd->u->create_hitbox_0.id);
                 } else
 #endif

@@ -37,7 +37,9 @@
 #ifdef MELEE_NATIVE
 #include "gmvs.h"
 #include "native_home.h"
+#include "native_online_session.h"
 #include "native_practice.h"
+#include <melee/ui/native_hub.h>
 #include <melee/lb/lbfile.h>
 #include <sysdolphin/baselib/controller.h>
 #include <sysdolphin/baselib/dat_import.h>
@@ -594,6 +596,8 @@ void fn_801891F4(void)
     int player = 0;
     bool open = gm_GetDbPauseFlag(2) != 0;
 #ifdef MELEE_NATIVE
+    const bool sandbag = local_slot >= 0 &&
+        Player_GetPlayerCharacter(NATIVE_PRACTICE_OPPONENT_SLOT) == ChKind_Sandbag;
     if (local_slot >= 0) {
         player = local_slot;
         open = local_menu_open;
@@ -620,7 +624,8 @@ void fn_801891F4(void)
                 sub->x00--;
                 if (sub->x00 == 5) sub->x00 = 4;
 #ifdef MELEE_NATIVE
-                if (local_slot >= 0 && sub->x00 == 3) sub->x00 = 1;
+                if (local_slot >= 0 && (sub->x00 == 2 || (sub->x00 == 3 && sandbag)))
+                    sub->x00 = 1;
 #endif
             } else {
                 sub->x00 = 8;
@@ -633,7 +638,8 @@ void fn_801891F4(void)
                 sub->x00++;
                 if (sub->x00 == 5) sub->x00 = 6;
 #ifdef MELEE_NATIVE
-                if (local_slot >= 0 && sub->x00 == 2) sub->x00 = 4;
+                if (local_slot >= 0 && sub->x00 == 2)
+                    sub->x00 = sandbag ? 4 : 3;
 #endif
             } else {
                 sub->x00 = 0;
@@ -823,7 +829,7 @@ void fn_801891F4(void)
 #ifdef MELEE_NATIVE
                 if (local_slot >= 0) {
                     Player_SetHUDDamage(player, 0);
-                    Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, 0);
+                    Player_SetHUDDamage(NATIVE_PRACTICE_OPPONENT_SLOT, 0);
                     sub->menu_values[4] = 0;
                     return;
                 }
@@ -919,24 +925,51 @@ void fn_801891F4(void)
 void gmTraining_UpdateLocalMenu(void)
 {
     if (local_slot < 0) return;
+    if (nativeHub_ConsumesGameInput()) {
+        local_input_consumed = true;
+        return;
+    }
     const int port = lbl_80473700.mode;
     const bool was_open = local_menu_open;
     const u64 pressed = gm_GetButtonsTriggered(port);
+    const u64 exit = PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_A |
+                     PAD_BUTTON_START;
     if (pressed & PAD_BUTTON_START) {
-        local_menu_open = !was_open;
-        if (local_menu_open) {
+        if ((gm_GetButtonsPressed(port) & exit) == exit) {
+            if (nativeHome_ReturnToSelection()) {
+                local_input_consumed = true;
+                return;
+            }
+        } else if (nativeOnlineSession_State() == NativeLobbySessionState_Waiting) {
+            const bool ready = nativeHome_IsReady();
+            if (nativeHome_SetReady(!ready)) local_menu_open = ready;
+        } else {
+            local_menu_open = !was_open;
+        }
+        if (local_menu_open && !was_open) {
             gm_80473814.anim_frames[22] = 0;
             sfxForward();
         }
     } else if (was_open && (pressed & PAD_BUTTON_B)) {
         local_menu_open = false;
+    } else if (was_open && (pressed & PAD_TRIGGER_Z)) {
+        nativeHub_Open(NativeHubPage_PracticeOpponent);
+        local_input_consumed = true;
+        return;
     }
     local_input_consumed = local_menu_open || was_open;
     if (!local_input_consumed) return;
     const int damage = gm_80473814.menu_values[4];
+    const int cpu_type = gm_80473814.menu_values[3];
     fn_801891F4();
     if (gm_80473814.menu_values[4] != damage)
-        Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, gm_80473814.menu_values[4]);
+        Player_SetHUDDamage(NATIVE_PRACTICE_OPPONENT_SLOT, gm_80473814.menu_values[4]);
+    if (gm_80473814.menu_values[3] != cpu_type &&
+        Player_GetPlayerCharacter(NATIVE_PRACTICE_OPPONENT_SLOT) != ChKind_Sandbag) {
+        gm_80473814.x03 = gm_80473814.menu_values[3];
+        Player_SetPlayerAndEntityCpuType(NATIVE_PRACTICE_OPPONENT_SLOT,
+                                        gm_80473814.x03);
+    }
 }
 
 bool gmTraining_LocalMenuOpen(void)
@@ -1056,6 +1089,13 @@ HSD_Text* fn_8018A000(int slot)
                                       "ScGamTraining_scene_models", 0);
 #endif
     fn_80189B88();
+#ifdef MELEE_NATIVE
+    if (slot >= 0 &&
+        Player_GetPlayerCharacter(NATIVE_PRACTICE_OPPONENT_SLOT) != ChKind_Sandbag) {
+        gm_80473814.x03 = Player_GetCpuType(NATIVE_PRACTICE_OPPONENT_SLOT);
+        gm_80473814.menu_values[3] = gm_80473814.x03;
+    }
+#endif
     ifAll_GetHUDGObj();
     HSD_SisLib_803A611C(0, NULL, 9, 0x14, 0, 0xE, 0, 0x12);
     if (lbLang_IsSavedLanguageUS()) {

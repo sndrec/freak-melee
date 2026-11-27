@@ -27,6 +27,7 @@ extern "C" {
 #include <melee/gm/gm_1A45.h>
 #include <melee/gm/gm_1884.h>
 #include <melee/gm/gmvs.h>
+#include <melee/gm/native_practice.h>
 #include <melee/gm/types.h>
 }
 
@@ -39,7 +40,7 @@ namespace {
         Decline,
         Queue,
         Stage,
-        Settings, ChatInput, ChatSend, ChatHistory, CopyCode, Rotation
+        Settings, ChatInput, ChatSend, ChatHistory, CopyCode, Rotation, Opponent
     };
     struct Button {
         char id[40], label[96];
@@ -163,6 +164,7 @@ namespace {
             SDL_SetClipboardText(nativeOnlineSession_RoomCode());
             break;
         case Action::Settings: nativeHubRules_Open(); break;
+        case Action::Opponent: nativeHub_Open(NativeHubPage_PracticeOpponent); break;
         case Action::Rotation:
             if (!nativeOnlineSession_SetRotation(NativeRoomRotationPolicy(b.value)))
                 nativeHub_Notice("Could not change the rotation.");
@@ -278,6 +280,8 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
         add("play-ready", "Ready / START", compact ? 451 : 14, compact ? 421 : 451,
             compact ? 177 : 126, 24, Action::Ready,
             nativeCssInteraction_CanReady() && !stage_choice, true);
+        add("practice-opponent", "Practice opponent", compact ? 14 : 147,
+            451, 129, 24, Action::Opponent);
         if (stage_choice) add("play-stage", "Next stage", 451, 451, 177, 24, Action::Stage, true, true);
         else if (quick) add("play-queue", queue_label, 451, 451, 177, 24, Action::Queue, can_queue, !searching);
         else if (compact && (can_watch || requesting_watch))
@@ -327,7 +331,7 @@ extern "C" void nativePlayMenu_Tick(bool selection, bool practice)
                  : "Enter queue, then START to ready and practice.";
         if (*nativeOnlineSession_QuickError()) status = nativeOnlineSession_QuickError();
     }
-    if (practice && (quick || presence) && !nativeHome_IsReady()) status="Not ready | START to resume and ready | Pause exit: L+R+A+START";
+    if (practice && (quick || presence) && !nativeHome_IsReady()) status="Not ready | START to ready | Exit: L+R+A+START";
     if (quick && state == NativeLobbySessionState_Returning) status = "Agreeing the match result...";
     if (requesting_watch) status = nativeOnlineSession_WatchContentReady()
         ? "Preparing the match..." : "Receiving the match and fighters...";
@@ -429,15 +433,18 @@ extern "C" void nativePlayMenu_DrawCountdown(void)
     std::snprintf(label, sizeof(label), "Match starts in %u", (remaining + 999) / 1000);
     nativeMenuSkin_Panel(195, 112, 250, 74, 0xD6BC79FF, 0x09080EF5);
     nativeMenuPaint_Text(label, 210, 128, 220, 17, 0xFFF4E9FF, NativeMenuFont_MenuOption, true);
-    nativeMenuPaint_Text("START to pause and unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
+    nativeMenuPaint_Text("START to unready", 210, 158, 220, 10, 0xEBDDAEFF, NativeMenuFont_Notice, true);
 }
 
 extern "C" void nativePlayMenu_DrawPractice(void)
 {
-    if (!menu.practice || gmTraining_LocalMenuOpen()) {
+    if (!menu.practice) return;
+    nativeMenuPaint_Begin(nullptr);
+    if (gmTraining_LocalMenuOpen()) {
+        nativeMenuSkin_Button("Z  Practice opponent", 11, 439, 154, 24, 10, false, true);
+        nativeMenuPaint_End();
         return;
     }
-    nativeMenuPaint_Begin(nullptr);
     draw();
     if (nativePlayMenu_PointerActive()) {
         nativeHubHand_Draw(menu.pointer_x, menu.pointer_y, false, nullptr);
@@ -458,8 +465,13 @@ extern "C" bool nativePlayMenu_Hand(float x, float y, uint32_t trigger)
 extern "C" bool nativePlayMenu_Pointer(float u, float v,
                                        NativeCssPointerEvent event)
 {
-    if (!menu.practice || gmTraining_LocalMenuOpen()) {
-        return false;
+    if (!menu.practice) return false;
+    if (gmTraining_LocalMenuOpen()) {
+        const bool hovered = u * 640 >= 11 && u * 640 < 165 &&
+                             v * 480 >= 439 && v * 480 < 463;
+        if (hovered && event == NativeCssPointer_Press)
+            nativeHub_Open(NativeHubPage_PracticeOpponent);
+        return hovered;
     }
     menu.pointer_x = u * 640;
     menu.pointer_y = v * 480;
@@ -487,6 +499,7 @@ extern "C" bool nativePlayMenu_Inspect(const char* id)
 {
     if (!std::strcmp(id,"practice-state")) {
         std::fprintf(stderr,"[practice-state] practice=%u ready=%u paused=%d quick-port=%d buttons=%u hud=%u training=%u row=%u status=%s\n",menu.practice,nativeHome_IsReady(),gm_GetDbPauseFlag(1),nativeHome_QuickSinglesPort(),menu.count,gmVs_GetController_0()->hud_enabled,gmTraining_LocalMenuOpen(),gm_80473814.x00,menu.status);
+        if (nativeHome_IsPractice()) nativePractice_InspectOpponent();
         nativeCssChat_Inspect(); return true;
     }
 

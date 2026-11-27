@@ -94,7 +94,8 @@ enum class HubAction {
     RuleLobbyPasswordSave, FieldLobbyPassword,
     CostumePort, CostumePage, CostumeDefault, CostumeChoose, CostumeImport,
     PackageTab, PackagePage, PackageRefresh, PackageEdit, PackageSend, PackageRecipient, PackageRecipientPage, PackageConfirm,
-    News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink
+    News, NewsHistory, NewsLatest, NewsOlder, NewsArticle, NewsScroll, NewsRefresh, NewsScrollTrack, NewsLink,
+    PracticeOpponent, PracticeOpponentPage
 };
 struct HubRegion {
     float x, y, w, h;
@@ -129,6 +130,7 @@ struct HubState {
     int selected = -1, first_fighter = 0, template_kind = 0, local_players = 1,
         chat_scroll = 0, people_scroll = 0, recipient_scroll = 0,
         room_chat_scroll = 0, room_people_scroll = 0;
+    int first_practice_opponent = 0;
     bool visible, initialized, fonts, selection_before, dismissed, pressed;
     bool returning_from_tool, rename, select_all, send_from_css,
         profile_self = true;

@@ -107,7 +107,7 @@ void nativeShellWorkshopEditor_Actions(const char* method, yyjson_val* args,
 }
 
 namespace WorkshopEditor {
-    void create_action_event(const char* kind)
+    void create_action_event(const char* kind, const char* function)
     {
         if (!session->project || session->selected_action < 0) {
             return;
@@ -126,6 +126,11 @@ namespace WorkshopEditor {
         yyjson_mut_obj_add_strcpy(doc, args, "kind", kind);
         yyjson_mut_obj_add_strcpy(doc, args, "summary",
                                   (std::string("Add ") + kind).c_str());
+        if (function) {
+            auto* props = yyjson_mut_obj(doc);
+            yyjson_mut_obj_add_strcpy(doc, props, "function", function);
+            yyjson_mut_obj_add_val(doc, args, "properties", props);
+        }
         auto* input = yyjson_mut_doc_imut_copy(doc, nullptr);
         NativeAuthoring::Reply reply(doc);
         if (input) {

@@ -35,6 +35,9 @@ psGenerateParticle0(HSD_Particle** head, int linkNo, int bank, u32 kind,
 /* 39CEAC */ void hsd_8039CEAC(u32);
 /* 39CF4C */ void hsd_8039CF4C(s32, HSD_JObj*);
 /* 39D048 */ void hsd_8039D048(void* particle);
+#ifdef MELEE_NATIVE
+void psClearLinks(u32 links);
+#endif
 /* 4D0B50 */ extern HSD_PSTexGroup** psTexGroupArray[65];
 /* 4D0C54 */ extern HSD_PSFormGroup** psNumCmdList[65];
 /* 4D0D58 */ extern int psCmdListArray[65];

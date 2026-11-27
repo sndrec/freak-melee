@@ -84,6 +84,7 @@
         <div id="workshop-context-action">Select an action</div><span>/</span>
         <div id="workshop-context-phase">Main</div><span>/</span>
         <div id="workshop-context-clip"></div>
+        <button id="workshop-jump-script">Action script ↗</button>
         <button id="workshop-context-animation">Edit animation ↗</button>
       </div>
       <aside id="workshop-library" class="workshop-rail">
@@ -113,7 +114,6 @@
             <div class="workshop-divider"></div>
             <div class="eyebrow">ACTION RESOURCES</div>
             <button id="workshop-jump-animation" class="workshop-resource-link" title="Open this action's animation in the Animation workspace"><span>Animation</span><span>Open</span></button>
-            <button id="workshop-jump-script" class="workshop-resource-link" title="Open the fighter's special-move script in the Scripting workspace"><span>Behavior script</span><span>Open</span></button>
           </div>
         </div>
         <div id="workshop-animation-browser"><div class="eyebrow">CLIPS</div>
@@ -164,6 +164,15 @@
           <div class="workshop-inspector-row"><label for="workshop-sound-channel" class="field-label">Channel</label><input id="workshop-sound-channel" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-volume" class="field-label">Volume</label><input id="workshop-sound-volume" class="room-input" type="text" /></div>
           <div class="workshop-inspector-row"><label for="workshop-sound-pan" class="field-label">Panning</label><input id="workshop-sound-pan" class="room-input" type="text" /></div>
+          <div class="workshop-inspector-row"><button id="workshop-browse-sounds">Browse sounds</button><button id="workshop-play-sound">Play sound</button></div>
+          <div id="workshop-bank-picker" style="display:none">
+            <input id="workshop-bank-search" class="room-input" type="text" placeholder="Filter by bank or ID" />
+            <div id="workshop-bank-results" />
+            <div class="workshop-inspector-row"><button id="workshop-bank-prev">Previous</button><button id="workshop-bank-next">Next</button></div>
+          </div>
+        </div>
+        <div id="workshop-execute-script-fields" style="display:none">
+          <div class="workshop-inspector-row"><label for="workshop-execute-function" class="field-label">Function</label><select id="workshop-execute-function" class="room-input" /></div>
         </div>
         <div id="workshop-effect-fields">
           <div class="workshop-divider"></div><div class="eyebrow">VISUAL EFFECT</div>
@@ -391,8 +400,10 @@
           <button id="workshop-frame-next" title="Next frame">›</button>
           <input id="workshop-current-frame" type="text" value="0" />
           <span id="workshop-frame-total">/ 0</span>
-          <button id="workshop-add-event" title="Add an event after the selected command">+ Add event</button>
-          <div id="workshop-add-event-menu"></div>
+          <div id="workshop-add-event-anchor">
+            <button id="workshop-add-event" title="Add an event to this action">+ Add event</button>
+            <div id="workshop-add-event-menu"></div>
+          </div>
         </div>
         <div id="workshop-event-timeline">
           <div id="workshop-event-timeline-labels"></div>

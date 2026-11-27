@@ -1698,6 +1698,15 @@ static bool fn_80026E58(int arg0)
     return false;
 }
 
+#ifdef MELEE_NATIVE
+const char* nativeAudio_LoadedSoundBank(unsigned bank, int* first, int* last)
+{
+    if (bank >= 55 || !fn_80026E58(bank)) return NULL;
+    lbAudioAx_800230C8(bank, first, last);
+    return ssm_files[bank];
+}
+#endif
+
 u64 lbAudioAx_80026E84(CharacterKind ckind)
 {
     if (ckind >= ChKind_CustomFirst && ckind < ChKind_RuntimeCapacity) {

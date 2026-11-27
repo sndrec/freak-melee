@@ -13,10 +13,19 @@
 #include <melee/pl/player.h>
 #include <melee/pl/plstale.h>
 #include <sysdolphin/baselib/debug.h>
+#include <stdio.h>
+
+void nativePractice_InspectOpponent(void)
+{
+    const int slot = NATIVE_PRACTICE_OPPONENT_SLOT;
+    fprintf(stderr, "[practice-opponent] spawned=%u character=%u damage=%d cpu=%d\n",
+        Player_GetEntity(slot) != NULL, (unsigned) Player_GetPlayerCharacter(slot),
+        Player_GetDamage(slot), Player_GetCpuType(slot));
+}
 
 static void reset_escaped_sandbag(void)
 {
-    Fighter_GObj* gobj = Player_GetEntity(NATIVE_PRACTICE_SANDBAG_SLOT);
+    Fighter_GObj* gobj = Player_GetEntity(NATIVE_PRACTICE_OPPONENT_SLOT);
     if (gobj == NULL) {
         return;
     }
@@ -39,17 +48,19 @@ static void reset_escaped_sandbag(void)
     spawn.y += 20;
     // Player coordinates are updated during play, not an immutable spawn.
     // Respawn above the center and let ordinary collision land the dummy.
-    Player_80032768(NATIVE_PRACTICE_SANDBAG_SLOT, &spawn);
-    Player_SetHUDDamage(NATIVE_PRACTICE_SANDBAG_SLOT, 0);
-    plStale_ResetStaleMoveTableForPlayer(NATIVE_PRACTICE_SANDBAG_SLOT);
+    Player_80032768(NATIVE_PRACTICE_OPPONENT_SLOT, &spawn);
+    Player_SetHUDDamage(NATIVE_PRACTICE_OPPONENT_SLOT, 0);
+    plStale_ResetStaleMoveTableForPlayer(NATIVE_PRACTICE_OPPONENT_SLOT);
     if (!Fighter_UnkProcessDeath_80068354(gobj)) return;
     ftCo_Fall_Enter(gobj);
     OSReport("[practice] Sandbag reset at center floor.\n");
 }
 
-void nativePractice_Configure(StartMeleeData* start, int editor_port, unsigned stage)
+void nativePractice_Configure(StartMeleeData* start, int editor_port,
+                              unsigned stage, unsigned opponent)
 {
     const bool editing = editor_port >= 0 && editor_port < 4;
+    const bool sandbag = opponent == ChKind_Sandbag;
     grPractice_SetEditorPreview(editing);
     // Practice has no winner or time limit. Normal time-match rebirth keeps
     // local fighters available after a KO without consuming their stocks.
@@ -63,7 +74,7 @@ void nativePractice_Configure(StartMeleeData* start, int editor_port, unsigned s
     start->rules.disable_pausing = false;
     start->rules.is_teams = false;
     start->rules.x0_3 = 4; // Only the four local players have a versus HUD.
-    start->rules.on_frame_end = reset_escaped_sandbag;
+    start->rules.on_frame_end = sandbag ? reset_escaped_sandbag : NULL;
 
     if (editing) {
         start->rules.on_frame_end = NULL;
@@ -76,15 +87,16 @@ void nativePractice_Configure(StartMeleeData* start, int editor_port, unsigned s
         return;
     }
 
-    PlayerInitData* sandbag = &start->players[NATIVE_PRACTICE_SANDBAG_SLOT];
-    gm_SetupPlayerDefaults(sandbag);
-    sandbag->ckind = ChKind_Sandbag;
-    sandbag->slot_type = Gm_PKind_Cpu;
-    sandbag->cpu_kind = 0xF; // Original Home-Run Contest dummy behavior.
-    sandbag->stocks = 1;
-    sandbag->slot = 1; // A valid controller/color index; this is still CPU-only.
-    sandbag->spawn_pos = 4; // Stage's center-floor search, not player one's spawn.
-    sandbag->xC_b1 = false; // No fighter entrance animation.
-    sandbag->xD_b3 = true;
+    PlayerInitData* cpu = &start->players[NATIVE_PRACTICE_OPPONENT_SLOT];
+    gm_SetupPlayerDefaults(cpu);
+    cpu->ckind = opponent;
+    cpu->slot_type = Gm_PKind_Cpu;
+    if (sandbag) cpu->cpu_kind = 0xF; // Home-Run Contest dummy behavior.
+    cpu->cpu_level = sandbag ? 0 : 3;
+    cpu->stocks = 1;
+    cpu->slot = 1; // Valid controller and color index for the CPU.
+    cpu->spawn_pos = 4;
+    cpu->xC_b1 = false;
+    cpu->xD_b3 = true;
     gm_SetupPlayerDefaults(&start->players[5]);
 }
