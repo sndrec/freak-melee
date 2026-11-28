@@ -127,6 +127,8 @@ void HSD_MObjAnim(HSD_MObj*m){(void)m;abort();}
   native_paths[relative]=native_paths.get(relative,[])+functions
   previous=subprocess.run(['git','show','95d8528b3:'+relative],cwd=ROOT,capture_output=True,text=True,check=True,creationflags=subprocess.CREATE_NO_WINDOW).stdout
   jump_reference.extend(body(previous,fn) for fn in functions)
+ native_paths['src/melee/ft/kinds/ftCommon/ftCo_KneeBend.c'][:0]=['check_short_hop']
+ native_paths['src/melee/ft/kinds/ftCommon/ftCo_KneeBend.c'].append('ftCo_KneeBend_CheckShortHopAtTakeoff')
  jump_reference='\n'.join(jump_reference)
  for fn in sorted([f for fs in jump_paths.values() for f in fs],key=len,reverse=True):
   jump_reference=re.sub(r'\b'+re.escape(fn)+r'\b','reference_'+fn,jump_reference)

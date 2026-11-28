@@ -19,7 +19,9 @@ typedef struct NativeActionBuffer {
     HSD_Pad pressed;
     HSD_Pad held;
     float trigger;
-    float live_stick_x;
+    Vec2 live_lstick;
+    float live_cstick_y;
+    HSD_Pad live_held;
     bool cstick_command;
     bool checking;
 } NativeActionBuffer;

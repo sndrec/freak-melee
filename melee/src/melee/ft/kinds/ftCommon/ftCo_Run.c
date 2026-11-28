@@ -24,7 +24,7 @@ bool fn_800CA5F0(Fighter_GObj* gobj)
     Fighter* fp = GET_FIGHTER(gobj);
     // Continuing a dash into a run requires the player to keep holding forward.
     const float stick_x = fp->action_buffer.checking
-        ? fp->action_buffer.live_stick_x
+        ? fp->action_buffer.live_lstick.x
         : fp->input.lstick[0].x;
 
     if (stick_x * fp->facing_dir >=

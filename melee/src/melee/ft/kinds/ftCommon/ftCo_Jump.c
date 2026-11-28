@@ -105,6 +105,7 @@ void ftCo_800CB110(Fighter_GObj* gobj, bool arg1, f32 jump_mul)
     Fighter* fp = GET_FIGHTER(gobj);
     ftCo_DatAttrs* co_attrs;
 
+    ftCo_KneeBend_CheckShortHopAtTakeoff(fp);
     fp->mv.co.jump.x4 = false;
     co_attrs = &fp->co_attrs;
     fp->mv.co.jump.jump_mul = jump_mul;

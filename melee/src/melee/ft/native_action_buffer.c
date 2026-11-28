@@ -142,7 +142,9 @@ bool nativeActionBuffer_Begin(Fighter* fp, NativeActionInput* live,
         fp->x688 = offered->special_side;
         fp->x689 = offered->special_neutral;
     }
-    pending->live_stick_x = live->lstick.x;
+    pending->live_lstick = live->lstick;
+    pending->live_cstick_y = live->cstick.y;
+    pending->live_held = live->held;
     pending->checking = true;
     return true;
 }
@@ -184,5 +186,7 @@ void nativeActionBuffer_End(Fighter* fp, const NativeActionInput* live,
     if (fp->x689 == offered->special_neutral)
         fp->x689 = live->special_neutral;
     fp->action_buffer.checking = false;
-    fp->action_buffer.live_stick_x = 0.0f;
+    fp->action_buffer.live_lstick = (Vec2){ 0 };
+    fp->action_buffer.live_cstick_y = 0.0f;
+    fp->action_buffer.live_held = 0;
 }

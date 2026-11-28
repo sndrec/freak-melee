@@ -8,6 +8,7 @@
                                       ftCo_JumpInput jump_input);
 /* 0CB528 */ void ftCo_KneeBend_Anim(Fighter_GObj* gobj);
 /* 0CB59C */ void ftCo_KneeBend_Check_ShortHop(Fighter_GObj* gobj);
+void ftCo_KneeBend_CheckShortHopAtTakeoff(Fighter* fp);
 /* 0CB5FC */ void ftCo_KneeBend_IASA(Fighter_GObj* gobj);
 /* 0CB6AC */ void ftCo_KneeBend_Phys(Fighter_GObj* gobj);
 /* 0CB6CC */ void ftCo_KneeBend_Coll(Fighter_GObj* gobj);

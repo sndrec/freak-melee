@@ -241,8 +241,8 @@ variable, chooses its startup motion and calls `jump.check_short_hop()` at
 the appropriate interrupt phase. That operation observes common release
 timing and the profile's short-hop binding.
 
-`jump.launch(play_sound, multiplier)` launches through common jump physics;
-the script must first select its airborne motion and switch to air.
+`jump.launch(play_sound, multiplier)` applies the jump velocity after a final
+controller release check. Select the airborne motion and switch to air first.
 `physics.jump_motion()` then runs common jump movement, preserving its
 first-frame gravity behavior. These methods do not choose a startup duration,
 carrying motion, landing delay or victim animation.

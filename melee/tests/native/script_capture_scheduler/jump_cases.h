@@ -39,6 +39,8 @@ static void jump_launch_cases(void)
     FtSFX sound={.x10=0x456};FtSFX* previous=capture_package.assets.character.data.x4C_sfx;
     capture_package.assets.character.data.x4C_sfx=&sound;HSD_GObj worn={0};
     p_ftCommonData->x438=0.75f;
+    // Keep the tap-jump input held through takeoff for this stock-physics comparison.
+    HSD_PadGameStatus[0].nml_stickY=1.0f;
     for(unsigned m=0;m<5;++m)for(unsigned s=0;s<5;++s)for(unsigned v=0;v<5;++v)
         for(unsigned hop=0;hop<2;++hop)for(unsigned audible=0;audible<2;++audible)for(unsigned item=0;item<2;++item){
             reset();jump_case=true;Fighter_GObj* actor=create(true);Fighter* fp=actor->user_data;
@@ -58,6 +60,7 @@ static void jump_launch_cases(void)
             HSD_GObjFree(actor);++cases;
         }
     capture_package.assets.character.data.x4C_sfx=previous;
+    HSD_PadGameStatus[0].nml_stickY=0.0f;
 }
 
 static void jump_physics_cases(void)

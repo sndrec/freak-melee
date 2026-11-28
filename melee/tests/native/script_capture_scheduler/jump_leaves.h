@@ -1,10 +1,18 @@
 #include <melee/ft/native_script_binding_jump.h>
+#include <melee/db/db.h>
+#include <melee/ft/kinds/ftCommon/ftCo_0A01.h>
 #include <melee/ft/kinds/ftCommon/ftCo_KneeBend.h>
 #include <melee/ft/kinds/ftCommon/ftCo_JumpAerial.h>
 #include <melee/ft/ft_081B.h>
 #include <melee/ft/ft_0C8C.h>
 #include <melee/ft/ftwalljump.h>
+#include <melee/gm/gmvs.h>
+#include <melee/gm/native_profile_input.h>
 struct Fighter_804D6524_t* Fighter_804D6524;
+HSD_PadStatus HSD_PadGameStatus[4];
+bool ftCo_800A2040(Fighter* fp) { (void) fp; return false; }
+bool gm_8016B0FC(void) { return false; }
+bool gm_IsCurrently1PMode_inline(void) { return false; }
 float ftCo_800D0EC8(Fighter* fp){(void)fp;abort();}
 static bool jump_case;
 static bool multi_jump_case;
