@@ -57,7 +57,7 @@ static struct NativeQuickSession {
     uint64_t unready_revision, unready_epoch;
 } quick;
 
-static const char online_build[] = "freak-melee-native-dev-stage-cursor";
+static const char online_build[] = "freak-melee-native-short-hop";
 const char* nativeOnlineSession_Build(void) { return online_build; }
 const NativeLobbyListing* nativeOnlineSession_Listing(void) {
     return online.active ? &online.lobby.room.connection.listing : NULL;
